@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Turni di Casa · Via Risorgimento</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --brown:      #2e1a0e;
+      --brown-mid:  #4a2c1a;
+      --brown-soft: #7a5540;
+      --cream:      #f5efe6;
+      --cream-2:    #ede4d8;
+      --card:       #ffffff;
+      --text:       #1c1009;
+      --text-2:     #6b4f3a;
+      --border:     #e0d4c4;
+      --red:        #b83232;
+      --red-pale:   #fceaea;
+      --r:          16px;
+      --r-sm:       10px;
+      --r-pill:     999px;
+
+      /* Chore accent colors */
+      --c-cucina:     #c97b4b;
+      --c-bagno1:     #5a9e8a;
+      --c-bagno2:     #6a96c4;
+      --c-corridoio:  #c9a84c;
+      --c-spazzatura: #8c9e8a;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+      background: var(--cream);
+      color: var(--text);
+      min-height: 100vh;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    /* ─── Header ─────────────────────────────── */
+    header {
+      background: linear-gradient(160deg, #2e1a0e 0%, #3d2314 60%, #2a180c 100%);
+      padding: 18px 20px 14px;
+      box-shadow: 0 2px 16px rgba(0,0,0,.3);
+    }
+    .header-top {
+      display: flex; align-items: flex-start; justify-content: space-between;
+    }
+    .header-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.65rem; color: #fff; line-height: 1.1; letter-spacing: -.01em;
+    }
+    .header-title span { font-size: 1.4rem; margin-right: 6px; }
+    .header-date {
+      font-size: .72rem; color: rgba(255,255,255,.5);
+      margin-top: 4px; letter-spacing: .03em;
+    }
+    .header-btns { display: flex; gap: 8px; margin-top: 2px; }
+    .icon-btn {
+      width: 34px; height: 34px; border-radius: 50%; border: none;
+      background: rgba(255,255,255,.1); color: rgba(255,255,255,.8);
+      font-size: .95rem; cursor: pointer; display: flex; align-items: center;
+      justify-content: center; transition: background .15s;
+    }
+    .icon-btn:hover { background: rgba(255,255,255,.2); }
+
+    /* ─── Week navigator ─────────────────────── */
+    .week-nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px 0;
+    }
+    .nav-arrow {
+      width: 40px; height: 40px; border-radius: 50%; border: none;
+      background: var(--brown); color: #fff; font-size: 1.3rem;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,.2); transition: all .15s;
+      flex-shrink: 0;
+    }
+    .nav-arrow:hover { background: var(--brown-mid); transform: scale(1.06); }
+    .nav-arrow:disabled { background: var(--border); color: var(--text-2); box-shadow: none; cursor: default; transform: none; }
+    .week-label-wrap { text-align: center; flex: 1; padding: 0 10px; }
+    .week-label { font-size: .95rem; font-weight: 800; color: var(--text); }
+    .week-status {
+      display: inline-block; margin-top: 4px;
+      font-size: .65rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .07em; padding: 2px 10px; border-radius: var(--r-pill);
+    }
+    .week-status.current  { background: #d4ece5; color: #1f6b52; }
+    .week-status.past     { background: var(--cream-2); color: var(--text-2); }
+    .week-status.future   { background: #f5e8cf; color: #7a5010; }
+
+    /* ─── Week action row ────────────────────── */
+    .week-actions {
+      display: flex; gap: 8px; padding: 14px 20px 0;
+    }
+    .btn-this-week {
+      flex: 1; padding: 10px; border: none; border-radius: var(--r-pill);
+      background: var(--brown); color: #fff; font-family: inherit;
+      font-size: .8rem; font-weight: 700; cursor: pointer; transition: all .15s;
+      box-shadow: 0 2px 8px rgba(46,26,14,.3);
+    }
+    .btn-this-week:hover { background: var(--brown-mid); }
+
+    .btn-add-week {
+      flex: 1; padding: 10px; border: 1.5px solid var(--border);
+      border-radius: var(--r-pill); background: var(--card); color: var(--text-2);
+      font-family: inherit; font-size: .8rem; font-weight: 700;
+      cursor: pointer; transition: all .15s;
+    }
+    .btn-add-week:hover { background: var(--cream-2); border-color: var(--brown-soft); }
+
+    /* ─── Chore cards ────────────────────────── */
+    .cards-wrap { padding: 16px 16px 0; display: flex; flex-direction: column; gap: 10px; }
+
+    .chore-card {
+      background: var(--card); border-radius: var(--r);
+      border: 1px solid var(--border);
+      box-shadow: 0 1px 3px rgba(0,0,0,.05), 0 4px 12px rgba(0,0,0,.06);
+      display: flex; align-items: stretch;
+      overflow: hidden; transition: box-shadow .18s, transform .18s;
+    }
+    .chore-card:hover {
+      box-shadow: 0 2px 6px rgba(0,0,0,.07), 0 8px 24px rgba(0,0,0,.09);
+      transform: translateY(-1px);
+    }
+    .chore-card.done { background: #f9fdf9; }
+    .chore-card.absent { opacity: .45; }
+
+    .card-accent {
+      width: 5px; flex-shrink: 0;
+      background: var(--accent, #ccc);
+    }
+
+    .card-inner {
+      flex: 1; padding: 14px 16px 14px 14px;
+      display: flex; align-items: center; gap: 12px;
+    }
+
+    .card-icon {
+      font-size: 1.7rem; flex-shrink: 0; line-height: 1;
+      filter: drop-shadow(0 1px 2px rgba(0,0,0,.12));
+    }
+
+    .card-info { flex: 1; min-width: 0; }
+    .card-chore {
+      font-size: 1.05rem; font-weight: 800; color: var(--text);
+      line-height: 1.2;
+    }
+    .chore-card.done .card-chore { text-decoration: line-through; color: #a0b4a8; }
+    .card-person { font-size: .82rem; color: var(--text-2); margin-top: 3px; }
+    .card-person strong { color: var(--text); font-weight: 700; }
+
+    .absent-tag {
+      display: inline-block; font-size: .62rem; font-weight: 700;
+      letter-spacing: .04em; background: var(--cream-2); color: var(--brown-soft);
+      padding: 2px 7px; border-radius: var(--r-pill); margin-left: 4px;
+      vertical-align: middle;
+    }
+
+    .done-btn {
+      display: flex; align-items: center; gap: 6px; margin-top: 9px;
+      background: none; border: 1.5px solid var(--border); border-radius: var(--r-pill);
+      padding: 6px 14px; font-family: inherit; font-size: .78rem; font-weight: 600;
+      color: var(--text-2); cursor: pointer; transition: all .15s; width: fit-content;
+    }
+    .done-btn:hover { border-color: var(--accent, #5a9e8a); color: var(--accent, #5a9e8a); background: rgba(0,0,0,.02); }
+    .done-btn.checked {
+      background: var(--accent, #5a9e8a); border-color: var(--accent, #5a9e8a);
+      color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.15);
+    }
+    .done-dot {
+      width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid currentColor;
+      flex-shrink: 0; transition: all .15s;
+    }
+    .done-btn.checked .done-dot { background: #fff; border-color: #fff; }
+
+    /* ─── Empty / loading state ──────────────── */
+    .state-box {
+      margin: 24px 16px 0; background: var(--card); border-radius: var(--r);
+      border: 1px solid var(--border); padding: 40px 20px; text-align: center;
+      color: var(--text-2);
+    }
+    .state-box .ico { font-size: 2.6rem; margin-bottom: 12px; }
+    .state-box p { font-size: .88rem; margin-bottom: 16px; line-height: 1.5; }
+    .btn-setup {
+      background: var(--brown); color: #fff; border: none;
+      border-radius: var(--r-pill); padding: 10px 24px;
+      font-family: inherit; font-size: .85rem; font-weight: 700;
+      cursor: pointer; box-shadow: 0 2px 8px rgba(46,26,14,.3);
+      transition: all .15s;
+    }
+    .btn-setup:hover { background: var(--brown-mid); }
+
+    /* ─── Absences panel ─────────────────────── */
+    .panel {
+      margin: 16px 16px 0; background: var(--card); border-radius: var(--r);
+      border: 1px solid var(--border);
+      box-shadow: 0 1px 3px rgba(0,0,0,.04);
+    }
+    .panel-head {
+      padding: 14px 16px; display: flex; align-items: center;
+      justify-content: space-between; cursor: pointer; user-select: none;
+      transition: background .12s; border-radius: var(--r);
+    }
+    .panel-head:hover { background: #faf7f3; }
+    .panel-head.open { border-bottom: 1px solid var(--border); border-radius: var(--r) var(--r) 0 0; }
+    .panel-title { font-size: .88rem; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 8px; }
+    .panel-chevron {
+      width: 24px; height: 24px; background: var(--cream);
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-size: .62rem; color: var(--text-2); transition: transform .2s;
+    }
+    .panel-head.open .panel-chevron { transform: rotate(180deg); }
+    .panel-body { display: none; padding: 16px; }
+    .panel-body.open { display: block; }
+
+    .field-label { display: block; font-size: .7rem; font-weight: 700; color: var(--text-2); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .05em; }
+    .form-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
+    select, input[type="date"] {
+      border: 1.5px solid var(--border); border-radius: var(--r-sm);
+      padding: 8px 11px; font-size: .84rem; font-family: inherit;
+      background: var(--cream); color: var(--text); outline: none;
+      height: 38px; transition: border-color .15s;
+    }
+    select:focus, input[type="date"]:focus { border-color: var(--brown); }
+    .btn-add-absence {
+      height: 38px; padding: 0 16px; background: var(--brown); color: #fff;
+      border: none; border-radius: var(--r-sm); font-family: inherit;
+      font-size: .8rem; font-weight: 700; cursor: pointer; transition: background .15s;
+    }
+    .btn-add-absence:hover { background: var(--brown-mid); }
+
+    .absence-list { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+    .absence-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 9px 12px; background: var(--cream); border-radius: var(--r-sm);
+      font-size: .83rem; border: 1px solid var(--border);
+    }
+    .rm-btn {
+      background: none; border: none; cursor: pointer; color: var(--text-2);
+      font-size: .9rem; padding: 3px 7px; border-radius: 6px; transition: all .12s;
+    }
+    .rm-btn:hover { color: var(--red); background: var(--red-pale); }
+
+    /* ─── Bottom spacer ──────────────────────── */
+    .bottom-space { height: 48px; }
+
+    /* ─── Modal ──────────────────────────────── */
+    .overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(10,5,2,.6); backdrop-filter: blur(5px);
+      z-index: 200; align-items: flex-end; justify-content: center; padding: 0;
+    }
+    .overlay.open { display: flex; }
+    .modal {
+      background: var(--card); border-radius: 24px 24px 0 0;
+      width: 100%; max-width: 480px; padding: 28px 24px 36px;
+      box-shadow: 0 -8px 40px rgba(0,0,0,.2);
+      animation: slideUp .3s cubic-bezier(.34,1.56,.64,1);
+    }
+    @keyframes slideUp { from { transform: translateY(60px); opacity: 0; } }
+    .modal-handle { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 20px; }
+    .modal h2 { font-size: 1.05rem; font-weight: 800; margin-bottom: 6px; }
+    .modal .desc { font-size: .83rem; color: var(--text-2); line-height: 1.6; margin-bottom: 18px; }
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: .7rem; font-weight: 700; color: var(--text-2); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .05em; }
+    .field input {
+      width: 100%; border: 1.5px solid var(--border); border-radius: var(--r-sm);
+      padding: 12px 14px; font-size: .9rem; font-family: inherit;
+      color: var(--text); background: var(--cream); outline: none; transition: border-color .15s;
+    }
+    .field input:focus { border-color: var(--brown); }
+    .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+    .modal-actions button { flex: 1; padding: 13px; border-radius: var(--r-pill); font-family: inherit; font-size: .85rem; font-weight: 700; cursor: pointer; border: none; transition: all .15s; }
+    .btn-save { background: var(--brown); color: #fff; box-shadow: 0 3px 10px rgba(46,26,14,.3); }
+    .btn-save:hover { background: var(--brown-mid); }
+    .btn-cancel { background: var(--cream-2); color: var(--text-2); }
+    .btn-cancel:hover { background: var(--border); }
+
+    .setup-msg { border-radius: var(--r-sm); padding: 10px 13px; font-size: .82rem; margin-top: 10px; display: none; font-weight: 600; }
+    .setup-msg.ok      { background: #d4ece5; color: #1f6b52; display: block; }
+    .setup-msg.err     { background: var(--red-pale); color: var(--red); display: block; }
+    .setup-msg.loading { background: #f5e8cf; color: #7a5010; display: block; }
+
+    .share-box {
+      background: #f0f8f4; border-radius: var(--r-sm); padding: 10px 14px;
+      font-size: .8rem; margin-top: 14px; display: flex; align-items: center;
+      justify-content: space-between; gap: 10px; word-break: break-all;
+      border: 1px solid #c8e8d8; color: #1f6b52; font-weight: 600;
+    }
+    .copy-btn { flex-shrink: 0; padding: 5px 12px; border: none; border-radius: 6px; background: #1f6b52; color: #fff; font-family: inherit; font-size: .74rem; font-weight: 700; cursor: pointer; }
+
+    /* ─── Toast ──────────────────────────────── */
+    #toast {
+      position: fixed; bottom: 24px; left: 50%;
+      transform: translateX(-50%) translateY(80px) scale(.95);
+      background: var(--brown); color: #fff;
+      padding: 11px 24px; border-radius: var(--r-pill);
+      font-size: .83rem; font-weight: 700; letter-spacing: .02em;
+      box-shadow: 0 6px 24px rgba(0,0,0,.22);
+      transition: transform .28s cubic-bezier(.34,1.4,.64,1);
+      pointer-events: none; z-index: 300;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0) scale(1); }
+    #toast.error   { background: var(--red); }
+    #toast.success { background: #1f6b52; }
+
+    /* ─── Spinner ────────────────────────────── */
+    .spin {
+      display: inline-block; width: 13px; height: 13px;
+      border: 2px solid currentColor; border-top-color: transparent;
+      border-radius: 50%; animation: spin .55s linear infinite; vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 380px) {
+      .header-title { font-size: 1.4rem; }
+      .week-actions { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ────────────────────────────────── -->
+<header>
+  <div class="header-top">
+    <div>
+      <div class="header-title"><span>🏠</span>Turni di Casa</div>
+      <div class="header-date" id="header-date"></div>
+    </div>
+    <div class="header-btns">
+      <button class="icon-btn" onclick="refreshData()" title="Aggiorna">↻</button>
+      <button class="icon-btn" onclick="openSetup()">⚙️</button>
+    </div>
+  </div>
+</header>
+
+<!-- ── Week navigator ─────────────────────────── -->
+<div class="week-nav">
+  <button class="nav-arrow" id="nav-prev" onclick="goToWeek(-1)">‹</button>
+  <div class="week-label-wrap">
+    <div class="week-label" id="week-label">—</div>
+    <div><span class="week-status" id="week-status"></span></div>
+  </div>
+  <button class="nav-arrow" id="nav-next" onclick="goToWeek(1)">›</button>
+</div>
+
+<!-- ── Week actions ───────────────────────────── -->
+<div class="week-actions">
+  <button class="btn-this-week" onclick="goToCurrentWeek()">Questa settimana</button>
+  <button class="btn-add-week" onclick="handleGenerateWeek()">＋ Prossima</button>
+</div>
+
+<!-- ── Chore cards ────────────────────────────── -->
+<div class="cards-wrap" id="chore-cards"></div>
+
+<!-- ── Absences panel ────────────────────────── -->
+<div class="panel" style="margin-bottom:0">
+  <div class="panel-head" id="panel-head" onclick="togglePanel()">
+    <span class="panel-title">🗓️ Assenze</span>
+    <div class="panel-chevron" id="panel-chevron">▼</div>
+  </div>
+  <div class="panel-body" id="panel-body">
+    <div style="margin-bottom:14px">
+      <div class="form-row">
+        <div>
+          <label class="field-label">Persona</label>
+          <select id="abs-person">
+            <option value="">Scegli…</option>
+            <option>Giada</option><option>Silvia</option><option>Giulia</option>
+            <option>Eliana</option><option>Marco</option>
+          </select>
+        </div>
+        <div>
+          <label class="field-label">Dal</label>
+          <input type="date" id="abs-from">
+        </div>
+        <div>
+          <label class="field-label">Al</label>
+          <input type="date" id="abs-to">
+        </div>
+        <div style="display:flex;align-items:flex-end">
+          <button class="btn-add-absence" onclick="addAbsence()">Aggiungi</button>
+        </div>
+      </div>
+    </div>
+    <div id="abs-list"></div>
+  </div>
+</div>
+
+<div class="bottom-space"></div>
+
+<!-- ── Toast ─────────────────────────────────── -->
+<div id="toast"></div>
+
+<!-- ── Setup modal ───────────────────────────── -->
+<div class="overlay" id="setup-overlay">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2>⚙️ Configurazione JSONBin</h2>
+    <p class="desc">
+      Crea un account gratuito su <strong>jsonbin.io</strong> e incolla la tua
+      <strong>Master Key</strong>. La prima persona crea il bin automaticamente —
+      gli altri inseriscono anche il Bin ID.
+    </p>
+    <div class="field">
+      <label>Master Key</label>
+      <input type="password" id="mk-input" placeholder="$2a$10$…" autocomplete="off">
+    </div>
+    <div class="field">
+      <label>Bin ID <span style="font-weight:400;color:#a08878">(vuoto = crea nuovo)</span></label>
+      <input type="text" id="bid-input" placeholder="686c1a2e…" autocomplete="off">
+    </div>
+    <div class="setup-msg" id="setup-msg"></div>
+    <div id="share-section" style="display:none">
+      <div style="font-size:.75rem;font-weight:700;color:var(--text-2);margin-top:14px;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Condividi con i coinquilini</div>
+      <div class="share-box">
+        <span id="share-bid"></span>
+        <button class="copy-btn" onclick="copyBinId()">Copia</button>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-save" onclick="saveSetup()">Salva e connetti</button>
+      <button class="btn-cancel" onclick="closeSetup()">Annulla</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Constants ──────────────────────────────────────────────────────────────
+const PEOPLE = ['Giada', 'Silvia', 'Giulia', 'Eliana', 'Marco'];
+const CHORES = ['Cucina', 'Bagno 1', 'Bagno 2', 'Corridoio', 'Spazzatura'];
+const BAGNO1 = ['Giada', 'Silvia', 'Eliana'];
+const BAGNO2 = ['Marco', 'Giulia'];
+
+const PERSON_COLORS = {
+  Giada: '#d4845a', Silvia: '#c45c8a', Giulia: '#7e6ec4',
+  Eliana: '#4a9eb0', Marco: '#5aab6e'
+};
+const ICONS = {
+  'Cucina': '🍳', 'Bagno 1': '🚿', 'Bagno 2': '🛁',
+  'Corridoio': '🧹', 'Spazzatura': '🗑️'
+};
+const CHORE_COLORS = {
+  'Cucina':     '#c97b4b',
+  'Bagno 1':    '#5a9e8a',
+  'Bagno 2':    '#6a96c4',
+  'Corridoio':  '#c9a84c',
+  'Spazzatura': '#8c9e8a'
+};
+const MONTHS = ['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
+const DAYS   = ['domenica','lunedì','martedì','mercoledì','giovedì','venerdì','sabato'];
+
+const WEEKS_AHEAD = 4;
+
+// ── Initial seed data ──────────────────────────────────────────────────────
+const SEED = {
+  weeks: [
+    {
+      id: '2026-06-01', start: '2026-06-01', end: '2026-06-07',
+      assignments: { Eliana:'Cucina', Silvia:'Bagno 1', Marco:'Bagno 2', Giada:'Corridoio', Giulia:'Spazzatura' },
+      done: { Eliana:false, Silvia:false, Marco:false, Giada:false, Giulia:false }
+    },
+    {
+      id: '2026-06-08', start: '2026-06-08', end: '2026-06-14',
+      assignments: { Marco:'Cucina', Giada:'Bagno 1', Giulia:'Bagno 2', Eliana:'Corridoio', Silvia:'Spazzatura' },
+      done: { Marco:false, Giada:false, Giulia:false, Eliana:false, Silvia:false }
+    },
+    {
+      id: '2026-06-15', start: '2026-06-15', end: '2026-06-21',
+      assignments: { Silvia:'Cucina', Eliana:'Bagno 1', Marco:'Bagno 2', Giada:'Corridoio', Giulia:'Spazzatura' },
+      done: { Silvia:false, Eliana:false, Marco:false, Giada:false, Giulia:false }
+    }
+  ],
+  absences: []
+};
+
+// ── State ──────────────────────────────────────────────────────────────────
+let cfg = {
+  mk: localStorage.getItem('jb_mk') || '',
+  id: localStorage.getItem('jb_id') || ''
+};
+let data = null;
+let currentWeekIdx = null;
+
+// ── API ────────────────────────────────────────────────────────────────────
+const BIN_URL = id => `https://api.jsonbin.io/v3/b/${id}`;
+
+async function apiFetch(path, opts = {}) {
+  opts.headers = { ...(opts.headers || {}), 'X-Master-Key': cfg.mk };
+  const res = await fetch(path, opts);
+  if (!res.ok) { const t = await res.text().catch(() => res.statusText); throw new Error(`HTTP ${res.status}: ${t}`); }
+  return res.json();
+}
+const loadBin  = ()      => apiFetch(BIN_URL(cfg.id) + '?meta=false');
+const saveBin  = d       => apiFetch(BIN_URL(cfg.id), { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(d) });
+const createBin = d      => apiFetch('https://api.jsonbin.io/v3/b', { method:'POST', headers:{'Content-Type':'application/json','X-Bin-Name':'turni-casa','X-Bin-Private':'false'}, body:JSON.stringify(d) });
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+const today   = ()    => new Date().toISOString().split('T')[0];
+const isCurW  = w     => today() >= w.start && today() <= w.end;
+const isPastW = w     => w.end   < today();
+const isFutW  = w     => w.start > today();
+const fmt     = s     => { const [,m,d] = s.split('-'); return `${+d} ${MONTHS[+m-1]}`; };
+
+function addDays(s, n) {
+  const d = new Date(s + 'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().split('T')[0];
+}
+function sortedWeeks() {
+  return [...(data?.weeks || [])].sort((a,b) => a.start.localeCompare(b.start));
+}
+function findCurrentIdx(arr) {
+  const t = today();
+  let i = arr.findIndex(w => t >= w.start && t <= w.end);
+  if (i < 0) i = arr.findIndex(w => w.start > t);
+  return Math.max(0, i < 0 ? arr.length - 1 : i);
+}
+function isAbsent(person, ws, we) {
+  return (data?.absences || []).some(a => a.person === person && a.from <= we && a.to >= ws);
+}
+
+// ── Toast ──────────────────────────────────────────────────────────────────
+let _tt;
+function toast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.className = `show ${type}`;
+  clearTimeout(_tt); _tt = setTimeout(() => el.className = '', 2800);
+}
+
+// ── Navigation ─────────────────────────────────────────────────────────────
+function goToWeek(delta) {
+  const arr = sortedWeeks();
+  currentWeekIdx = Math.max(0, Math.min(arr.length - 1, currentWeekIdx + delta));
+  renderWeeks();
+}
+function goToCurrentWeek() {
+  currentWeekIdx = findCurrentIdx(sortedWeeks());
+  renderWeeks();
+}
+
+// ── Render ─────────────────────────────────────────────────────────────────
+function render() {
+  // Header date
+  const now = new Date();
+  document.getElementById('header-date').textContent =
+    `${DAYS[now.getDay()]}, ${now.getDate()} ${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
+
+  if (!data) {
+    document.getElementById('chore-cards').innerHTML = `
+      <div class="state-box">
+        <div class="ico">🔑</div>
+        <p>Configura le credenziali JSONBin per vedere i turni</p>
+        <button class="btn-setup" onclick="openSetup()">Configura ora</button>
+      </div>`;
+    document.getElementById('week-label').textContent = '—';
+    document.getElementById('week-status').textContent = '';
+    return;
+  }
+
+  renderAbsences();
+  renderWeeks();
+}
+
+function renderWeeks() {
+  const arr = sortedWeeks();
+  if (!arr.length) {
+    document.getElementById('chore-cards').innerHTML = `
+      <div class="state-box">
+        <div class="ico">📋</div>
+        <p>Nessuna settimana. Clicca "＋ Prossima" per aggiungerne una.</p>
+      </div>`;
+    return;
+  }
+
+  if (currentWeekIdx === null || currentWeekIdx >= arr.length)
+    currentWeekIdx = findCurrentIdx(arr);
+
+  const week = arr[currentWeekIdx];
+
+  // Nav labels
+  document.getElementById('week-label').textContent = `${fmt(week.start)} – ${fmt(week.end)}`;
+  document.getElementById('nav-prev').disabled = currentWeekIdx === 0;
+  document.getElementById('nav-next').disabled = currentWeekIdx === arr.length - 1;
+
+  const statusEl = document.getElementById('week-status');
+  if (isCurW(week))       { statusEl.textContent = 'Questa settimana'; statusEl.className = 'week-status current'; }
+  else if (isPastW(week)) { statusEl.textContent = 'Settimana passata'; statusEl.className = 'week-status past'; }
+  else                    { statusEl.textContent = 'Settimana futura';  statusEl.className = 'week-status future'; }
+
+
+  // Chore cards
+  const html = CHORES.map(chore => {
+    const person = Object.entries(week.assignments || {}).find(([,c]) => c === chore)?.[0];
+    if (!person) return '';
+    const done   = week.done?.[person] || false;
+    const absent = isAbsent(person, week.start, week.end);
+    const color  = CHORE_COLORS[chore];
+
+    return `
+      <div class="chore-card ${done ? 'done' : ''} ${absent ? 'absent' : ''}">
+        <div class="card-accent" style="background:${color}"></div>
+        <div class="card-inner">
+          <div class="card-icon">${ICONS[chore]}</div>
+          <div class="card-info">
+            <div class="card-chore">${chore}</div>
+            <div class="card-person">
+              Tocca a: <strong>${person}</strong>${absent ? '<span class="absent-tag">assente</span>' : ''}
+            </div>
+            <button
+              class="done-btn ${done ? 'checked' : ''}"
+              style="--accent:${color}"
+              onclick="toggleDone('${week.id}','${person}')"
+            >
+              <span class="done-dot"></span>
+              ${done ? 'Fatto ✓' : 'Segna come fatto'}
+            </button>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+
+  document.getElementById('chore-cards').innerHTML = html;
+}
+
+function renderAbsences() {
+  const list = data?.absences || [];
+  document.getElementById('abs-list').innerHTML = list.length === 0
+    ? '<p style="font-size:.82rem;color:var(--text-2)">Nessuna assenza registrata.</p>'
+    : list.map((a, i) => `
+        <div class="absence-item">
+          <span><strong>${a.person}</strong> — ${fmt(a.from)} al ${fmt(a.to)}</span>
+          <button class="rm-btn" onclick="removeAbsence(${i})">✕</button>
+        </div>`).join('');
+}
+
+// ── Actions ────────────────────────────────────────────────────────────────
+async function toggleDone(weekId, person) {
+  const week = data.weeks.find(w => w.id === weekId);
+  if (!week) return;
+  if (!week.done) week.done = {};
+  week.done[person] = !week.done[person];
+  renderWeeks();
+  try { await saveBin(data); }
+  catch(e) { week.done[person] = !week.done[person]; renderWeeks(); toast('❌ ' + e.message, 'error'); }
+}
+
+async function addAbsence() {
+  const person = document.getElementById('abs-person').value;
+  const from   = document.getElementById('abs-from').value;
+  const to     = document.getElementById('abs-to').value;
+  if (!person || !from || !to) { toast('Compila tutti i campi', 'error'); return; }
+  if (from > to) { toast('La data fine deve essere dopo quella di inizio', 'error'); return; }
+  data.absences = data.absences || [];
+  data.absences.push({ person, from, to });
+  document.getElementById('abs-person').value = '';
+  document.getElementById('abs-from').value   = '';
+  document.getElementById('abs-to').value     = '';
+  try { await saveBin(data); render(); toast(`✅ Assenza di ${person} aggiunta`, 'success'); }
+  catch(e) { data.absences.pop(); toast('❌ ' + e.message, 'error'); }
+}
+
+async function removeAbsence(i) {
+  const removed = data.absences.splice(i, 1)[0];
+  try { await saveBin(data); renderAbsences(); renderWeeks(); }
+  catch(e) { data.absences.splice(i, 0, removed); toast('❌ ' + e.message, 'error'); }
+}
+
+// ── Week generation ────────────────────────────────────────────────────────
+function lastTimeDid(person, chore, weeks) {
+  for (let i = weeks.length - 1; i >= 0; i--)
+    if (weeks[i].assignments?.[person] === chore) return i;
+  return -1;
+}
+
+function computeNextWeek(weeks) {
+  const sorted = [...weeks].sort((a,b) => a.start.localeCompare(b.start));
+  const last   = sorted[sorted.length - 1];
+  const ns     = addDays(last.start, 7);
+  const ne     = addDays(ns, 6);
+  if (weeks.find(w => w.start === ns)) return null;
+
+  const asgn = {}, usedP = new Set(), usedC = new Set();
+
+  const lastCucinaP = Object.entries(last.assignments || {}).find(([,c]) => c==='Cucina')?.[0];
+  if (lastCucinaP) { asgn[lastCucinaP]='Corridoio'; usedP.add(lastCucinaP); usedC.add('Corridoio'); }
+
+  const pickLeast = (pool, chore) => {
+    const avail = pool.filter(p => !usedP.has(p));
+    if (!avail.length) return null;
+    return avail.reduce((b,p) => lastTimeDid(p,chore,weeks) < lastTimeDid(b,chore,weeks) ? p : b);
+  };
+
+  const b1 = pickLeast(BAGNO1, 'Bagno 1');
+  if (b1) { asgn[b1]='Bagno 1'; usedP.add(b1); usedC.add('Bagno 1'); }
+  const b2 = pickLeast(BAGNO2, 'Bagno 2');
+  if (b2) { asgn[b2]='Bagno 2'; usedP.add(b2); usedC.add('Bagno 2'); }
+
+  let remP = PEOPLE.filter(p => !usedP.has(p));
+  let remC = CHORES.filter(c => !usedC.has(c));
+
+  if (remC.includes('Cucina') && remP.length) {
+    const cp = remP.reduce((b,p) => lastTimeDid(p,'Cucina',weeks) < lastTimeDid(b,'Cucina',weeks) ? p : b);
+    asgn[cp]='Cucina'; usedP.add(cp); usedC.add('Cucina');
+    remP = remP.filter(p => p!==cp); remC = remC.filter(c => c!=='Cucina');
+  }
+  remP.forEach((p,i) => { if (remC[i]) asgn[p]=remC[i]; });
+
+  const taken = new Set(Object.values(asgn));
+  PEOPLE.forEach(p => { if (!asgn[p]) { const l=CHORES.find(c=>!taken.has(c)); if(l){asgn[p]=l;taken.add(l);} } });
+
+  const done = {}; PEOPLE.forEach(p => done[p]=false);
+  return { id:ns, start:ns, end:ne, assignments:asgn, done };
+}
+
+function ensureFutureWeeks() {
+  let added=0, safety=0;
+  while (safety++<20) {
+    const fc = data.weeks.filter(w => w.start > today()).length;
+    if (fc >= WEEKS_AHEAD) break;
+    const nw = computeNextWeek(data.weeks);
+    if (!nw) break;
+    data.weeks.push(nw); added++;
+  }
+  return added;
+}
+
+async function handleGenerateWeek() {
+  if (!data) { toast('Prima configura le credenziali', 'error'); return; }
+  const nw = computeNextWeek(data.weeks);
+  if (!nw) { toast('La settimana successiva esiste già', 'error'); return; }
+  const lines = PEOPLE.map(p => `${p}: ${ICONS[nw.assignments[p]]||''} ${nw.assignments[p]||'?'}`).join('\n');
+  if (!confirm(`${fmt(nw.start)} – ${fmt(nw.end)}\n\n${lines}\n\nConfermi?`)) return;
+  data.weeks.push(nw);
+  try { await saveBin(data); currentWeekIdx = sortedWeeks().length - 1; render(); toast('✅ Settimana aggiunta!', 'success'); }
+  catch(e) { data.weeks.pop(); toast('❌ ' + e.message, 'error'); }
+}
+
+// ── Refresh ────────────────────────────────────────────────────────────────
+async function refreshData() {
+  if (!cfg.mk || !cfg.id) { openSetup(); return; }
+  try {
+    data = await loadBin();
+    const added = ensureFutureWeeks();
+    if (added) await saveBin(data);
+    render(); toast('Aggiornato ↻');
+  } catch(e) { toast('❌ ' + e.message, 'error'); }
+}
+
+// ── Setup ──────────────────────────────────────────────────────────────────
+function openSetup() {
+  document.getElementById('mk-input').value  = cfg.mk || '';
+  document.getElementById('bid-input').value = cfg.id || '';
+  document.getElementById('setup-msg').className = 'setup-msg';
+  document.getElementById('setup-msg').textContent = '';
+  document.getElementById('share-section').style.display = 'none';
+  document.getElementById('setup-overlay').classList.add('open');
+}
+function closeSetup() { document.getElementById('setup-overlay').classList.remove('open'); }
+
+function setSetupMsg(t, h) { const e=document.getElementById('setup-msg'); e.className='setup-msg '+t; e.innerHTML=h; }
+
+async function saveSetup() {
+  const mk  = document.getElementById('mk-input').value.trim();
+  const bid = document.getElementById('bid-input').value.trim();
+  if (!mk) { setSetupMsg('err','Inserisci la Master Key'); return; }
+  cfg.mk = mk;
+  setSetupMsg('loading','<span class="spin"></span> Connessione…');
+  try {
+    if (bid) { cfg.id=bid; data=await loadBin(); }
+    else { const r=await createBin(SEED); cfg.id=r.metadata.id; data=SEED; }
+    localStorage.setItem('jb_mk', cfg.mk); localStorage.setItem('jb_id', cfg.id);
+    setSetupMsg('ok', `✅ Connesso! Bin ID: <strong>${cfg.id}</strong>`);
+    document.getElementById('share-bid').textContent = cfg.id;
+    document.getElementById('share-section').style.display = 'block';
+    setTimeout(() => { closeSetup(); ensureFutureWeeks(); render(); }, 1800);
+  } catch(e) { setSetupMsg('err','❌ ' + e.message); }
+}
+function copyBinId() { navigator.clipboard.writeText(cfg.id).then(() => toast('Bin ID copiato! 📋')); }
+
+// ── Panel ──────────────────────────────────────────────────────────────────
+function togglePanel() {
+  const b=document.getElementById('panel-body'), h=document.getElementById('panel-head');
+  b.classList.toggle('open'); h.classList.toggle('open');
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+(async function init() {
+  // Always render header date
+  const now = new Date();
+  document.getElementById('header-date').textContent =
+    `${DAYS[now.getDay()]}, ${now.getDate()} ${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
+
+  if (!cfg.mk || !cfg.id) { render(); openSetup(); return; }
+  try {
+    data = await loadBin();
+    const added = ensureFutureWeeks();
+    if (added) await saveBin(data);
+    render();
+  } catch(e) { toast('❌ ' + e.message, 'error'); render(); }
+})();
+</script>
+</body>
+</html>
