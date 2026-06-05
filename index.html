@@ -482,9 +482,11 @@ const SEED = {
 };
 
 // ── State ──────────────────────────────────────────────────────────────────
+const DEFAULT_MK = '$2a$10$lK7YJ.j9d/xrukvKk73PFuF9hRVod6ldJVvmcvli7nQ.dkgd6.Sde';
+const DEFAULT_ID = '6a22e58af5f4af5e29be65b0';
 let cfg = {
-  mk: localStorage.getItem('jb_mk') || '',
-  id: localStorage.getItem('jb_id') || ''
+  mk: localStorage.getItem('jb_mk') || DEFAULT_MK,
+  id: localStorage.getItem('jb_id') || DEFAULT_ID
 };
 let data = null;
 let currentWeekIdx = null;
