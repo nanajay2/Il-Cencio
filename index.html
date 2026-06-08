@@ -529,6 +529,15 @@ function isAbsent(person, ws, we) {
   return (data?.absences || []).some(a => a.person === person && a.from <= we && a.to >= ws);
 }
 
+// Settimana modificabile: finisce entro 7 giorni fa oppure è futura
+function isEditable(week) { return week.end >= addDays(today(), -7); }
+
+// Elimina dal dataset le settimane finite più di 3 settimane fa
+function purgeOldWeeks(d) {
+  const cutoff = addDays(today(), -21);
+  d.weeks = (d.weeks || []).filter(w => w.end >= cutoff);
+}
+
 // ── Toast ──────────────────────────────────────────────────────────────────
 let _tt;
 function toast(msg, type = '') {
@@ -599,12 +608,26 @@ function renderWeeks() {
 
 
   // Chore cards
+  const editable = isEditable(week);
   const html = CHORES.map(chore => {
     const person = Object.entries(week.assignments || {}).find(([,c]) => c === chore)?.[0];
     if (!person) return '';
     const done   = week.done?.[person] || false;
     const absent = isAbsent(person, week.start, week.end);
     const color  = CHORE_COLORS[chore];
+
+    const doneBtn = editable
+      ? `<button
+           class="done-btn ${done ? 'checked' : ''}"
+           style="--accent:${color}"
+           onclick="toggleDone('${week.id}','${person}')"
+         >
+           <span class="done-dot"></span>
+           ${done ? 'Fatto ✓' : 'Segna come fatto'}
+         </button>`
+      : `<span class="done-btn" style="opacity:.45;cursor:default;--accent:${color}${done ? ';background:var(--accent);border-color:var(--accent);color:#fff' : ''}">
+           🔒 ${done ? 'Fatto ✓' : 'Non fatto'}
+         </span>`;
 
     return `
       <div class="chore-card ${done ? 'done' : ''} ${absent ? 'absent' : ''}">
@@ -616,14 +639,7 @@ function renderWeeks() {
             <div class="card-person">
               Tocca a: <strong>${person}</strong>${absent ? '<span class="absent-tag">assente</span>' : ''}
             </div>
-            <button
-              class="done-btn ${done ? 'checked' : ''}"
-              style="--accent:${color}"
-              onclick="toggleDone('${week.id}','${person}')"
-            >
-              <span class="done-dot"></span>
-              ${done ? 'Fatto ✓' : 'Segna come fatto'}
-            </button>
+            ${doneBtn}
           </div>
         </div>
       </div>`;
@@ -643,15 +659,33 @@ function renderAbsences() {
         </div>`).join('');
 }
 
-// ── Actions ────────────────────────────────────────────────────────────────
+// ── Actions (read-modify-write per evitare sovrascritture) ─────────────────
 async function toggleDone(weekId, person) {
-  const week = data.weeks.find(w => w.id === weekId);
-  if (!week) return;
-  if (!week.done) week.done = {};
-  week.done[person] = !week.done[person];
+  // Ottimismo UI: aggiorna subito localmente
+  const localWeek = data.weeks.find(w => w.id === weekId);
+  if (!localWeek) return;
+  if (!localWeek.done) localWeek.done = {};
+  const prev = localWeek.done[person] || false;
+  localWeek.done[person] = !prev;
   renderWeeks();
-  try { await saveBin(data); }
-  catch(e) { week.done[person] = !week.done[person]; renderWeeks(); toast('❌ ' + e.message, 'error'); }
+
+  try {
+    // Leggi i dati freschi, applica solo questo campo, salva
+    const fresh = await loadBin();
+    purgeOldWeeks(fresh);
+    const freshWeek = fresh.weeks.find(w => w.id === weekId);
+    if (!freshWeek) throw new Error('Settimana non trovata sul server');
+    if (!freshWeek.done) freshWeek.done = {};
+    freshWeek.done[person] = !prev;
+    await saveBin(fresh);
+    data = fresh;
+    renderWeeks();
+  } catch(e) {
+    // Rollback ottimismo
+    localWeek.done[person] = prev;
+    renderWeeks();
+    toast('❌ ' + e.message, 'error');
+  }
 }
 
 async function addAbsence() {
@@ -660,19 +694,40 @@ async function addAbsence() {
   const to     = document.getElementById('abs-to').value;
   if (!person || !from || !to) { toast('Compila tutti i campi', 'error'); return; }
   if (from > to) { toast('La data fine deve essere dopo quella di inizio', 'error'); return; }
-  data.absences = data.absences || [];
-  data.absences.push({ person, from, to });
   document.getElementById('abs-person').value = '';
   document.getElementById('abs-from').value   = '';
   document.getElementById('abs-to').value     = '';
-  try { await saveBin(data); render(); toast(`✅ Assenza di ${person} aggiunta`, 'success'); }
-  catch(e) { data.absences.pop(); toast('❌ ' + e.message, 'error'); }
+
+  try {
+    const fresh = await loadBin();
+    purgeOldWeeks(fresh);
+    fresh.absences = fresh.absences || [];
+    fresh.absences.push({ person, from, to });
+    await saveBin(fresh);
+    data = fresh;
+    render();
+    toast(`✅ Assenza di ${person} aggiunta`, 'success');
+  } catch(e) { toast('❌ ' + e.message, 'error'); }
 }
 
 async function removeAbsence(i) {
-  const removed = data.absences.splice(i, 1)[0];
-  try { await saveBin(data); renderAbsences(); renderWeeks(); }
-  catch(e) { data.absences.splice(i, 0, removed); toast('❌ ' + e.message, 'error'); }
+  // Identifica l'assenza da rimuovere tramite contenuto (non indice)
+  const target = (data.absences || [])[i];
+  if (!target) return;
+
+  try {
+    const fresh = await loadBin();
+    purgeOldWeeks(fresh);
+    fresh.absences = fresh.absences || [];
+    const fi = fresh.absences.findIndex(a =>
+      a.person === target.person && a.from === target.from && a.to === target.to
+    );
+    if (fi >= 0) fresh.absences.splice(fi, 1);
+    await saveBin(fresh);
+    data = fresh;
+    renderAbsences();
+    renderWeeks();
+  } catch(e) { toast('❌ ' + e.message, 'error'); }
 }
 
 // ── Week generation ────────────────────────────────────────────────────────
@@ -750,6 +805,7 @@ async function refreshData() {
   if (!cfg.mk || !cfg.id) { openSetup(); return; }
   try {
     data = await loadBin();
+    purgeOldWeeks(data);
     const added = ensureFutureWeeks();
     if (added) await saveBin(data);
     render(); toast('Aggiornato ↻');
@@ -803,6 +859,7 @@ function togglePanel() {
   if (!cfg.mk || !cfg.id) { render(); openSetup(); return; }
   try {
     data = await loadBin();
+    purgeOldWeeks(data);
     const added = ensureFutureWeeks();
     if (added) await saveBin(data);
     render();
