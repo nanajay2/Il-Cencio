@@ -7,17 +7,17 @@ export function WeekNavigator({ week, currentIdx, totalWeeks, onPrev, onNext, on
   const isPast = isPastW(week);
   const statusLabel  = isCur ? 'Questa settimana' : isPast ? 'Passata' : 'Futura';
   const statusStyle  = isCur
-    ? { background: '#D5C7A322', color: '#4E7A3A' }
+    ? { background: '#D5C7A3', color: '#4E220F' }
     : isPast
     ? { background: '#F2E2B1', color: '#7A5038' }
-    : { background: '#9D663818', color: '#9D6638' };
+    : { background: '#F2E2B1', color: '#BDB395' };
 
   return (
     <div className="px-4 pt-4 pb-1">
       <div className="flex items-center gap-3">
         <button
           onClick={onPrev} disabled={currentIdx === 0}
-          className="w-9 h-9 rounded-full border border-border bg-card flex items-center justify-center text-[1.1rem] text-ink-2 cursor-pointer transition-all hover:border-brown hover:text-brown disabled:opacity-30 disabled:cursor-default flex-shrink-0"
+          className="w-9 h-9 rounded-full border border-sage bg-card flex items-center justify-center text-[1.1rem] text-ink cursor-pointer transition-all hover:bg-cream-2 disabled:opacity-30 disabled:cursor-default flex-shrink-0"
         >
           ‹
         </button>
@@ -36,7 +36,7 @@ export function WeekNavigator({ week, currentIdx, totalWeeks, onPrev, onNext, on
 
         <button
           onClick={onNext} disabled={currentIdx === totalWeeks - 1}
-          className="w-9 h-9 rounded-full border border-border bg-card flex items-center justify-center text-[1.1rem] text-ink-2 cursor-pointer transition-all hover:border-brown hover:text-brown disabled:opacity-30 disabled:cursor-default flex-shrink-0"
+          className="w-9 h-9 rounded-full border border-sage bg-card flex items-center justify-center text-[1.1rem] text-ink cursor-pointer transition-all hover:bg-cream-2 disabled:opacity-30 disabled:cursor-default flex-shrink-0"
         >
           ›
         </button>
@@ -45,7 +45,7 @@ export function WeekNavigator({ week, currentIdx, totalWeeks, onPrev, onNext, on
       <div className="flex gap-2 mt-3">
         <button
           onClick={onThisWeek}
-          className="flex-1 py-2 rounded-full bg-brown text-white font-bold text-[.78rem] border-0 cursor-pointer hover:bg-brown-mid transition-colors"
+          className="flex-1 py-2 rounded-full bg-brown text-ink font-bold text-[.78rem] border-0 cursor-pointer hover:bg-brown-mid transition-colors"
         >
           Oggi
         </button>

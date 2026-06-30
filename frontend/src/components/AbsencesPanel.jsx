@@ -54,7 +54,7 @@ export function AbsencesPanel({ users, absences, onAdd, onRemove }) {
               <div className="flex items-end">
                 <button
                   onClick={handleAdd}
-                  className="h-[38px] px-4 bg-brown text-white border-0 rounded-[10px] font-sans text-[.8rem] font-bold cursor-pointer hover:bg-brown-mid transition-colors"
+                  className="h-[38px] px-4 bg-brown text-ink border-0 rounded-[10px] font-sans text-[.8rem] font-bold cursor-pointer hover:bg-brown-mid transition-colors"
                 >
                   Aggiungi
                 </button>
@@ -70,7 +70,7 @@ export function AbsencesPanel({ users, absences, onAdd, onRemove }) {
                 <span><strong>{a.userName}</strong> — {fmt(a.from)} al {fmt(a.to)}</span>
                 <button
                   onClick={() => onRemove(a.id)}
-                  className="border-0 bg-transparent cursor-pointer text-ink-2 text-[.9rem] px-[7px] py-[3px] rounded-md transition-all hover:text-red-500 hover:bg-red-50"
+                  className="border-0 bg-transparent cursor-pointer text-ink-2 text-[.9rem] px-[7px] py-[3px] rounded-md transition-all hover:text-red hover:bg-red-pale"
                 >
                   ✕
                 </button>

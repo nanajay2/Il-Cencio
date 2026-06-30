@@ -36,10 +36,10 @@ export function ChoreCard({ assignment, absent, isMe, compact, week, onToggle })
   return (
     <div
       className="bg-card rounded-2xl overflow-hidden border-2 transition-all"
-      style={{ borderColor: done ? '#BDB395' : roomColor }}
+      style={{ borderColor: done ? '#D5C7A3' : '#BDB395' }}
     >
       {/* Striscia colore in cima */}
-      <div className="h-1.5 transition-colors" style={{ background: done ? '#BDB395' : roomColor }} />
+      <div className="h-1.5 transition-colors" style={{ background: done ? '#D5C7A3' : '#BDB395' }} />
 
       <div className="p-5">
         <div className="flex items-start justify-between mb-1">
@@ -54,7 +54,7 @@ export function ChoreCard({ assignment, absent, isMe, compact, week, onToggle })
         <div className="flex items-center gap-4 mt-3 mb-5">
           <span
             className="text-[3rem] leading-none w-[60px] h-[60px] flex items-center justify-center rounded-xl flex-shrink-0"
-            style={{ background: done ? '#F6F0F0' : `${roomColor}18` }}
+            style={{ background: done ? '#F6F0F0' : '#D5C7A3' }}
           >
             {roomIcon}
           </span>
@@ -71,7 +71,7 @@ export function ChoreCard({ assignment, absent, isMe, compact, week, onToggle })
             className="w-full py-3 rounded-xl font-bold text-[.88rem] border-0 cursor-pointer transition-all"
             style={done
               ? { background: '#F6F0F0', color: '#7A5038' }
-              : { background: roomColor, color: '#fff', boxShadow: `0 4px 14px ${roomColor}55` }
+              : { background: '#BDB395', color: '#4E220F', border: '1.5px solid #a89e83', boxShadow: '0 2px 8px rgba(168,158,131,.35)' }
             }
             onClick={() => onToggle(week.id, userId)}
           >

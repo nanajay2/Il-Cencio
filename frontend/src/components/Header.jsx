@@ -14,17 +14,17 @@ export function Header({ houseName, currentUser, isAdmin, onAdmin }) {
   const dateStr = `${DAYS[now.getDay()]}, ${now.getDate()} ${MONTHS[now.getMonth()]}`;
 
   return (
-    <header style={{ background: '#4E220F' }} className="px-5 pt-5 pb-4">
+    <header style={{ background: '#D5C7A3' }} className="px-5 pt-5 pb-4">
       <div className="flex items-start justify-between">
         <div>
-          <div className="font-serif text-[1.65rem] text-white leading-none">
+          <div className="font-serif text-[1.65rem] leading-none" style={{ color: '#4E220F' }}>
             {houseName || 'Il Cencio'}
           </div>
           {currentUser && (
-            <div className="text-[.75rem] mt-[6px]" style={{ color: 'rgba(246,240,240,.55)' }}>
-              Ciao, <strong style={{ color: 'rgba(246,240,240,.85)' }}>{currentUser}</strong>
-              <span style={{ color: '#D5C7A3' }} className="mx-1.5">·</span>
-              <span style={{ color: '#D5C7A3' }}>{dateStr}</span>
+            <div className="text-[.75rem] mt-[6px]" style={{ color: 'rgba(78,34,15,.5)' }}>
+              Ciao, <strong style={{ color: 'rgba(78,34,15,.8)' }}>{currentUser}</strong>
+              <span style={{ color: '#7A5038' }} className="mx-1.5">·</span>
+              <span style={{ color: '#7A5038' }}>{dateStr}</span>
             </div>
           )}
         </div>
@@ -34,9 +34,9 @@ export function Header({ houseName, currentUser, isAdmin, onAdmin }) {
             onClick={onAdmin}
             title="Impostazioni"
             className="w-[36px] h-[36px] rounded-full border-0 cursor-pointer flex items-center justify-center transition-all mt-0.5"
-            style={{ background: 'rgba(213,199,163,.15)', color: '#D5C7A3' }}
-            onMouseEnter={e => e.currentTarget.style.background = 'rgba(213,199,163,.28)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'rgba(213,199,163,.15)'}
+            style={{ background: 'rgba(78,34,15,.1)', color: '#7A5038' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(78,34,15,.18)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'rgba(78,34,15,.1)'}
           >
             <GearIcon />
           </button>

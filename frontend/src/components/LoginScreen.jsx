@@ -119,12 +119,12 @@ export function LoginScreen({ onSuccess, onBack, savedHouseId }) {
         className="w-full max-w-[320px] border-[1.5px] border-border rounded-[14px] px-4 py-3.5 text-center text-[1.4rem] font-bold font-mono tracking-[.15em] bg-card text-brown outline-none focus:border-brown transition-colors"
       />
 
-      {error && <p className="text-[.82rem] text-red-500 text-center max-w-[280px]">{error}</p>}
+      {error && <p className="text-[.82rem] text-red text-center max-w-[280px]">{error}</p>}
 
       <button
         onClick={handleLookup}
         disabled={loading || !houseCode.trim()}
-        className="w-full max-w-[320px] bg-brown text-white font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full max-w-[320px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading ? 'Cerco…' : 'Continua →'}
       </button>
@@ -190,12 +190,12 @@ export function LoginScreen({ onSuccess, onBack, savedHouseId }) {
         className="w-full max-w-[200px] border-[1.5px] border-border rounded-[14px] px-4 py-3.5 text-center text-[2rem] font-bold tracking-[.4em] bg-card text-brown outline-none focus:border-brown transition-colors"
       />
 
-      {error && <p className="text-[.82rem] text-red-500 text-center max-w-[280px]">{error}</p>}
+      {error && <p className="text-[.82rem] text-red text-center max-w-[280px]">{error}</p>}
 
       <button
         onClick={handleLogin}
         disabled={loading || pin.length !== 4}
-        className="w-full max-w-[320px] bg-brown text-white font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full max-w-[320px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading ? 'Accesso…' : 'Entra →'}
       </button>
@@ -235,12 +235,12 @@ export function LoginScreen({ onSuccess, onBack, savedHouseId }) {
         </div>
       </div>
 
-      {error && <p className="text-[.82rem] text-red-500 text-center max-w-[280px]">{error}</p>}
+      {error && <p className="text-[.82rem] text-red text-center max-w-[280px]">{error}</p>}
 
       <button
         onClick={handleSetPin}
         disabled={loading || pin.length !== 4 || pinConf.length !== 4}
-        className="w-full max-w-[320px] bg-brown text-white font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full max-w-[320px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading ? 'Salvataggio…' : 'Salva PIN →'}
       </button>
@@ -289,12 +289,12 @@ export function LoginScreen({ onSuccess, onBack, savedHouseId }) {
         </div>
       </div>
 
-      {error && <p className="text-[.82rem] text-red-500 text-center max-w-[280px]">{error}</p>}
+      {error && <p className="text-[.82rem] text-red text-center max-w-[280px]">{error}</p>}
 
       <button
         onClick={handleRegisterNew}
         disabled={loading || !newUserName.trim() || pin.length !== 4 || pinConf.length !== 4}
-        className="w-full max-w-[320px] bg-brown text-white font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full max-w-[320px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading ? 'Registrazione…' : 'Registrati →'}
       </button>

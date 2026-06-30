@@ -39,13 +39,13 @@ export function InviteScreen({ onSuccess, onBack }) {
       />
 
       {error && (
-        <p className="text-[.82rem] text-red-500 text-center max-w-[280px]">{error}</p>
+        <p className="text-[.82rem] text-red text-center max-w-[280px]">{error}</p>
       )}
 
       <button
         onClick={handleJoin}
         disabled={loading || !code.trim()}
-        className="w-full max-w-[320px] bg-brown text-white font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full max-w-[320px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading ? 'Accesso…' : 'Entra →'}
       </button>
