@@ -1,12 +1,12 @@
 import { useState, useCallback } from 'react';
 import { api } from '../api.js';
-import { isCurW, todayStr } from '../constants.js';
+import { todayStr } from '../constants.js';
 
 export function useWeeks() {
-  const [weeks,          setWeeks]          = useState([]);
-  const [loading,        setLoading]        = useState(true);
-  const [error,          setError]          = useState(null);
-  const [currentIdx,     setCurrentIdx]     = useState(null);
+  const [weeks,      setWeeks]      = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [error,      setError]      = useState(null);
+  const [currentIdx, setCurrentIdx] = useState(null);
 
   const sorted = [...weeks].sort((a, b) => a.start.localeCompare(b.start));
 
@@ -17,11 +17,11 @@ export function useWeeks() {
     return Math.max(0, i < 0 ? arr.length - 1 : i);
   }
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (houseId) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await api.getWeeks();
+      const data = await api.getWeeks(houseId);
       const s = [...data].sort((a, b) => a.start.localeCompare(b.start));
       setWeeks(s);
       setCurrentIdx(idx => idx === null ? findCurrentIdx(s) : Math.min(idx, s.length - 1));
@@ -32,25 +32,38 @@ export function useWeeks() {
     }
   }, []);
 
-  async function toggleDone(weekId, person) {
-    const prev = weeks.find(w => w.id === weekId)?.done?.[person] ?? false;
-    // optimistic
+  async function toggleDone(houseId, weekId, userId) {
+    const week = weeks.find(w => w.id === weekId);
+    const asgn = week?.assignments?.find(a => a.userId === userId);
+    const prev = asgn?.done ?? false;
+
+    // Ottimismo
     setWeeks(ws => ws.map(w =>
-      w.id !== weekId ? w : { ...w, done: { ...w.done, [person]: !prev } }
+      w.id !== weekId ? w : {
+        ...w,
+        assignments: w.assignments.map(a =>
+          a.userId !== userId ? a : { ...a, done: !prev }
+        ),
+      }
     ));
     try {
-      await api.toggleDone(weekId, person, !prev);
+      await api.toggleDone(houseId, weekId, userId, !prev);
     } catch (e) {
-      // rollback
+      // Rollback
       setWeeks(ws => ws.map(w =>
-        w.id !== weekId ? w : { ...w, done: { ...w.done, [person]: prev } }
+        w.id !== weekId ? w : {
+          ...w,
+          assignments: w.assignments.map(a =>
+            a.userId !== userId ? a : { ...a, done: prev }
+          ),
+        }
       ));
       throw e;
     }
   }
 
-  async function generateWeek() {
-    const nw = await api.generateWeek();
+  async function generateWeek(houseId) {
+    const nw = await api.generateWeek(houseId);
     setWeeks(ws => [...ws, nw].sort((a, b) => a.start.localeCompare(b.start)));
     return nw;
   }
@@ -58,22 +71,15 @@ export function useWeeks() {
   function goTo(delta) {
     setCurrentIdx(i => Math.max(0, Math.min(sorted.length - 1, i + delta)));
   }
-  function goToCurrent() {
-    setCurrentIdx(findCurrentIdx(sorted));
-  }
+  function goToCurrent() { setCurrentIdx(findCurrentIdx(sorted)); }
 
-  const resolvedIdx = currentIdx === null ? 0 : Math.min(currentIdx, sorted.length - 1);
+  const resolvedIdx  = currentIdx === null ? 0 : Math.min(currentIdx, Math.max(sorted.length - 1, 0));
 
   return {
     weeks: sorted,
     currentWeek: sorted[resolvedIdx] ?? null,
     currentIdx:  resolvedIdx,
-    loading,
-    error,
-    load,
-    toggleDone,
-    generateWeek,
-    goTo,
-    goToCurrent,
+    loading, error, load,
+    toggleDone, generateWeek, goTo, goToCurrent,
   };
 }

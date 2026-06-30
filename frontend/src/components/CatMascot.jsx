@@ -1,14 +1,14 @@
-import { isCurW, todayStr } from '../constants.js';
+import { isCurW } from '../constants.js';
 
-function catState(weeks, currentUser) {
-  if (!currentUser || !weeks.length) return 'tranquillo';
+function catState(weeks, userId) {
+  if (!userId || !weeks.length) return 'tranquillo';
   const sorted   = [...weeks].sort((a, b) => a.start.localeCompare(b.start));
   const curIdx   = sorted.findIndex(w => isCurW(w));
   const curWeek  = curIdx >= 0 ? sorted[curIdx]     : null;
   const prevWeek = curIdx >  0 ? sorted[curIdx - 1] : null;
   const day      = new Date().getDay();
-  const curDone  = curWeek?.done?.[currentUser]  === true;
-  const prevDone = prevWeek ? prevWeek.done?.[currentUser] === true : true;
+  const curDone  = curWeek?.assignments?.find(a => a.userId === userId)?.done  ?? false;
+  const prevDone = prevWeek ? (prevWeek.assignments?.find(a => a.userId === userId)?.done ?? false) : true;
 
   if (curWeek && (day === 4 || day === 5) && !curDone) return 'agitato';
   if (curDone)                                          return 'felice';
@@ -16,11 +16,14 @@ function catState(weeks, currentUser) {
   return 'tranquillo';
 }
 
-export function CatMascot({ weeks, currentUser }) {
-  const state = catState(weeks, currentUser);
+export function CatMascot({ weeks, userId }) {
+  const state = catState(weeks, userId);
 
   return (
-    <div id="cat-mascot" className={`cat-${state}`}>
+    <div
+      id="cat-mascot"
+      className={`fixed bottom-5 right-4 w-16 h-16 z-[100] cursor-default select-none drop-shadow-[0_3px_8px_rgba(0,0,0,.18)] cat-${state}`}
+    >
       <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
         <path d="M48,53 Q61,42 55,27" stroke="#2e1a0e" strokeWidth="3" strokeLinecap="round" fill="none"/>
         <ellipse cx="30" cy="46" rx="17" ry="13" fill="#f5efe6" stroke="#2e1a0e" strokeWidth="1.5"/>

@@ -3,25 +3,36 @@ import { api } from '../api.js';
 
 export function useAbsences() {
   const [absences, setAbsences] = useState([]);
+  const [loading,  setLoading]  = useState(false);
+  const [error,    setError]    = useState(null);
 
-  const load = useCallback(async () => {
-    const data = await api.getAbsences();
-    setAbsences(data);
+  const load = useCallback(async (houseId) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await api.getAbsences(houseId);
+      setAbsences(data);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  async function addAbsence(person, from, to) {
-    const a = await api.addAbsence(person, from, to);
-    setAbsences(prev => [...prev, a]);
+  async function addAbsence(houseId, userId, from, to) {
+    const abs = await api.addAbsence(houseId, userId, from, to);
+    setAbsences(a => [...a, abs]);
+    return abs;
   }
 
-  async function removeAbsence(id) {
-    await api.deleteAbsence(id);
-    setAbsences(prev => prev.filter(a => a.id !== id));
+  async function removeAbsence(houseId, absenceId) {
+    await api.deleteAbsence(houseId, absenceId);
+    setAbsences(a => a.filter(x => x.id !== absenceId));
   }
 
-  function isAbsent(person, weekStart, weekEnd) {
-    return absences.some(a => a.person === person && a.from <= weekEnd && a.to >= weekStart);
+  function isAbsent(userId, weekStart, weekEnd) {
+    return absences.some(a => a.userId === userId && a.from <= weekEnd && a.to >= weekStart);
   }
 
-  return { absences, load, addAbsence, removeAbsence, isAbsent };
+  return { absences, loading, error, load, addAbsence, removeAbsence, isAbsent };
 }

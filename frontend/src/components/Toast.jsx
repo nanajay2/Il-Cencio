@@ -1,7 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
 
-let _setToast;
-
 export function useToast() {
   const [toast, setToast] = useState({ msg: '', type: '', visible: false });
   const timer = useRef(null);
@@ -16,10 +14,17 @@ export function useToast() {
 }
 
 export function Toast({ toast }) {
+  const colorCls = toast.type === 'error'   ? 'bg-red'
+                 : toast.type === 'success' ? 'bg-green'
+                 : 'bg-brown';
+
+  const visibleCls = toast.visible
+    ? 'translate-y-0 scale-100'
+    : 'translate-y-20 scale-95';
+
   return (
     <div
-      id="toast"
-      className={[toast.visible ? 'show' : '', toast.type].filter(Boolean).join(' ')}
+      className={`fixed bottom-6 left-1/2 -translate-x-1/2 ${visibleCls} ${colorCls} text-white px-6 py-[11px] rounded-full text-[.83rem] font-bold tracking-[.02em] shadow-[0_6px_24px_rgba(0,0,0,.22)] transition-[transform] duration-[280ms] pointer-events-none z-[300] [transition-timing-function:cubic-bezier(.34,1.4,.64,1)]`}
     >
       {toast.msg}
     </div>
