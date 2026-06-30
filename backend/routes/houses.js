@@ -20,35 +20,27 @@ router.post('/lookup', async (req, res) => {
 
 // Registrazione nuovo utente
 router.post('/register', async (req, res) => {
-  const { houseCode, name, email, pin } = req.body;
-  if (!houseCode || !name || !email || !pin)
-    return res.status(400).json({ error: 'houseCode, name, email e pin richiesti' });
+  const { houseCode, name, pin } = req.body;
+  if (!houseCode || !name || !pin)
+    return res.status(400).json({ error: 'houseCode, name e pin richiesti' });
   if (!/^\d{4}$/.test(pin))
     return res.status(400).json({ error: 'Il PIN deve essere di 4 cifre' });
   try {
     const { houseId } = await db.lookupHouseByCode(houseCode);
     const pinHash = await bcrypt.hash(pin, 10);
-    res.status(201).json(await db.registerUser(houseId, name, email, pinHash));
+    res.status(201).json(await db.registerUser(houseId, name, pinHash));
   } catch (e) {
     res.status(400).json({ error: e.message });
   }
 });
 
-// Login (utente già registrato, nuovo dispositivo)
+// Login (utente già registrato, nuovo dispositivo) — usa userId + pin
 router.post('/auth', async (req, res) => {
-  const { email, pin } = req.body;
-  if (!email || !pin) return res.status(400).json({ error: 'email e pin richiesti' });
+  const { userId, pin } = req.body;
+  if (!userId || !pin) return res.status(400).json({ error: 'userId e pin richiesti' });
   try {
-    const user = await db.getUserByEmail(email);
-    if (!user.pinHash) {
-      // Utente legacy senza PIN: restituisce dati per far settare il PIN
-      return res.json({
-        needsPin: true,
-        userId: user.userId, userName: user.userName,
-        isAdmin: user.isAdmin, houseId: user.houseId, houseName: user.houseName,
-      });
-    }
-    const ok = await bcrypt.compare(pin, user.pinHash);
+    const user = await db.getUserById(Number(userId));
+    const ok = await bcrypt.compare(pin, user.pinHash ?? '');
     if (!ok) return res.status(401).json({ error: 'PIN non corretto' });
     res.json({
       userId: user.userId, userName: user.userName,
@@ -59,17 +51,23 @@ router.post('/auth', async (req, res) => {
   }
 });
 
-// Imposta PIN (utenti legacy senza PIN)
+// Imposta PIN (utenti legacy senza PIN) — richiede codice casa come verifica identità
 router.post('/set-pin', async (req, res) => {
-  const { userId, pin } = req.body;
-  if (!userId || !pin) return res.status(400).json({ error: 'userId e pin richiesti' });
+  const { userId, houseCode, pin } = req.body;
+  if (!userId || !houseCode || !pin) return res.status(400).json({ error: 'userId, houseCode e pin richiesti' });
   if (!/^\d{4}$/.test(pin)) return res.status(400).json({ error: 'PIN deve essere 4 cifre' });
   try {
+    // Verifica che l'utente appartenga alla casa con quel codice
+    const house = await db.lookupHouseByCode(houseCode);
+    const users = await db.getUsers(house.houseId);
+    if (!users.find(u => u.id === Number(userId))) {
+      return res.status(403).json({ error: 'Codice casa non corretto' });
+    }
     const pinHash = await bcrypt.hash(pin, 10);
-    await db.setPinHash(userId, pinHash);
+    await db.setPinHash(Number(userId), pinHash);
     res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(400).json({ error: e.message });
   }
 });
 
@@ -77,14 +75,14 @@ router.post('/set-pin', async (req, res) => {
 
 // Crea nuova casa + admin
 router.post('/', async (req, res) => {
-  const { name, adminName, adminEmail, adminPin } = req.body;
-  if (!name || !adminName || !adminEmail || !adminPin)
-    return res.status(400).json({ error: 'name, adminName, adminEmail e adminPin richiesti' });
+  const { name, adminName, adminPin } = req.body;
+  if (!name || !adminName || !adminPin)
+    return res.status(400).json({ error: 'name, adminName e adminPin richiesti' });
   if (!/^\d{4}$/.test(adminPin))
     return res.status(400).json({ error: 'Il PIN deve essere di 4 cifre' });
   try {
     const pinHash = await bcrypt.hash(adminPin, 10);
-    res.status(201).json(await db.createHouse(name, adminName, adminEmail, pinHash));
+    res.status(201).json(await db.createHouse(name, adminName, pinHash));
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

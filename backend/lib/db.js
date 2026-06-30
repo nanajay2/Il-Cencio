@@ -25,7 +25,7 @@ export async function getHouse(houseId) {
   return { ...house, houseInviteCode: house.house_invite_code, users, rooms, rules };
 }
 
-export async function createHouse(name, adminName, adminEmail, pinHash) {
+export async function createHouse(name, adminName, pinHash) {
   const id = slugify(name);
 
   const { error: he } = await supabase
@@ -35,7 +35,7 @@ export async function createHouse(name, adminName, adminEmail, pinHash) {
 
   const { data: user, error: ue } = await supabase
     .from('users')
-    .insert({ house_id: id, name: adminName, email: adminEmail, is_admin: true, claimed: true, pin_hash: pinHash })
+    .insert({ house_id: id, name: adminName, is_admin: true, claimed: true, pin_hash: pinHash })
     .select().single();
   if (ue) throw ue;
 
@@ -58,23 +58,47 @@ export async function lookupHouseByCode(code) {
     .eq('house_invite_code', code.trim().toUpperCase())
     .single();
   if (error || !data) throw new Error('Codice casa non valido');
-  return { houseId: data.id, houseName: data.name };
+
+  const { data: users, error: ue } = await supabase
+    .from('users')
+    .select('id, name, pin_hash')
+    .eq('house_id', data.id)
+    .eq('claimed', true)
+    .order('id');
+  if (ue) throw ue;
+
+  return {
+    houseId:   data.id,
+    houseName: data.name,
+    users: users.map(u => ({ id: u.id, name: u.name, hasPin: !!u.pin_hash })),
+  };
 }
 
-export async function registerUser(houseId, name, email, pinHash) {
-  const { data: existing } = await supabase
-    .from('users').select('id').eq('house_id', houseId).eq('email', email.toLowerCase()).maybeSingle();
-  if (existing) throw new Error('Email già registrata in questa casa');
-
+export async function registerUser(houseId, name, pinHash) {
   const { data, error } = await supabase
     .from('users')
-    .insert({ house_id: houseId, name: name.trim(), email: email.toLowerCase().trim(), is_admin: false, claimed: true, pin_hash: pinHash })
+    .insert({ house_id: houseId, name: name.trim(), is_admin: false, claimed: true, pin_hash: pinHash })
     .select('*, houses(id, name)').single();
   if (error) throw error;
 
   return {
-    userId: data.id, userName: data.name, userEmail: data.email,
+    userId: data.id, userName: data.name,
     isAdmin: data.is_admin, houseId: data.house_id, houseName: data.houses.name,
+  };
+}
+
+export async function getUserById(userId) {
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, name, is_admin, claimed, pin_hash, house_id, houses(id, name)')
+    .eq('id', userId)
+    .eq('claimed', true)
+    .single();
+  if (error || !data) throw new Error('Utente non trovato');
+  return {
+    userId: data.id, userName: data.name,
+    isAdmin: data.is_admin, houseId: data.house_id, houseName: data.houses.name,
+    pinHash: data.pin_hash,
   };
 }
 
@@ -102,11 +126,11 @@ export async function setPinHash(userId, pinHash) {
 
 export async function getUsers(houseId) {
   const { data, error } = await supabase
-    .from('users').select('*').eq('house_id', houseId).order('id');
+    .from('users').select('id, house_id, name, is_admin, claimed, pin_hash').eq('house_id', houseId).order('id');
   if (error) throw error;
   return data.map(u => ({
-    id: u.id, houseId: u.house_id, name: u.name, email: u.email,
-    isAdmin: u.is_admin, inviteCode: u.invite_code, claimed: u.claimed,
+    id: u.id, houseId: u.house_id, name: u.name,
+    isAdmin: u.is_admin, claimed: u.claimed, hasPin: !!u.pin_hash,
   }));
 }
 
@@ -294,7 +318,7 @@ export async function deleteAbsence(houseId, absenceId) {
 
 export const db = {
   getHouse, createHouse,
-  lookupHouseByCode, registerUser, getUserByEmail, setPinHash,
+  lookupHouseByCode, registerUser, getUserById, getUserByEmail, setPinHash,
   getUsers, createUserSlot, claimUserSlot, deleteUser,
   getRooms, createRoom, updateRoom, deleteRoom,
   getRules, createRule, deleteRule,

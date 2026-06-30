@@ -8,22 +8,21 @@ const inputCls =
 const labelCls = 'block text-[.7rem] font-bold text-ink-2 mb-1 uppercase tracking-[.06em]';
 
 export function CreateHouseScreen({ onSuccess, onBack }) {
-  const [houseName,  setHouseName]  = useState('');
-  const [adminName,  setAdminName]  = useState('');
-  const [adminEmail, setAdminEmail] = useState('');
-  const [pin,        setPin]        = useState('');
-  const [pinConf,    setPinConf]    = useState('');
+  const [houseName, setHouseName] = useState('');
+  const [adminName, setAdminName] = useState('');
+  const [pin,       setPin]       = useState('');
+  const [pinConf,   setPinConf]   = useState('');
   const [loading,    setLoading]    = useState(false);
   const [error,      setError]      = useState(null);
 
   async function handleCreate() {
-    if (!houseName.trim() || !adminName.trim() || !adminEmail.trim() || !pin || !pinConf) return;
+    if (!houseName.trim() || !adminName.trim() || !pin || !pinConf) return;
     if (!/^\d{4}$/.test(pin)) { setError('Il PIN deve essere di 4 cifre'); return; }
     if (pin !== pinConf)       { setError('I PIN non coincidono'); return; }
     setLoading(true);
     setError(null);
     try {
-      const session = await api.createHouse(houseName.trim(), adminName.trim(), adminEmail.trim(), pin);
+      const session = await api.createHouse(houseName.trim(), adminName.trim(), pin);
       onSuccess(session);
     } catch (e) {
       setError(e.message);
@@ -32,7 +31,7 @@ export function CreateHouseScreen({ onSuccess, onBack }) {
     }
   }
 
-  const canSubmit = houseName.trim() && adminName.trim() && adminEmail.trim() && pin.length === 4 && pinConf.length === 4;
+  const canSubmit = houseName.trim() && adminName.trim() && pin.length === 4 && pinConf.length === 4;
 
   return (
     <div className="min-h-screen bg-cream flex flex-col items-center justify-center p-6 gap-4">
@@ -49,10 +48,6 @@ export function CreateHouseScreen({ onSuccess, onBack }) {
         <div>
           <label className={labelCls}>Il tuo nome</label>
           <input type="text" value={adminName} onChange={e => setAdminName(e.target.value)} placeholder="es. Giada" className={inputCls} />
-        </div>
-        <div>
-          <label className={labelCls}>La tua email</label>
-          <input type="email" value={adminEmail} onChange={e => setAdminEmail(e.target.value)} placeholder="giada@example.com" className={inputCls} />
         </div>
         <div>
           <label className={labelCls}>Scegli un PIN (4 cifre)</label>

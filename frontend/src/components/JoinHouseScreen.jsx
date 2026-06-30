@@ -12,10 +12,9 @@ export function JoinHouseScreen({ onSuccess, onBack }) {
   const [houseCode, setHouseCode] = useState('');
   const [houseName, setHouseName] = useState('');
   const [houseId,   setHouseId]   = useState('');
-  const [name,      setName]      = useState('');
-  const [email,     setEmail]     = useState('');
-  const [pin,       setPin]       = useState('');
-  const [pinConf,   setPinConf]   = useState('');
+  const [name,    setName]    = useState('');
+  const [pin,     setPin]     = useState('');
+  const [pinConf, setPinConf] = useState('');
   const [loading,   setLoading]   = useState(false);
   const [error,     setError]     = useState(null);
 
@@ -37,13 +36,13 @@ export function JoinHouseScreen({ onSuccess, onBack }) {
   }
 
   async function handleRegister() {
-    if (!name.trim() || !email.trim() || !pin || !pinConf) return;
+    if (!name.trim() || !pin || !pinConf) return;
     if (!/^\d{4}$/.test(pin))  { setError('Il PIN deve essere di 4 cifre'); return; }
     if (pin !== pinConf)        { setError('I PIN non coincidono'); return; }
     setLoading(true);
     setError(null);
     try {
-      const session = await api.register(houseCode.trim().toUpperCase(), name.trim(), email.trim(), pin);
+      const session = await api.register(houseCode.trim().toUpperCase(), name.trim(), pin);
       onSuccess(session);
     } catch (e) {
       setError(e.message);
@@ -98,10 +97,6 @@ export function JoinHouseScreen({ onSuccess, onBack }) {
           <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="es. Silvia" className={inputCls} />
         </div>
         <div>
-          <label className={labelCls}>La tua email</label>
-          <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="silvia@example.com" className={inputCls} />
-        </div>
-        <div>
           <label className={labelCls}>Scegli un PIN (4 cifre)</label>
           <input
             type="password" inputMode="numeric" maxLength={4}
@@ -125,7 +120,7 @@ export function JoinHouseScreen({ onSuccess, onBack }) {
 
       <button
         onClick={handleRegister}
-        disabled={loading || !name.trim() || !email.trim() || pin.length !== 4 || pinConf.length !== 4}
+        disabled={loading || !name.trim() || pin.length !== 4 || pinConf.length !== 4}
         className="w-full max-w-[360px] bg-brown text-white font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading ? 'Registrazione…' : 'Entra 🏠'}
