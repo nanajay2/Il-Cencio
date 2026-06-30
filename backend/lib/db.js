@@ -51,6 +51,23 @@ export async function createHouse(name, adminName, pinHash) {
   };
 }
 
+export async function getHouseMembers(houseId) {
+  const { data: house, error: he } = await supabase
+    .from('houses').select('id, name').eq('id', houseId).single();
+  if (he || !house) throw new Error('Casa non trovata');
+
+  const { data: users, error: ue } = await supabase
+    .from('users').select('id, name, pin_hash')
+    .eq('house_id', houseId).eq('claimed', true).order('id');
+  if (ue) throw ue;
+
+  return {
+    houseId:   house.id,
+    houseName: house.name,
+    users: users.map(u => ({ id: u.id, name: u.name, hasPin: !!u.pin_hash })),
+  };
+}
+
 export async function lookupHouseByCode(code) {
   const { data, error } = await supabase
     .from('houses')
@@ -318,7 +335,7 @@ export async function deleteAbsence(houseId, absenceId) {
 
 export const db = {
   getHouse, createHouse,
-  lookupHouseByCode, registerUser, getUserById, getUserByEmail, setPinHash,
+  getHouseMembers, lookupHouseByCode, registerUser, getUserById, getUserByEmail, setPinHash,
   getUsers, createUserSlot, claimUserSlot, deleteUser,
   getRooms, createRoom, updateRoom, deleteRoom,
   getRules, createRule, deleteRule,

@@ -1,3 +1,4 @@
+
 # Turni di Casa · Via Risorgimento
 
 Static single-page web app for managing weekly cleaning schedules in a shared flat. Hosted on GitHub Pages, data persisted via [JSONBin.io](https://jsonbin.io).

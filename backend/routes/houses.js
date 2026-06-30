@@ -51,18 +51,19 @@ router.post('/auth', async (req, res) => {
   }
 });
 
-// Imposta PIN (utenti legacy senza PIN) — richiede codice casa come verifica identità
+// Imposta PIN — accetta houseCode (primo accesso) o houseId (device già noto)
 router.post('/set-pin', async (req, res) => {
-  const { userId, houseCode, pin } = req.body;
-  if (!userId || !houseCode || !pin) return res.status(400).json({ error: 'userId, houseCode e pin richiesti' });
+  const { userId, houseCode, houseId: directHouseId, pin } = req.body;
+  if (!userId || (!houseCode && !directHouseId) || !pin)
+    return res.status(400).json({ error: 'userId, (houseCode o houseId) e pin richiesti' });
   if (!/^\d{4}$/.test(pin)) return res.status(400).json({ error: 'PIN deve essere 4 cifre' });
   try {
-    // Verifica che l'utente appartenga alla casa con quel codice
-    const house = await db.lookupHouseByCode(houseCode);
-    const users = await db.getUsers(house.houseId);
-    if (!users.find(u => u.id === Number(userId))) {
-      return res.status(403).json({ error: 'Codice casa non corretto' });
-    }
+    const targetHouseId = houseCode
+      ? (await db.lookupHouseByCode(houseCode)).houseId
+      : directHouseId;
+    const users = await db.getUsers(targetHouseId);
+    if (!users.find(u => u.id === Number(userId)))
+      return res.status(403).json({ error: 'Utente non trovato in questa casa' });
     const pinHash = await bcrypt.hash(pin, 10);
     await db.setPinHash(Number(userId), pinHash);
     res.json({ ok: true });
@@ -85,6 +86,15 @@ router.post('/', async (req, res) => {
     res.status(201).json(await db.createHouse(name, adminName, pinHash));
   } catch (e) {
     res.status(500).json({ error: e.message });
+  }
+});
+
+// Lista membri per device già associato (senza codice invito)
+router.get('/:houseId/members', async (req, res) => {
+  try {
+    res.json(await db.getHouseMembers(req.params.houseId));
+  } catch (e) {
+    res.status(404).json({ error: e.message });
   }
 });
 

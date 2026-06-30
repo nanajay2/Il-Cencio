@@ -1,4 +1,4 @@
-export function WelcomeScreen({ onJoin, onLogin, onCreate }) {
+export function WelcomeScreen({ onLogin, onCreate }) {
   return (
     <div className="min-h-screen bg-cream flex flex-col items-center justify-center p-6 gap-4">
       <div className="text-center mb-4">
@@ -7,17 +7,10 @@ export function WelcomeScreen({ onJoin, onLogin, onCreate }) {
       </div>
 
       <button
-        onClick={onJoin}
+        onClick={onLogin}
         className="w-full max-w-[320px] bg-brown text-white font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors shadow-[0_4px_16px_rgba(46,26,14,.25)]"
       >
-        🏠 Unisciti a una casa
-      </button>
-
-      <button
-        onClick={onLogin}
-        className="w-full max-w-[320px] bg-cream-2 text-brown font-bold text-[1rem] rounded-2xl py-4 border border-border cursor-pointer hover:bg-[#ece4d6] transition-colors"
-      >
-        🔑 Accedi
+        Entra
       </button>
 
       <button
@@ -26,11 +19,6 @@ export function WelcomeScreen({ onJoin, onLogin, onCreate }) {
       >
         + Crea una nuova casa
       </button>
-
-      <p className="text-[.72rem] text-ink-2 text-center max-w-[280px] mt-2">
-        "Unisciti" se hai il codice della tua casa.<br />
-        "Accedi" se sei già registrata e vuoi entrare da un nuovo dispositivo.
-      </p>
     </div>
   );
 }

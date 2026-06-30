@@ -16,10 +16,11 @@ const h = (houseId) => `/houses/${houseId}`;
 
 export const api = {
   // Auth / onboarding
-  lookupHouse: (houseCode)                        => req('/houses/lookup',   { method: 'POST', body: JSON.stringify({ houseCode }) }),
-  register:    (houseCode, name, pin)               => req('/houses/register', { method: 'POST', body: JSON.stringify({ houseCode, name, pin }) }),
-  login:       (userId, pin)                        => req('/houses/auth',     { method: 'POST', body: JSON.stringify({ userId, pin }) }),
-  setPin:      (userId, houseCode, pin)              => req('/houses/set-pin',  { method: 'POST', body: JSON.stringify({ userId, houseCode, pin }) }),
+  lookupHouse:     (houseCode)                => req('/houses/lookup',   { method: 'POST', body: JSON.stringify({ houseCode }) }),
+  getHouseMembers: (houseId)                  => req(`/houses/${houseId}/members`),
+  register:        (houseCode, name, pin)     => req('/houses/register', { method: 'POST', body: JSON.stringify({ houseCode, name, pin }) }),
+  login:           (userId, pin)              => req('/houses/auth',     { method: 'POST', body: JSON.stringify({ userId, pin }) }),
+  setPin:          (userId, pin, opts = {})   => req('/houses/set-pin',  { method: 'POST', body: JSON.stringify({ userId, pin, ...opts }) }),
   createHouse: (name, adminName, adminPin) =>
     req('/houses', { method: 'POST', body: JSON.stringify({ name, adminName, adminPin }) }),
 

@@ -7,7 +7,6 @@ import { RevealModal }        from './components/RevealModal.jsx';
 import { CatMascot }          from './components/CatMascot.jsx';
 import { Toast, useToast }    from './components/Toast.jsx';
 import { WelcomeScreen }      from './components/WelcomeScreen.jsx';
-import { JoinHouseScreen }    from './components/JoinHouseScreen.jsx';
 import { LoginScreen }        from './components/LoginScreen.jsx';
 import { CreateHouseScreen }  from './components/CreateHouseScreen.jsx';
 import { AdminPanel }         from './components/AdminPanel.jsx';
@@ -33,14 +32,19 @@ function saveSession(s) {
   localStorage.setItem('isAdmin',   s.isAdmin    ? 'true' : 'false');
 }
 function clearSession() {
-  ['houseId','houseName','userId','userName','isAdmin'].forEach(k => localStorage.removeItem(k));
+  // Tiene houseId/houseName: al prossimo accesso salta il codice casa
+  ['userId','userName','isAdmin'].forEach(k => localStorage.removeItem(k));
 }
 
 export default function App() {
   const initial = loadSession();
 
-  // view: 'welcome' | 'join' | 'login' | 'create-house' | 'app'
-  const [view,     setView]     = useState(initial.houseId && initial.userId ? 'app' : 'welcome');
+  // view: 'welcome' | 'login' | 'create-house' | 'app'
+  const [view,     setView]     = useState(
+    initial.houseId && initial.userId ? 'app' :
+    initial.houseId                   ? 'login' :
+                                        'welcome'
+  );
   const [session,  setSession]  = useState(initial);
   const [showAdmin, setShowAdmin] = useState(false);
   const [showReveal, setShowReveal] = useState(false);
@@ -154,9 +158,8 @@ export default function App() {
   }
 
   // ---- Routing ----
-  if (view === 'welcome')      return <WelcomeScreen onJoin={() => setView('join')} onLogin={() => setView('login')} onCreate={() => setView('create-house')} />;
-  if (view === 'join')         return <JoinHouseScreen onSuccess={handleJoinSuccess} onBack={() => setView('welcome')} />;
-  if (view === 'login')        return <LoginScreen onSuccess={handleJoinSuccess} onBack={() => setView('welcome')} />;
+  if (view === 'welcome')      return <WelcomeScreen onLogin={() => setView('login')} onCreate={() => setView('create-house')} />;
+  if (view === 'login')        return <LoginScreen onSuccess={handleJoinSuccess} onBack={() => setView('welcome')} savedHouseId={initial.houseId || null} />;
   if (view === 'create-house') return <CreateHouseScreen onSuccess={handleCreateSuccess} onBack={() => setView('welcome')} />;
 
   // ---- Main app ----
