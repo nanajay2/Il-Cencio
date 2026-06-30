@@ -69,12 +69,12 @@ export function CreateHouseScreen({ onSuccess, onBack }) {
         </div>
       </div>
 
-      {error && <p className="text-[.82rem] text-red-500 text-center max-w-[320px]">{error}</p>}
+      {error && <p className="text-[.82rem] text-red text-center max-w-[320px]">{error}</p>}
 
       <button
         onClick={handleCreate}
         disabled={loading || !canSubmit}
-        className="w-full max-w-[360px] bg-brown text-white font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full max-w-[360px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading ? 'Creazione…' : 'Crea casa 🏠'}
       </button>

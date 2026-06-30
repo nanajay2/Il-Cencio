@@ -278,7 +278,7 @@ export default function App() {
         />
       )}
 
-      <CatMascot weeks={weeks} userId={userId} />
+      {/* <CatMascot weeks={weeks} userId={userId} /> */}
       <Toast toast={toast} />
     </>
   );

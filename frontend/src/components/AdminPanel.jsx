@@ -5,20 +5,53 @@ const inputCls =
   'bg-cream text-ink outline-none h-[38px] transition-colors focus:border-brown flex-1 min-w-0';
 
 const btnCls =
-  'h-[38px] px-4 bg-brown text-white border-0 rounded-[10px] font-sans text-[.8rem] font-bold cursor-pointer hover:bg-brown-mid transition-colors whitespace-nowrap flex-shrink-0';
+  'h-[38px] px-4 bg-brown text-ink border-0 rounded-[10px] font-sans text-[.8rem] font-bold cursor-pointer hover:bg-brown-mid transition-colors whitespace-nowrap flex-shrink-0';
 
 const dangerCls =
-  'border-0 bg-transparent cursor-pointer text-ink-2 text-[.9rem] px-[7px] py-[3px] rounded-md transition-all hover:text-red-500 hover:bg-red-50';
+  'border-0 bg-transparent cursor-pointer text-ink-2 text-[.9rem] px-[7px] py-[3px] rounded-md transition-all hover:text-red hover:bg-red-pale';
 
 const sectionCls = 'bg-card rounded-2xl border border-border p-5 flex flex-col gap-3';
 const titleCls   = 'font-bold text-[.92rem] text-ink mb-1';
+
+const selectCls = inputCls + ' appearance-none';
+
+const RULE_TYPES = [
+  { value: 'pool_restriction', icon: '🚿', label: '🚿 Restrizione pool (es. Bagno)', hint: 'Solo le persone selezionate possono fare questa stanza.' },
+  { value: 'sequence',         icon: '🔄', label: '🔄 Sequenza (es. Cucina→Corridoio)', hint: 'Chi fa la prima stanza, la settimana dopo fa automaticamente la seconda.' },
+  { value: 'exclusion',        icon: '🚫', label: '🚫 Esclusione', hint: 'La persona selezionata non farà mai questa stanza.' },
+];
+
+function describeRule(rule, rooms, users) {
+  const roomName = id => rooms.find(r => r.id === id)?.name ?? `Stanza #${id}`;
+  const userName = id => users.find(u => u.id === id)?.name ?? `Utente #${id}`;
+  const { type, config } = rule;
+  if (type === 'pool_restriction') {
+    return `${roomName(config.room_id)} → solo ${(config.user_ids ?? []).map(userName).join(', ') || '—'}`;
+  }
+  if (type === 'sequence') {
+    return `${roomName(config.from_room_id)} → ${roomName(config.to_room_id)} la settimana dopo`;
+  }
+  if (type === 'exclusion') {
+    return `${userName(config.user_id)} mai su ${roomName(config.room_id)}`;
+  }
+  return JSON.stringify(config);
+}
 
 export function AdminPanel({ house, onClose, onRemoveUser, onAddRoom, onRemoveRoom, onAddRule, onRemoveRule, onLogout }) {
   const [copied, setCopied] = useState(false);
   // Rooms state
   const [rName,  setRName]  = useState('');
   const [rIcon,  setRIcon]  = useState('🏠');
-  const [rColor, setRColor] = useState('#c97b4b');
+  const [rColor, setRColor] = useState('#BDB395');
+
+  // Rules state
+  const [ruleType,   setRuleType]   = useState(RULE_TYPES[0].value);
+  const [poolRoom,   setPoolRoom]   = useState('');
+  const [poolUsers,  setPoolUsers]  = useState([]);
+  const [seqFrom,    setSeqFrom]    = useState('');
+  const [seqTo,      setSeqTo]      = useState('');
+  const [exclUser,   setExclUser]   = useState('');
+  const [exclRoom,   setExclRoom]   = useState('');
 
   function copyCode() {
     navigator.clipboard.writeText(house.houseInviteCode ?? '');
@@ -26,16 +59,30 @@ export function AdminPanel({ house, onClose, onRemoveUser, onAddRoom, onRemoveRo
     setTimeout(() => setCopied(false), 2000);
   }
 
-  const RULE_TYPES = [
-    { value: 'pool_restriction', label: '🚿 Restrizione pool (es. Bagno)' },
-    { value: 'sequence',         label: '🔄 Sequenza (es. Cucina→Corridoio)' },
-    { value: 'exclusion',        label: '🚫 Esclusione (persona sempre fuori da stanza)' },
-  ];
-
   async function addRoom() {
     if (!rName.trim()) return;
     await onAddRoom({ name: rName.trim(), icon: rIcon, color: rColor, sortOrder: house.rooms.length });
     setRName('');
+  }
+
+  function toggleAllowedUser(id) {
+    setPoolUsers(ids => ids.includes(id) ? ids.filter(u => u !== id) : [...ids, id]);
+  }
+
+  async function addRule() {
+    if (ruleType === 'pool_restriction') {
+      if (!poolRoom || poolUsers.length === 0) return;
+      await onAddRule('pool_restriction', { room_id: Number(poolRoom), user_ids: poolUsers.map(Number) });
+      setPoolRoom(''); setPoolUsers([]);
+    } else if (ruleType === 'sequence') {
+      if (!seqFrom || !seqTo || seqFrom === seqTo) return;
+      await onAddRule('sequence', { from_room_id: Number(seqFrom), to_room_id: Number(seqTo) });
+      setSeqFrom(''); setSeqTo('');
+    } else if (ruleType === 'exclusion') {
+      if (!exclUser || !exclRoom) return;
+      await onAddRule('exclusion', { user_id: Number(exclUser), room_id: Number(exclRoom) });
+      setExclUser(''); setExclRoom('');
+    }
   }
 
   return (
@@ -43,8 +90,8 @@ export function AdminPanel({ house, onClose, onRemoveUser, onAddRoom, onRemoveRo
       <div className="max-w-[480px] mx-auto flex flex-col gap-4 pb-8 pt-4">
 
         <div className="flex items-center justify-between">
-          <h2 className="font-serif text-[1.6rem] text-white">⚙️ Admin — {house.name}</h2>
-          <button onClick={onClose} className="text-white/60 hover:text-white text-[1.3rem] border-0 bg-transparent cursor-pointer transition-colors">✕</button>
+          <h2 className="font-serif text-[1.6rem] text-cream">⚙️ Admin — {house.name}</h2>
+          <button onClick={onClose} className="text-cream/60 hover:text-cream text-[1.3rem] border-0 bg-transparent cursor-pointer transition-colors">✕</button>
         </div>
 
         {/* Codice invito casa */}
@@ -73,7 +120,7 @@ export function AdminPanel({ house, onClose, onRemoveUser, onAddRoom, onRemoveRo
                 <span>
                   <strong>{u.name}</strong>
                   <span className="text-ink-2 ml-1.5">{u.email}</span>
-                  {u.isAdmin && <span className="ml-1.5 text-[.62rem] font-bold bg-brown text-white px-[7px] py-[2px] rounded-full">admin</span>}
+                  {u.isAdmin && <span className="ml-1.5 text-[.62rem] font-bold bg-brown text-ink px-[7px] py-[2px] rounded-full">admin</span>}
                   {!u.claimed && <span className="ml-1.5 text-[.62rem] font-bold bg-cream-2 text-ink-2 px-[7px] py-[2px] rounded-full">non attivato</span>}
                 </span>
                 <div className="flex items-center gap-2">
@@ -118,8 +165,7 @@ export function AdminPanel({ house, onClose, onRemoveUser, onAddRoom, onRemoveRo
         <section className={sectionCls}>
           <div className={titleCls}>📋 Regole</div>
           <p className="text-[.77rem] text-ink-2 -mt-1">
-            Le regole controllano chi può fare cosa e in quale ordine.<br />
-            Per configurare regole avanzate, contatta il supporto o modifica direttamente su Supabase.
+            Le regole controllano chi può fare cosa e in quale ordine.
           </p>
 
           <div className="flex flex-col gap-1.5 mt-1">
@@ -128,13 +174,80 @@ export function AdminPanel({ house, onClose, onRemoveUser, onAddRoom, onRemoveRo
             ) : house.rules.map(r => (
               <div key={r.id} className="flex items-center justify-between px-3 py-[9px] bg-cream rounded-[10px] border border-border text-[.83rem]">
                 <span>
-                  <span className="font-bold">{RULE_TYPES.find(t => t.value === r.type)?.label ?? r.type}</span>
-                  <span className="text-ink-2 ml-2 text-[.75rem]">{JSON.stringify(r.config)}</span>
+                  <span className="font-bold">{RULE_TYPES.find(t => t.value === r.type)?.icon ?? '📋'}</span>
+                  <span className="ml-1.5">{describeRule(r, house.rooms, house.users)}</span>
                 </span>
                 <button onClick={() => onRemoveRule(r.id)} className={dangerCls}>✕</button>
               </div>
             ))}
           </div>
+
+          {house.rooms.length === 0 || house.users.length === 0 ? (
+            <p className="text-[.8rem] text-ink-2 mt-1">Aggiungi prima stanze e coinquilini per poter creare regole.</p>
+          ) : (
+            <div className="flex flex-col gap-2 mt-2 pt-3 border-t border-border">
+              <select value={ruleType} onChange={e => setRuleType(e.target.value)} className={selectCls}>
+                {RULE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+              <p className="text-[.75rem] text-ink-2 -mt-1">{RULE_TYPES.find(t => t.value === ruleType)?.hint}</p>
+
+              {ruleType === 'pool_restriction' && (
+                <>
+                  <select value={poolRoom} onChange={e => setPoolRoom(e.target.value)} className={selectCls}>
+                    <option value="">Scegli stanza…</option>
+                    {house.rooms.map(r => <option key={r.id} value={r.id}>{r.icon} {r.name}</option>)}
+                  </select>
+                  <div className="flex flex-wrap gap-1.5">
+                    {house.users.map(u => (
+                      <button
+                        key={u.id}
+                        type="button"
+                        onClick={() => toggleAllowedUser(u.id)}
+                        className={
+                          'px-3 py-1.5 rounded-full text-[.78rem] font-semibold border-[1.5px] transition-colors cursor-pointer ' +
+                          (poolUsers.includes(u.id)
+                            ? 'bg-brown text-ink border-brown'
+                            : 'bg-cream text-ink-2 border-border')
+                        }
+                      >
+                        {u.name}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {ruleType === 'sequence' && (
+                <div className="flex items-center gap-2">
+                  <select value={seqFrom} onChange={e => setSeqFrom(e.target.value)} className={selectCls}>
+                    <option value="">Stanza di partenza…</option>
+                    {house.rooms.map(r => <option key={r.id} value={r.id}>{r.icon} {r.name}</option>)}
+                  </select>
+                  <span className="text-ink-2">→</span>
+                  <select value={seqTo} onChange={e => setSeqTo(e.target.value)} className={selectCls}>
+                    <option value="">Stanza successiva…</option>
+                    {house.rooms.map(r => <option key={r.id} value={r.id}>{r.icon} {r.name}</option>)}
+                  </select>
+                </div>
+              )}
+
+              {ruleType === 'exclusion' && (
+                <div className="flex items-center gap-2">
+                  <select value={exclUser} onChange={e => setExclUser(e.target.value)} className={selectCls}>
+                    <option value="">Scegli persona…</option>
+                    {house.users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                  </select>
+                  <span className="text-ink-2">∌</span>
+                  <select value={exclRoom} onChange={e => setExclRoom(e.target.value)} className={selectCls}>
+                    <option value="">Scegli stanza…</option>
+                    {house.rooms.map(r => <option key={r.id} value={r.id}>{r.icon} {r.name}</option>)}
+                  </select>
+                </div>
+              )}
+
+              <button onClick={addRule} className={btnCls + ' self-start'}>+ Aggiungi regola</button>
+            </div>
+          )}
         </section>
 
         {/* Logout */}
