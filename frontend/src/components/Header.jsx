@@ -14,7 +14,7 @@ export function Header({ houseName, currentUser, isAdmin, onAdmin }) {
   const dateStr = `${DAYS[now.getDay()]}, ${now.getDate()} ${MONTHS[now.getMonth()]}`;
 
   return (
-    <header style={{ background: '#D5C7A3' }} className="px-5 pt-5 pb-4">
+    <header style={{ background: '#D5C7A3', paddingTop: 'calc(env(safe-area-inset-top) + 1.25rem)' }} className="px-5 pb-4">
       <div className="flex items-start justify-between">
         <div>
           <div className="font-serif text-[1.65rem] leading-none" style={{ color: '#4E220F' }}>

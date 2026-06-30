@@ -157,3 +157,10 @@ export async function purgeOldWeeks(db, houseId) {
   const cutoff = addDays(today(), -21);
   await db.deleteWeeksBefore(houseId, cutoff);
 }
+
+// Le stanze sono cambiate: le settimane non ancora concluse (corrente + future)
+// possono avere assignment orfani o mancanti per le vecchie/nuove stanze.
+// Le cancelliamo: ensureFutureWeeks le rigenera da capo allo step successivo.
+export async function invalidateUpcomingWeeks(db, houseId) {
+  await db.deleteWeeksFrom(houseId, today());
+}
