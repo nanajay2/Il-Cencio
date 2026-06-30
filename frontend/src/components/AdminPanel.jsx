@@ -69,7 +69,7 @@ export function AdminPanel({ house, onClose, onAddUser, onRemoveUser, onAddRoom,
                   {!u.claimed && <span className="ml-1.5 text-[.62rem] font-bold bg-cream-2 text-ink-2 px-[7px] py-[2px] rounded-full">non attivato</span>}
                 </span>
                 <div className="flex items-center gap-2">
-                  {!u.claimed && (
+                  {u.inviteCode && (
                     <code className="text-[.65rem] bg-cream-2 px-1.5 py-0.5 rounded text-brown font-mono">{u.inviteCode}</code>
                   )}
                   {!u.isAdmin && (
