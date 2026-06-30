@@ -8,6 +8,14 @@ function addDays(s, n) {
 
 export const today = () => new Date().toISOString().split('T')[0];
 
+function getMondayOfCurrentWeek() {
+  const d = new Date();
+  const utcDay = d.getUTCDay(); // 0=domenica
+  const diff = utcDay === 0 ? -6 : 1 - utcDay;
+  d.setUTCDate(d.getUTCDate() + diff);
+  return d.toISOString().split('T')[0];
+}
+
 /**
  * Calcola la prossima settimana per una casa.
  *
@@ -116,8 +124,23 @@ export async function ensureFutureWeeks(db, houseId) {
     db.getRules(houseId),
   ]);
 
+  if (!users.length || !rooms.length) return 0;
+
   const t = today();
   let added = 0, safety = 0, current = [...weeks];
+
+  // Nessuna settimana: crea una settimana fittizia la settimana scorsa
+  // così computeNextWeek può generare la settimana corrente come prima reale
+  if (!current.length) {
+    const prevMonday = addDays(getMondayOfCurrentWeek(), -7);
+    const fakeWeek = { id: prevMonday, start: prevMonday, end: addDays(prevMonday, 6), assignments: [] };
+    const seed = computeNextWeek([fakeWeek], users, rooms, rules);
+    if (seed) {
+      await db.insertWeek(seed, houseId);
+      current.push(seed);
+      added++;
+    }
+  }
 
   while (safety++ < 20) {
     if (current.filter(w => w.start > t).length >= WEEKS_AHEAD) break;

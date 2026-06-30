@@ -13,7 +13,7 @@ export function SelectUserModal({ users, onSelect }) {
             <button
               key={u.id}
               onClick={() => onSelect(u)}
-              className="w-full text-left px-5 py-4 bg-cream-2 rounded-[14px] border border-border text-[1rem] font-bold text-ink hover:bg-[#ece4d6] hover:border-brown-light transition-colors cursor-pointer"
+              className="w-full text-left px-5 py-4 bg-cream-2 rounded-[14px] border border-border text-[1rem] font-bold text-ink hover:bg-sage hover:border-border transition-colors cursor-pointer"
             >
               {u.name}
             </button>
