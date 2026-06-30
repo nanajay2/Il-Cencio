@@ -3,7 +3,7 @@ import { api } from '../api.js';
 
 const inputCls =
   'w-full border-[1.5px] border-border rounded-[12px] px-4 py-3 text-[.95rem] font-sans ' +
-  'bg-white text-ink outline-none transition-colors focus:border-brown';
+  'bg-card text-ink outline-none transition-colors focus:border-brown';
 
 const labelCls = 'block text-[.7rem] font-bold text-ink-2 mb-1 uppercase tracking-[.06em]';
 
@@ -65,7 +65,7 @@ export function JoinHouseScreen({ onSuccess, onBack }) {
         onKeyDown={e => e.key === 'Enter' && handleLookup()}
         placeholder="es. CENCIO"
         maxLength={12}
-        className="w-full max-w-[320px] border-[1.5px] border-border rounded-[14px] px-4 py-3.5 text-center text-[1.4rem] font-bold font-mono tracking-[.15em] bg-white text-brown outline-none focus:border-brown transition-colors"
+        className="w-full max-w-[320px] border-[1.5px] border-border rounded-[14px] px-4 py-3.5 text-center text-[1.4rem] font-bold font-mono tracking-[.15em] bg-card text-brown outline-none focus:border-brown transition-colors"
       />
 
       {error && <p className="text-[.82rem] text-red-500 text-center max-w-[280px]">{error}</p>}

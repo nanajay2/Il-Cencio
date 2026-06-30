@@ -1,70 +1,91 @@
 import { isEditable } from '../constants.js';
 
 // assignment: { userId, userName, roomId, roomName, roomIcon, roomColor, done }
-export function ChoreCard({ assignment, absent, isMe, dimmed, week, onToggle }) {
+export function ChoreCard({ assignment, absent, isMe, compact, week, onToggle }) {
   const { userId, userName, roomName, roomIcon, roomColor, done } = assignment;
-  const color    = roomColor;
   const editable = isEditable(week);
 
-  const cardCls = [
-    'bg-card rounded-2xl border border-border relative overflow-hidden',
-    'shadow-[0_1px_3px_rgba(0,0,0,.05),0_4px_12px_rgba(0,0,0,.06)]',
-    'flex items-stretch transition-[box-shadow,transform] duration-[180ms]',
-    'hover:shadow-[0_2px_6px_rgba(0,0,0,.07),0_8px_24px_rgba(0,0,0,.09)] hover:-translate-y-px',
-    done   ? 'bg-[#f9fdf9]'   : '',
-    absent ? 'opacity-[.45]'  : '',
-    isMe   ? 'scale-[1.015] border-2 z-[1] shadow-[0_4px_14px_rgba(0,0,0,.11),0_10px_30px_rgba(0,0,0,.13)]' : '',
-    dimmed ? 'opacity-[.68]'  : '',
-  ].filter(Boolean).join(' ');
-
-  return (
-    <div className={cardCls} style={isMe ? { borderColor: color } : {}}>
-
-      {isMe && (
-        <div className="absolute top-[9px] right-2.5 text-[.58rem] font-extrabold tracking-[.05em] bg-brown text-white px-2 py-0.5 rounded-full">
-          TU 🏠
-        </div>
+  // ── Compact variant (altri coinquilini) ──────────────────────────
+  if (compact) return (
+    <div className={`flex items-center gap-3 px-4 py-[11px] transition-opacity ${absent ? 'opacity-40' : ''}`}>
+      <div
+        className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-[.72rem] font-extrabold text-white"
+        style={{ background: roomColor }}
+      >
+        {userName.charAt(0)}
+      </div>
+      <span className="flex-1 text-[.88rem] font-semibold text-ink truncate">{userName}</span>
+      {absent && (
+        <span className="text-[.6rem] font-bold tracking-[.04em] text-ink-2 bg-cream-2 px-2 py-0.5 rounded-full">assente</span>
       )}
+      <span className="text-[1.05rem]">{roomIcon}</span>
+      <span className="text-[.82rem] text-ink-2 max-w-[90px] truncate">{roomName}</span>
+      <span
+        className="w-5 h-5 rounded-full border-[1.5px] flex-shrink-0 flex items-center justify-center transition-all"
+        style={done
+          ? { background: roomColor, borderColor: roomColor }
+          : { borderColor: '#BDB395' }
+        }
+      >
+        {done && <svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+      </span>
+    </div>
+  );
 
-      <div className="w-[5px] flex-shrink-0" style={{ background: color }} />
+  // ── Hero variant (il mio turno) ──────────────────────────────────
+  return (
+    <div
+      className="bg-card rounded-2xl overflow-hidden border-2 transition-all"
+      style={{ borderColor: done ? '#BDB395' : roomColor }}
+    >
+      {/* Striscia colore in cima */}
+      <div className="h-1.5 transition-colors" style={{ background: done ? '#BDB395' : roomColor }} />
 
-      <div className="flex-1 p-[14px_16px_14px_14px] flex items-center gap-3">
-        <div className="text-[1.7rem] flex-shrink-0 leading-none drop-shadow-sm">{roomIcon}</div>
-        <div className="flex-1 min-w-0">
-          <div className={`text-[1.05rem] font-extrabold leading-[1.2] ${done ? 'line-through text-[#a0b4a8]' : 'text-ink'}`}>
-            {roomName}
-          </div>
-          <div className="text-[.82rem] text-ink-2 mt-[3px]">
-            Tocca a: <strong className="text-ink font-bold">{userName}</strong>
-            {absent && (
-              <span className="inline-block text-[.62rem] font-bold tracking-[.04em] bg-cream-2 text-brown-soft px-[7px] py-[2px] rounded-full ml-1 align-middle">
-                assente
-              </span>
-            )}
-          </div>
-          {editable ? (
-            <button
-              className={`done-btn ${done ? 'checked' : ''}`}
-              style={{ '--accent': color }}
-              onClick={() => onToggle(week.id, userId)}
-            >
-              <span className="done-dot" />
-              {done ? 'Fatto ✓' : 'Segna come fatto'}
-            </button>
-          ) : (
-            <span
-              className="done-btn"
-              style={{
-                opacity: .45, cursor: 'default', '--accent': color,
-                ...(done ? { background: color, borderColor: color, color: '#fff' } : {}),
-              }}
-            >
-              🔒 {done ? 'Fatto ✓' : 'Non fatto'}
+      <div className="p-5">
+        <div className="flex items-start justify-between mb-1">
+          <span className="text-[.65rem] font-bold uppercase tracking-[.08em] text-ink-2">Il tuo turno</span>
+          {absent && (
+            <span className="text-[.6rem] font-bold tracking-[.04em] text-brown-soft bg-cream-2 px-2 py-0.5 rounded-full">
+              sei assente
             </span>
           )}
         </div>
-      </div>
 
+        <div className="flex items-center gap-4 mt-3 mb-5">
+          <span
+            className="text-[3rem] leading-none w-[60px] h-[60px] flex items-center justify-center rounded-xl flex-shrink-0"
+            style={{ background: done ? '#F6F0F0' : `${roomColor}18` }}
+          >
+            {roomIcon}
+          </span>
+          <div>
+            <div className={`font-serif text-[1.55rem] leading-tight ${done ? 'text-ink-2 line-through' : 'text-ink'}`}>
+              {roomName}
+            </div>
+            {done && <div className="text-[.75rem] text-ink-2 mt-0.5">Completato ✓</div>}
+          </div>
+        </div>
+
+        {editable ? (
+          <button
+            className="w-full py-3 rounded-xl font-bold text-[.88rem] border-0 cursor-pointer transition-all"
+            style={done
+              ? { background: '#F6F0F0', color: '#7A5038' }
+              : { background: roomColor, color: '#fff', boxShadow: `0 4px 14px ${roomColor}55` }
+            }
+            onClick={() => onToggle(week.id, userId)}
+          >
+            {done ? '↩ Segna come non fatto' : 'Segna come fatto ✓'}
+          </button>
+        ) : (
+          <div
+            className="w-full py-3 rounded-xl text-[.85rem] text-center font-semibold"
+            style={{ background: '#F6F0F0', color: '#7A5038', opacity: .7 }}
+          >
+            🔒 {done ? 'Fatto' : 'Non ancora fatto'}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

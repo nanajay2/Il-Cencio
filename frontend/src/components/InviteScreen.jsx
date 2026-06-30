@@ -35,7 +35,7 @@ export function InviteScreen({ onSuccess, onBack }) {
         onKeyDown={e => e.key === 'Enter' && handleJoin()}
         placeholder="ES. AB12CD"
         maxLength={10}
-        className="w-full max-w-[320px] border-[1.5px] border-border rounded-[14px] px-4 py-3.5 text-center text-[1.4rem] font-bold font-mono tracking-[.15em] bg-white text-brown outline-none focus:border-brown transition-colors"
+        className="w-full max-w-[320px] border-[1.5px] border-border rounded-[14px] px-4 py-3.5 text-center text-[1.4rem] font-bold font-mono tracking-[.15em] bg-card text-brown outline-none focus:border-brown transition-colors"
       />
 
       {error && (

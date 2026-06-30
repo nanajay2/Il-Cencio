@@ -23,7 +23,7 @@ export function AbsencesPanel({ users, absences, onAdd, onRemove }) {
     <div className="mx-4 mt-4 mb-0 bg-card rounded-2xl border border-border shadow-[0_1px_3px_rgba(0,0,0,.04)]">
 
       <div
-        className={`px-4 py-[14px] flex items-center justify-between cursor-pointer select-none transition-colors hover:bg-[#faf7f3] ${open ? 'border-b border-border rounded-t-2xl' : 'rounded-2xl'}`}
+        className={`px-4 py-[14px] flex items-center justify-between cursor-pointer select-none transition-colors hover:bg-cream-2 ${open ? 'border-b border-border rounded-t-2xl' : 'rounded-2xl'}`}
         onClick={() => setOpen(o => !o)}
       >
         <span className="text-[.88rem] font-bold text-ink flex items-center gap-2">🗓️ Assenze</span>

@@ -3,7 +3,7 @@ import { api } from '../api.js';
 
 const inputCls =
   'w-full border-[1.5px] border-border rounded-[12px] px-4 py-3 text-[.95rem] font-sans ' +
-  'bg-white text-ink outline-none transition-colors focus:border-brown';
+  'bg-card text-ink outline-none transition-colors focus:border-brown';
 
 const labelCls = 'block text-[.7rem] font-bold text-ink-2 mb-1 uppercase tracking-[.06em]';
 
