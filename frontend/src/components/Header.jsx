@@ -1,50 +1,47 @@
 import { DAYS, MONTHS } from '../constants.js';
 
-export function Header({ houseName, currentUser, isAdmin, onLogout, onAdmin, onRefresh }) {
+function GearIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+    </svg>
+  );
+}
+
+export function Header({ houseName, currentUser, isAdmin, onAdmin }) {
   const now = new Date();
-  const dateStr = `${DAYS[now.getDay()]}, ${now.getDate()} ${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
+  const dateStr = `${DAYS[now.getDay()]}, ${now.getDate()} ${MONTHS[now.getMonth()]}`;
 
   return (
-    <header className="bg-gradient-to-br from-[#2e1a0e] via-[#3d2314] to-[#2a180c] px-5 pt-[18px] pb-[14px] shadow-[0_2px_16px_rgba(0,0,0,.3)]">
+    <header style={{ background: '#4E220F' }} className="px-5 pt-5 pb-4">
       <div className="flex items-start justify-between">
         <div>
-          <div className="font-serif text-[1.65rem] text-white leading-[1.1] tracking-[-0.01em]">
-            <span className="text-[1.4rem] mr-1.5">🏠</span>{houseName || 'Turni di Casa'}
+          <div className="font-serif text-[1.65rem] text-white leading-none">
+            {houseName || 'Il Cencio'}
           </div>
-          <div className="text-[.72rem] text-white/50 mt-1 tracking-[.03em]">{dateStr}</div>
-        </div>
-        <div className="flex gap-2 mt-0.5">
-          {isAdmin && (
-            <button
-              onClick={onAdmin}
-              title="Pannello admin"
-              className="w-[34px] h-[34px] rounded-full border-0 bg-white/10 text-white/80 text-[.9rem] cursor-pointer flex items-center justify-center hover:bg-white/20 transition-colors"
-            >
-              ⚙️
-            </button>
-          )}
           {currentUser && (
-            <button
-              onClick={onLogout}
-              className="h-[34px] px-3 rounded-full border-0 bg-white/10 text-white/75 text-[.72rem] font-bold cursor-pointer hover:bg-white/20 transition-colors whitespace-nowrap"
-            >
-              Esci →
-            </button>
+            <div className="text-[.75rem] mt-[6px]" style={{ color: 'rgba(246,240,240,.55)' }}>
+              Ciao, <strong style={{ color: 'rgba(246,240,240,.85)' }}>{currentUser}</strong>
+              <span style={{ color: '#D5C7A3' }} className="mx-1.5">·</span>
+              <span style={{ color: '#D5C7A3' }}>{dateStr}</span>
+            </div>
           )}
+        </div>
+
+        {isAdmin && (
           <button
-            onClick={onRefresh}
-            title="Aggiorna"
-            className="w-[34px] h-[34px] rounded-full border-0 bg-white/10 text-white/80 text-[.95rem] cursor-pointer flex items-center justify-center hover:bg-white/20 transition-colors"
+            onClick={onAdmin}
+            title="Impostazioni"
+            className="w-[36px] h-[36px] rounded-full border-0 cursor-pointer flex items-center justify-center transition-all mt-0.5"
+            style={{ background: 'rgba(213,199,163,.15)', color: '#D5C7A3' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(213,199,163,.28)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'rgba(213,199,163,.15)'}
           >
-            ↻
+            <GearIcon />
           </button>
-        </div>
+        )}
       </div>
-      {currentUser && (
-        <div className="mt-[10px] text-[.78rem] text-white/60">
-          Ciao, <strong className="text-white/85">{currentUser}</strong>
-        </div>
-      )}
     </header>
   );
 }

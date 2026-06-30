@@ -166,26 +166,9 @@ export default function App() {
   const { currentWeek, weeks, currentIdx, loading } = weeksHook;
   const house = houseHook.house;
 
-  const choreCards = currentWeek
-    ? [...(currentWeek.assignments ?? [])]
-        .sort((a, b) => {
-          if (a.userId === userId) return -1;
-          if (b.userId === userId) return 1;
-          return 0;
-        })
-        .map(asgn => (
-          <ChoreCard
-            key={asgn.userId}
-            assignment={asgn}
-            done={asgn.done}
-            absent={absencesHook.isAbsent(asgn.userId, currentWeek.start, currentWeek.end)}
-            isMe={asgn.userId === userId}
-            dimmed={!!userId && asgn.userId !== userId}
-            week={currentWeek}
-            onToggle={handleToggle}
-          />
-        ))
-    : [];
+  const assignments = currentWeek?.assignments ?? [];
+  const myAssignment     = assignments.find(a => a.userId === userId);
+  const othersAssignments = assignments.filter(a => a.userId !== userId);
 
   return (
     <>
@@ -193,9 +176,7 @@ export default function App() {
         houseName={session.houseName}
         currentUser={session.userName}
         isAdmin={session.isAdmin}
-        onLogout={logout}
         onAdmin={() => setShowAdmin(true)}
-        onRefresh={refresh}
       />
 
       {currentWeek ? (
@@ -209,8 +190,39 @@ export default function App() {
             onThisWeek={weeksHook.goToCurrent}
             onGenerate={handleGenerate}
           />
-          <div className="px-4 pt-4 flex flex-col gap-2.5">
-            {choreCards}
+
+          <div className="px-4 pt-3 flex flex-col gap-3">
+            {/* Hero: il mio turno */}
+            {myAssignment && (
+              <ChoreCard
+                assignment={myAssignment}
+                absent={absencesHook.isAbsent(myAssignment.userId, currentWeek.start, currentWeek.end)}
+                isMe
+                week={currentWeek}
+                onToggle={handleToggle}
+              />
+            )}
+
+            {/* Sezione compatta: gli altri */}
+            {othersAssignments.length > 0 && (
+              <div className="bg-card rounded-2xl border border-border overflow-hidden">
+                <div className="px-4 pt-3 pb-1">
+                  <span className="text-[.62rem] font-bold uppercase tracking-[.08em] text-ink-2">Coinquilini</span>
+                </div>
+                <div className="divide-y divide-border">
+                  {othersAssignments.map(asgn => (
+                    <ChoreCard
+                      key={asgn.userId}
+                      assignment={asgn}
+                      absent={absencesHook.isAbsent(asgn.userId, currentWeek.start, currentWeek.end)}
+                      compact
+                      week={currentWeek}
+                      onToggle={handleToggle}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </>
       ) : loading ? (
@@ -246,6 +258,7 @@ export default function App() {
         <AdminPanel
           house={house}
           onClose={() => setShowAdmin(false)}
+          onLogout={logout}
           onRemoveUser={async (uid) => {
             await houseHook.removeUser(houseId, uid);
           }}

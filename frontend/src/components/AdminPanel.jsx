@@ -13,7 +13,7 @@ const dangerCls =
 const sectionCls = 'bg-card rounded-2xl border border-border p-5 flex flex-col gap-3';
 const titleCls   = 'font-bold text-[.92rem] text-ink mb-1';
 
-export function AdminPanel({ house, onClose, onRemoveUser, onAddRoom, onRemoveRoom, onAddRule, onRemoveRule }) {
+export function AdminPanel({ house, onClose, onRemoveUser, onAddRoom, onRemoveRoom, onAddRule, onRemoveRule, onLogout }) {
   const [copied, setCopied] = useState(false);
   // Rooms state
   const [rName,  setRName]  = useState('');
@@ -39,7 +39,7 @@ export function AdminPanel({ house, onClose, onRemoveUser, onAddRoom, onRemoveRo
   }
 
   return (
-    <div className="fixed inset-0 bg-[rgba(5,2,0,.78)] backdrop-blur-[8px] z-[300] overflow-y-auto p-4">
+    <div className="fixed inset-0 backdrop-blur-[10px] z-[300] overflow-y-auto p-4" style={{ background: 'rgba(78,34,15,.82)' }}>
       <div className="max-w-[480px] mx-auto flex flex-col gap-4 pb-8 pt-4">
 
         <div className="flex items-center justify-between">
@@ -136,6 +136,19 @@ export function AdminPanel({ house, onClose, onRemoveUser, onAddRoom, onRemoveRo
             ))}
           </div>
         </section>
+
+        {/* Logout */}
+        {onLogout && (
+          <button
+            onClick={onLogout}
+            className="w-full py-3 rounded-2xl border-0 cursor-pointer font-bold text-[.88rem] transition-all"
+            style={{ background: 'rgba(246,240,240,.08)', color: 'rgba(246,240,240,.6)' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(246,240,240,.16)'; e.currentTarget.style.color = 'rgba(246,240,240,.9)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(246,240,240,.08)'; e.currentTarget.style.color = 'rgba(246,240,240,.6)'; }}
+          >
+            Esci dall'account
+          </button>
+        )}
 
       </div>
     </div>

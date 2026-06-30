@@ -4,15 +4,16 @@
   --font-family-sans:  'Plus Jakarta Sans', system-ui, sans-serif;
   --font-family-serif: 'DM Serif Display', serif;
 
-  --color-brown:      #2e1a0e;
-  --color-brown-mid:  #4a2c1a;
-  --color-brown-soft: #7a5540;
-  --color-cream:      #f5efe6;
-  --color-cream-2:    #ede4d8;
-  --color-card:       #ffffff;
-  --color-ink:        #1c1009;
-  --color-ink-2:      #6b4f3a;
-  --color-border:     #e0d4c4;
+  --color-brown:      #9D6638;
+  --color-brown-mid:  #7d4f28;
+  --color-brown-soft: #b8855a;
+  --color-cream:      #F6F0F0;
+  --color-cream-2:    #F2E2B1;
+  --color-card:       #F6F0F0;
+  --color-ink:        #4E220F;
+  --color-ink-2:      #7A5038;
+  --color-border:     #BDB395;
+  --color-sage:       #D5C7A3;
   --color-red:        #b83232;
   --color-red-pale:   #fceaea;
   --color-green:      #1f6b52;
