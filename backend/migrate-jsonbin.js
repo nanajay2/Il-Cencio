@@ -148,4 +148,4 @@ async function migrate() {
   insertedUsers.forEach(u => console.log(`   ${u.name}: ${u.invite_code}`));
 }
 
-migrate().catch(e => { console.error('❌', e.message); process.exit(1); });
+migrate().catch(e => { console.error('❌', e.message, e.cause ?? ''); process.exit(1); });
