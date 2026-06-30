@@ -16,9 +16,12 @@ const h = (houseId) => `/houses/${houseId}`;
 
 export const api = {
   // Auth / onboarding
-  join:        (inviteCode)            => req('/join', { method: 'POST', body: JSON.stringify({ inviteCode }) }),
-  createHouse: (name, adminName, adminEmail) =>
-    req('/houses', { method: 'POST', body: JSON.stringify({ name, adminName, adminEmail }) }),
+  lookupHouse: (houseCode)                        => req('/houses/lookup',   { method: 'POST', body: JSON.stringify({ houseCode }) }),
+  register:    (houseCode, name, email, pin)       => req('/houses/register', { method: 'POST', body: JSON.stringify({ houseCode, name, email, pin }) }),
+  login:       (email, pin)                        => req('/houses/auth',     { method: 'POST', body: JSON.stringify({ email, pin }) }),
+  setPin:      (userId, pin)                       => req('/houses/set-pin',  { method: 'POST', body: JSON.stringify({ userId, pin }) }),
+  createHouse: (name, adminName, adminEmail, adminPin) =>
+    req('/houses', { method: 'POST', body: JSON.stringify({ name, adminName, adminEmail, adminPin }) }),
 
   // Casa
   getHouse:    (houseId)               => req(h(houseId)),

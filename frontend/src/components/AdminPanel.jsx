@@ -13,26 +13,24 @@ const dangerCls =
 const sectionCls = 'bg-card rounded-2xl border border-border p-5 flex flex-col gap-3';
 const titleCls   = 'font-bold text-[.92rem] text-ink mb-1';
 
-export function AdminPanel({ house, onClose, onAddUser, onRemoveUser, onAddRoom, onRemoveRoom, onAddRule, onRemoveRule }) {
-  // Users state
-  const [uName,  setUName]  = useState('');
-  const [uEmail, setUEmail] = useState('');
+export function AdminPanel({ house, onClose, onRemoveUser, onAddRoom, onRemoveRoom, onAddRule, onRemoveRule }) {
+  const [copied, setCopied] = useState(false);
   // Rooms state
   const [rName,  setRName]  = useState('');
   const [rIcon,  setRIcon]  = useState('🏠');
   const [rColor, setRColor] = useState('#c97b4b');
+
+  function copyCode() {
+    navigator.clipboard.writeText(house.houseInviteCode ?? '');
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
 
   const RULE_TYPES = [
     { value: 'pool_restriction', label: '🚿 Restrizione pool (es. Bagno)' },
     { value: 'sequence',         label: '🔄 Sequenza (es. Cucina→Corridoio)' },
     { value: 'exclusion',        label: '🚫 Esclusione (persona sempre fuori da stanza)' },
   ];
-
-  async function addUser() {
-    if (!uName.trim() || !uEmail.trim()) return;
-    await onAddUser(uName.trim(), uEmail.trim());
-    setUName(''); setUEmail('');
-  }
 
   async function addRoom() {
     if (!rName.trim()) return;
@@ -49,15 +47,25 @@ export function AdminPanel({ house, onClose, onAddUser, onRemoveUser, onAddRoom,
           <button onClick={onClose} className="text-white/60 hover:text-white text-[1.3rem] border-0 bg-transparent cursor-pointer transition-colors">✕</button>
         </div>
 
+        {/* Codice invito casa */}
+        {house.houseInviteCode && (
+          <section className={sectionCls}>
+            <div className={titleCls}>🔑 Codice invito casa</div>
+            <p className="text-[.77rem] text-ink-2 -mt-1">Condividi questo codice con i nuovi coinquilini per farli registrare.</p>
+            <div className="flex items-center gap-2 mt-1">
+              <code className="flex-1 text-center text-[1.3rem] font-mono font-bold tracking-[.15em] bg-cream-2 border border-border rounded-[10px] py-2 text-brown">
+                {house.houseInviteCode}
+              </code>
+              <button onClick={copyCode} className={btnCls}>
+                {copied ? '✅ Copiato' : 'Copia'}
+              </button>
+            </div>
+          </section>
+        )}
+
         {/* Coinquilini */}
         <section className={sectionCls}>
           <div className={titleCls}>👥 Coinquilini</div>
-
-          <div className="flex gap-2">
-            <input value={uName} onChange={e => setUName(e.target.value)} placeholder="Nome" className={inputCls} />
-            <input value={uEmail} onChange={e => setUEmail(e.target.value)} placeholder="Email" type="email" className={inputCls} />
-            <button onClick={addUser} className={btnCls}>Aggiungi</button>
-          </div>
 
           <div className="flex flex-col gap-1.5 mt-1">
             {house.users.map(u => (

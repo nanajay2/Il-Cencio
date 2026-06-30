@@ -7,9 +7,9 @@ import { RevealModal }        from './components/RevealModal.jsx';
 import { CatMascot }          from './components/CatMascot.jsx';
 import { Toast, useToast }    from './components/Toast.jsx';
 import { WelcomeScreen }      from './components/WelcomeScreen.jsx';
-import { InviteScreen }       from './components/InviteScreen.jsx';
+import { JoinHouseScreen }    from './components/JoinHouseScreen.jsx';
+import { LoginScreen }        from './components/LoginScreen.jsx';
 import { CreateHouseScreen }  from './components/CreateHouseScreen.jsx';
-import { SelectUserModal }    from './components/SelectUserModal.jsx';
 import { AdminPanel }         from './components/AdminPanel.jsx';
 import { useWeeks }           from './hooks/useWeeks.js';
 import { useAbsences }        from './hooks/useAbsences.js';
@@ -39,8 +39,8 @@ function clearSession() {
 export default function App() {
   const initial = loadSession();
 
-  // view: 'welcome' | 'invite' | 'create-house' | 'select-user' | 'app' | 'admin'
-  const [view,     setView]     = useState(initial.houseId ? 'select-user' : 'welcome');
+  // view: 'welcome' | 'join' | 'login' | 'create-house' | 'app'
+  const [view,     setView]     = useState(initial.houseId && initial.userId ? 'app' : 'welcome');
   const [session,  setSession]  = useState(initial);
   const [showAdmin, setShowAdmin] = useState(false);
   const [showReveal, setShowReveal] = useState(false);
@@ -154,21 +154,10 @@ export default function App() {
   }
 
   // ---- Routing ----
-  if (view === 'welcome') return <WelcomeScreen onJoin={() => setView('invite')} onCreate={() => setView('create-house')} />;
-  if (view === 'invite')  return <InviteScreen onSuccess={handleJoinSuccess} onBack={() => setView('welcome')} />;
+  if (view === 'welcome')      return <WelcomeScreen onJoin={() => setView('join')} onLogin={() => setView('login')} onCreate={() => setView('create-house')} />;
+  if (view === 'join')         return <JoinHouseScreen onSuccess={handleJoinSuccess} onBack={() => setView('welcome')} />;
+  if (view === 'login')        return <LoginScreen onSuccess={handleJoinSuccess} onBack={() => setView('welcome')} />;
   if (view === 'create-house') return <CreateHouseScreen onSuccess={handleCreateSuccess} onBack={() => setView('welcome')} />;
-
-  // House is known but user not chosen yet
-  if (view === 'select-user' || (houseId && !userId)) {
-    if (!houseHook.house) {
-      return (
-        <div className="min-h-screen bg-cream flex items-center justify-center">
-          <p className="text-ink-2">Caricamento…</p>
-        </div>
-      );
-    }
-    return <SelectUserModal users={houseHook.house.users} onSelect={handleSelectUser} />;
-  }
 
   // ---- Main app ----
   const { currentWeek, weeks, currentIdx, loading } = weeksHook;
@@ -254,10 +243,6 @@ export default function App() {
         <AdminPanel
           house={house}
           onClose={() => setShowAdmin(false)}
-          onAddUser={async (name, email) => {
-            await houseHook.addUser(houseId, name, email);
-            showToast(`✅ ${name} aggiunto/a`);
-          }}
           onRemoveUser={async (uid) => {
             await houseHook.removeUser(houseId, uid);
           }}
