@@ -296,6 +296,14 @@ export async function deleteWeeksBefore(houseId, cutoffDate) {
   if (error) throw error;
 }
 
+// Usata quando le stanze cambiano: le settimane non ancora concluse vanno
+// rigenerate da capo, altrimenti restano con assignment orfani/mancanti.
+export async function deleteWeeksFrom(houseId, fromDate) {
+  const { error } = await supabase
+    .from('weeks').delete().eq('house_id', houseId).gte('end_date', fromDate);
+  if (error) throw error;
+}
+
 export async function setDone(houseId, weekId, userId, done) {
   const { error } = await supabase
     .from('assignments').update({ done })
@@ -339,6 +347,6 @@ export const db = {
   getUsers, createUserSlot, claimUserSlot, deleteUser,
   getRooms, createRoom, updateRoom, deleteRoom,
   getRules, createRule, deleteRule,
-  getWeeks, insertWeek, deleteWeeksBefore, setDone,
+  getWeeks, insertWeek, deleteWeeksBefore, deleteWeeksFrom, setDone,
   getAbsences, insertAbsence, deleteAbsence,
 };

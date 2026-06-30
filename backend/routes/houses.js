@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { db } from '../lib/db.js';
+import { invalidateUpcomingWeeks } from '../lib/scheduler.js';
 
 const router = Router();
 
@@ -125,7 +126,9 @@ router.post('/:houseId/rooms', async (req, res) => {
   const { name, icon, color, sortOrder } = req.body;
   if (!name) return res.status(400).json({ error: 'name richiesto' });
   try {
-    res.status(201).json(await db.createRoom(req.params.houseId, { name, icon, color, sortOrder }));
+    const room = await db.createRoom(req.params.houseId, { name, icon, color, sortOrder });
+    await invalidateUpcomingWeeks(db, req.params.houseId);
+    res.status(201).json(room);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -143,6 +146,7 @@ router.put('/:houseId/rooms/:roomId', async (req, res) => {
 router.delete('/:houseId/rooms/:roomId', async (req, res) => {
   try {
     await db.deleteRoom(req.params.houseId, Number(req.params.roomId));
+    await invalidateUpcomingWeeks(db, req.params.houseId);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
