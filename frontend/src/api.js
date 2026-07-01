@@ -30,6 +30,7 @@ export const api = {
   // Utenti
   createUser:  (houseId, name, email)  => req(`${h(houseId)}/users`, { method: 'POST', body: JSON.stringify({ name, email }) }),
   deleteUser:  (houseId, userId)       => req(`${h(houseId)}/users/${userId}`, { method: 'DELETE' }),
+  leaveHouse:  (houseId, userId)       => req(`${h(houseId)}/leave`, { method: 'POST', body: JSON.stringify({ userId }) }),
 
   // Stanze
   createRoom:  (houseId, data)         => req(`${h(houseId)}/rooms`, { method: 'POST', body: JSON.stringify(data) }),

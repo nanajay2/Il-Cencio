@@ -120,6 +120,19 @@ router.delete('/:houseId/users/:userId', async (req, res) => {
   }
 });
 
+// Un utente (admin o no) abbandona volontariamente la casa
+router.post('/:houseId/leave', async (req, res) => {
+  const { userId } = req.body;
+  if (!userId) return res.status(400).json({ error: 'userId richiesto' });
+  try {
+    const result = await db.leaveHouse(req.params.houseId, Number(userId));
+    if (!result.houseDeleted) await invalidateUpcomingWeeks(db, req.params.houseId);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── Stanze ───────────────────────────────────────────────────────
 
 router.post('/:houseId/rooms', async (req, res) => {

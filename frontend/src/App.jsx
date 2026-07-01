@@ -2,17 +2,17 @@ import { useState, useEffect } from 'react';
 import { Header }             from './components/Header.jsx';
 import { WeekNavigator }      from './components/WeekNavigator.jsx';
 import { ChoreCard }          from './components/ChoreCard.jsx';
-import { AbsencesPanel }      from './components/AbsencesPanel.jsx';
 import { RevealModal }        from './components/RevealModal.jsx';
 import { CatMascot }          from './components/CatMascot.jsx';
 import { Toast, useToast }    from './components/Toast.jsx';
 import { WelcomeScreen }      from './components/WelcomeScreen.jsx';
 import { LoginScreen }        from './components/LoginScreen.jsx';
 import { CreateHouseScreen }  from './components/CreateHouseScreen.jsx';
-import { AdminPanel }         from './components/AdminPanel.jsx';
+import { SettingsPanel }      from './components/SettingsPanel.jsx';
 import { useWeeks }           from './hooks/useWeeks.js';
 import { useAbsences }        from './hooks/useAbsences.js';
 import { useHouse }           from './hooks/useHouse.js';
+import { api }                from './api.js';
 import { fmt, isCurW }        from './constants.js';
 
 function loadSession() {
@@ -46,7 +46,7 @@ export default function App() {
                                         'welcome'
   );
   const [session,  setSession]  = useState(initial);
-  const [showAdmin, setShowAdmin] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [showReveal, setShowReveal] = useState(false);
 
   const { toast, show: showToast } = useToast();
@@ -116,6 +116,15 @@ export default function App() {
     setView('welcome');
   }
 
+  async function handleLeaveHouse() {
+    if (!window.confirm('Sei sicuro di voler abbandonare questa casa? Non potrai più accedere senza un nuovo invito.')) return;
+    try {
+      await api.leaveHouse(houseId, userId);
+      setShowSettings(false);
+      logout();
+    } catch (e) { showToast('❌ ' + e.message, 'error'); }
+  }
+
   async function refresh() {
     if (!houseId) return;
     try {
@@ -175,8 +184,7 @@ export default function App() {
       <Header
         houseName={session.houseName}
         currentUser={session.userName}
-        isAdmin={session.isAdmin}
-        onAdmin={() => setShowAdmin(true)}
+        onSettings={() => setShowSettings(true)}
       />
 
       {currentWeek ? (
@@ -237,13 +245,6 @@ export default function App() {
         </div>
       )}
 
-      <AbsencesPanel
-        users={house?.users ?? []}
-        absences={absencesHook.absences}
-        onAdd={handleAddAbsence}
-        onRemove={handleRemoveAbsence}
-      />
-
       <div className="h-12" />
 
       {showReveal && (
@@ -254,11 +255,14 @@ export default function App() {
         />
       )}
 
-      {showAdmin && house && (
-        <AdminPanel
+      {showSettings && house && (
+        <SettingsPanel
           house={house}
-          onClose={() => setShowAdmin(false)}
+          isAdmin={session.isAdmin}
+          absences={absencesHook.absences}
+          onClose={() => setShowSettings(false)}
           onLogout={logout}
+          onLeaveHouse={handleLeaveHouse}
           onRemoveUser={async (uid) => {
             await houseHook.removeUser(houseId, uid);
           }}
@@ -275,6 +279,8 @@ export default function App() {
           onRemoveRule={async (ruleId) => {
             await houseHook.removeRule(houseId, ruleId);
           }}
+          onAddAbsence={handleAddAbsence}
+          onRemoveAbsence={handleRemoveAbsence}
         />
       )}
 

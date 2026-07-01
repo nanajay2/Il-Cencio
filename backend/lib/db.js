@@ -184,6 +184,38 @@ export async function deleteUser(houseId, userId) {
   if (error) throw error;
 }
 
+// Un utente abbandona volontariamente la casa. Se era l'unico membro, la casa
+// viene eliminata (cascade su rooms/rules/weeks/absences). Se era admin, un
+// coinquilino rimasto a caso viene promosso prima di rimuoverlo.
+export async function leaveHouse(houseId, userId) {
+  const { data: users, error: ue } = await supabase
+    .from('users').select('id, is_admin').eq('house_id', houseId);
+  if (ue) throw ue;
+
+  const leaving = users.find(u => u.id === userId);
+  if (!leaving) throw new Error('Utente non trovato in questa casa');
+
+  const remaining = users.filter(u => u.id !== userId);
+
+  if (remaining.length === 0) {
+    const { error } = await supabase.from('houses').delete().eq('id', houseId);
+    if (error) throw error;
+    return { houseDeleted: true };
+  }
+
+  if (leaving.is_admin) {
+    const promoted = remaining[Math.floor(Math.random() * remaining.length)];
+    const { error: pe } = await supabase.from('users').update({ is_admin: true }).eq('id', promoted.id);
+    if (pe) throw pe;
+  }
+
+  const { error: de } = await supabase
+    .from('users').delete().eq('id', userId).eq('house_id', houseId);
+  if (de) throw de;
+
+  return { houseDeleted: false };
+}
+
 // ── Rooms ─────────────────────────────────────────────────────────
 
 export async function getRooms(houseId) {
@@ -344,7 +376,7 @@ export async function deleteAbsence(houseId, absenceId) {
 export const db = {
   getHouse, createHouse,
   getHouseMembers, lookupHouseByCode, registerUser, getUserById, getUserByEmail, setPinHash,
-  getUsers, createUserSlot, claimUserSlot, deleteUser,
+  getUsers, createUserSlot, claimUserSlot, deleteUser, leaveHouse,
   getRooms, createRoom, updateRoom, deleteRoom,
   getRules, createRule, deleteRule,
   getWeeks, insertWeek, deleteWeeksBefore, deleteWeeksFrom, setDone,
