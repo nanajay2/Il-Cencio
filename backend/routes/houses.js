@@ -108,13 +108,59 @@ router.get('/:houseId', async (req, res) => {
   }
 });
 
+// ── Rotazione ────────────────────────────────────────────────────
+
+// Cambia la cadenza dei turni (settimanale/giornaliera personalizzata/mensile).
+// Si applica solo in avanti: invalidateUpcomingWeeks cancella i turni da oggi
+// in poi così vengono rigenerati con la nuova cadenza; il passato resta invariato.
+router.put('/:houseId/rotation', async (req, res) => {
+  const { rotationType, rotationDays } = req.body;
+  if (!['weekly', 'daily', 'monthly'].includes(rotationType))
+    return res.status(400).json({ error: 'rotationType non valido' });
+  if (rotationType === 'daily' && !(Number.isInteger(rotationDays) && rotationDays >= 1 && rotationDays <= 30))
+    return res.status(400).json({ error: 'rotationDays deve essere un intero tra 1 e 30' });
+  try {
+    await db.updateRotation(req.params.houseId, rotationType, rotationType === 'daily' ? rotationDays : null);
+    await invalidateUpcomingWeeks(db, req.params.houseId);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── Utenti ────────────────────────────────────────────────────────
+
+// Aggiungi coinquilino (slot non attivato, invite_code generato; sceglierà
+// il proprio PIN al primo accesso — vedi db.lookupHouseByCode/setPinHash)
+router.post('/:houseId/users', async (req, res) => {
+  const { name } = req.body;
+  if (!name || !name.trim()) return res.status(400).json({ error: 'name richiesto' });
+  try {
+    const user = await db.createUserSlot(req.params.houseId, name.trim());
+    res.status(201).json(user);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
 // Rimuovi utente (admin)
 router.delete('/:houseId/users/:userId', async (req, res) => {
   try {
     await db.deleteUser(req.params.houseId, Number(req.params.userId));
     res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Un utente (admin o no) abbandona volontariamente la casa
+router.post('/:houseId/leave', async (req, res) => {
+  const { userId } = req.body;
+  if (!userId) return res.status(400).json({ error: 'userId richiesto' });
+  try {
+    const result = await db.leaveHouse(req.params.houseId, Number(userId));
+    if (!result.houseDeleted) await invalidateUpcomingWeeks(db, req.params.houseId);
+    res.json(result);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -159,7 +205,9 @@ router.post('/:houseId/rules', async (req, res) => {
   const { type, config } = req.body;
   if (!type || !config) return res.status(400).json({ error: 'type e config richiesti' });
   try {
-    res.status(201).json(await db.createRule(req.params.houseId, type, config));
+    const rule = await db.createRule(req.params.houseId, type, config);
+    await invalidateUpcomingWeeks(db, req.params.houseId);
+    res.status(201).json(rule);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -168,6 +216,7 @@ router.post('/:houseId/rules', async (req, res) => {
 router.delete('/:houseId/rules/:ruleId', async (req, res) => {
   try {
     await db.deleteRule(req.params.houseId, Number(req.params.ruleId));
+    await invalidateUpcomingWeeks(db, req.params.houseId);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
