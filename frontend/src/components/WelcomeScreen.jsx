@@ -19,6 +19,8 @@ export function WelcomeScreen({ onLogin, onCreate }) {
       >
         + Crea una nuova casa
       </button>
+
+      <span className="text-[.7rem] text-ink-2/60 mt-2">v{__APP_VERSION__}</span>
     </div>
   );
 }
