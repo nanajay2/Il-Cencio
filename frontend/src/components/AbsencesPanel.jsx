@@ -20,7 +20,7 @@ export function AbsencesPanel({ users, absences, onAdd, onRemove }) {
   }
 
   return (
-    <div className="mx-4 mt-4 mb-0 bg-card rounded-2xl border border-border shadow-[0_1px_3px_rgba(0,0,0,.04)]">
+    <div className="bg-card rounded-2xl border border-border shadow-[0_1px_3px_rgba(0,0,0,.04)]">
 
       <div
         className={`px-4 py-[14px] flex items-center justify-between cursor-pointer select-none transition-colors hover:bg-cream-2 ${open ? 'border-b border-border rounded-t-2xl' : 'rounded-2xl'}`}

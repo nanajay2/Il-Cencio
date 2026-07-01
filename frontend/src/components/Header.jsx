@@ -9,7 +9,7 @@ function GearIcon() {
   );
 }
 
-export function Header({ houseName, currentUser, isAdmin, onAdmin }) {
+export function Header({ houseName, currentUser, onSettings }) {
   const now = new Date();
   const dateStr = `${DAYS[now.getDay()]}, ${now.getDate()} ${MONTHS[now.getMonth()]}`;
 
@@ -29,18 +29,16 @@ export function Header({ houseName, currentUser, isAdmin, onAdmin }) {
           )}
         </div>
 
-        {isAdmin && (
-          <button
-            onClick={onAdmin}
-            title="Impostazioni"
-            className="w-[36px] h-[36px] rounded-full border-0 cursor-pointer flex items-center justify-center transition-all mt-0.5"
-            style={{ background: 'rgba(78,34,15,.1)', color: '#7A5038' }}
-            onMouseEnter={e => e.currentTarget.style.background = 'rgba(78,34,15,.18)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'rgba(78,34,15,.1)'}
-          >
-            <GearIcon />
-          </button>
-        )}
+        <button
+          onClick={onSettings}
+          title="Impostazioni"
+          className="w-[36px] h-[36px] rounded-full border-0 cursor-pointer flex items-center justify-center transition-all mt-0.5"
+          style={{ background: 'rgba(78,34,15,.1)', color: '#7A5038' }}
+          onMouseEnter={e => e.currentTarget.style.background = 'rgba(78,34,15,.18)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'rgba(78,34,15,.1)'}
+        >
+          <GearIcon />
+        </button>
       </div>
     </header>
   );
