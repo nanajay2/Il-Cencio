@@ -59,10 +59,16 @@ export function useHouse() {
     setHouse(h => h ? { ...h, rules: h.rules.filter(r => r.id !== ruleId) } : h);
   }
 
+  async function updateRotation(houseId, rotationType, rotationDays) {
+    await api.updateRotation(houseId, rotationType, rotationDays);
+    setHouse(h => h ? { ...h, rotationType, rotationDays: rotationType === 'daily' ? rotationDays : null } : h);
+  }
+
   return {
     house, loading, error, load,
     addUser, removeUser,
     addRoom, editRoom, removeRoom,
     addRule, removeRule,
+    updateRotation,
   };
 }

@@ -5,7 +5,7 @@ export function WeekNavigator({ week, currentIdx, totalWeeks, onPrev, onNext, on
 
   const isCur  = isCurW(week);
   const isPast = isPastW(week);
-  const statusLabel  = isCur ? 'Questa settimana' : isPast ? 'Passata' : 'Futura';
+  const statusLabel  = isCur ? 'Turno attuale' : isPast ? 'Passato' : 'Futuro';
   const statusStyle  = isCur
     ? { background: '#D5C7A3', color: '#4E220F' }
     : isPast

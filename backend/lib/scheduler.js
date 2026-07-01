@@ -16,23 +16,60 @@ function getMondayOfCurrentWeek() {
   return d.toISOString().split('T')[0];
 }
 
+function firstOfMonth(dateStr) {
+  return `${dateStr.slice(0, 7)}-01`;
+}
+function firstOfMonthBefore(dateStr) {
+  const [y, m] = dateStr.split('-').map(Number);
+  const py = m === 1 ? y - 1 : y;
+  const pm = m === 1 ? 12 : m - 1;
+  return `${py}-${String(pm).padStart(2, '0')}-01`;
+}
+function firstOfNextMonth(dateStr) {
+  const [y, m] = dateStr.split('-').map(Number);
+  return new Date(Date.UTC(y, m, 1)).toISOString().split('T')[0];
+}
+function lastOfMonth(dateStr) {
+  const [y, m] = dateStr.split('-').map(Number);
+  return new Date(Date.UTC(y, m, 0)).toISOString().split('T')[0];
+}
+
+// Avanza al periodo successivo in base alla rotazione della casa.
+// rotation = { type: 'weekly'|'daily'|'monthly', days: number|null }
+function nextPeriod(lastStart, rotation) {
+  if (rotation.type === 'monthly') {
+    const ns = firstOfNextMonth(lastStart);
+    return [ns, lastOfMonth(ns)];
+  }
+  const n = rotation.type === 'daily' ? (rotation.days || 1) : 7;
+  const ns = addDays(lastStart, n);
+  return [ns, addDays(ns, n - 1)];
+}
+
 /**
- * Calcola la prossima settimana per una casa.
+ * Calcola il prossimo turno per una casa.
  *
- * @param {Array}  weeks  — settimane già esistenti (sorted)
+ * @param {Array}  weeks  — turni già esistenti (sorted)
  * @param {Array}  users  — [{ id }]
  * @param {Array}  rooms  — [{ id, sort_order }]
  * @param {Array}  rules  — [{ type, config }]
+ * @param {Object} rotation — { type: 'weekly'|'daily'|'monthly', days: number|null }
+ * @param {Array}  absences — [{ userId, from, to }]
  * @returns {{ id, start, end, assignments: [{ user_id, room_id, done }] }} | null
  */
-export function computeNextWeek(weeks, users, rooms, rules) {
+export function computeNextWeek(weeks, users, rooms, rules, rotation = { type: 'weekly', days: null }, absences = []) {
   const sorted = [...weeks].sort((a, b) => a.start.localeCompare(b.start));
   const last   = sorted[sorted.length - 1];
   if (!last) return null;
 
-  const ns = addDays(last.start, 7);
-  const ne = addDays(ns, 6);
+  const [ns, ne] = nextPeriod(last.start, rotation);
   if (weeks.find(w => w.start === ns)) return null;
+
+  // Vero solo se l'assenza copre il turno per intero: un'assenza parziale
+  // non esclude, la persona fa comunque il turno (resta solo il badge in UI).
+  function isFullyAbsent(userId) {
+    return absences.some(a => a.userId === userId && a.from <= ns && a.to >= ne);
+  }
 
   // Indice in sorted per "l'ultima volta che userId ha fatto roomId"
   function lastTimeDid(userId, roomId) {
@@ -100,7 +137,7 @@ export function computeNextWeek(weeks, users, rooms, rules) {
   //    chi si becca il carico extra quando le stanze superano le persone)
   // 4. chi non fa questa specifica stanza da più tempo (varietà per stanza)
   function pickLeast(pool, roomId) {
-    const avail = pool.filter(uid => !exclusions.has(`${uid}:${roomId}`));
+    const avail = pool.filter(uid => !exclusions.has(`${uid}:${roomId}`) && !isFullyAbsent(uid));
     if (!avail.length) return null;
     return avail.reduce((best, uid) => {
       const loadUid = weekLoad.get(uid) ?? 0, loadBest = weekLoad.get(best) ?? 0;
@@ -123,7 +160,7 @@ export function computeNextWeek(weeks, users, rooms, rules) {
   // 1. Assegnazioni forzate (sequence)
   for (const [userId, roomId] of forced) {
     if (!weekLoad.has(userId) && !usedRooms.has(roomId) &&
-        rooms.find(r => r.id === roomId)) {
+        rooms.find(r => r.id === roomId) && !isFullyAbsent(userId)) {
       assign(userId, roomId);
     }
   }
@@ -152,11 +189,13 @@ export function computeNextWeek(weeks, users, rooms, rules) {
 }
 
 export async function ensureFutureWeeks(db, houseId) {
-  const [weeks, users, rooms, rules] = await Promise.all([
+  const [weeks, users, rooms, rules, rotation, absences] = await Promise.all([
     db.getWeeks(houseId),
     db.getUsers(houseId),
     db.getRooms(houseId),
     db.getRules(houseId),
+    db.getRotationConfig(houseId),
+    db.getAbsences(houseId),
   ]);
 
   if (!users.length || !rooms.length) return 0;
@@ -164,12 +203,24 @@ export async function ensureFutureWeeks(db, houseId) {
   const t = today();
   let added = 0, safety = 0, current = [...weeks];
 
-  // Nessuna settimana: crea una settimana fittizia la settimana scorsa
-  // così computeNextWeek può generare la settimana corrente come prima reale
+  // Nessun turno: crea un turno fittizio precedente così computeNextWeek
+  // può generare il turno corrente come primo reale. L'anchor dipende dalla
+  // rotazione: settimanale resta ancorata al lunedì corrente (comportamento
+  // invariato); giornaliera/mensile partono da oggi (giorno di creazione
+  // della casa o di attivazione della rotazione dalle impostazioni).
   if (!current.length) {
-    const prevMonday = addDays(getMondayOfCurrentWeek(), -7);
-    const fakeWeek = { id: prevMonday, start: prevMonday, end: addDays(prevMonday, 6), assignments: [] };
-    const seed = computeNextWeek([fakeWeek], users, rooms, rules);
+    const anchor = rotation.type === 'weekly'
+      ? getMondayOfCurrentWeek()
+      : rotation.type === 'monthly'
+      ? firstOfMonth(today())
+      : today();
+
+    const prevStart = rotation.type === 'monthly'
+      ? firstOfMonthBefore(anchor)
+      : addDays(anchor, -(rotation.type === 'daily' ? (rotation.days || 1) : 7));
+
+    const fakeWeek = { id: prevStart, start: prevStart, end: addDays(anchor, -1), assignments: [] };
+    const seed = computeNextWeek([fakeWeek], users, rooms, rules, rotation, absences);
     if (seed) {
       await db.insertWeek(seed, houseId);
       current.push(seed);
@@ -179,7 +230,7 @@ export async function ensureFutureWeeks(db, houseId) {
 
   while (safety++ < 20) {
     if (current.filter(w => w.start > t).length >= WEEKS_AHEAD) break;
-    const nw = computeNextWeek(current, users, rooms, rules);
+    const nw = computeNextWeek(current, users, rooms, rules, rotation, absences);
     if (!nw) break;
     await db.insertWeek(nw, houseId);
     current.push(nw);

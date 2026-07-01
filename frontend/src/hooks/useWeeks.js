@@ -32,9 +32,9 @@ export function useWeeks() {
     }
   }, []);
 
-  async function toggleDone(houseId, weekId, userId) {
+  async function toggleDone(houseId, weekId, userId, roomId) {
     const week = weeks.find(w => w.id === weekId);
-    const asgn = week?.assignments?.find(a => a.userId === userId);
+    const asgn = week?.assignments?.find(a => a.userId === userId && a.roomId === roomId);
     const prev = asgn?.done ?? false;
 
     // Ottimismo
@@ -42,19 +42,19 @@ export function useWeeks() {
       w.id !== weekId ? w : {
         ...w,
         assignments: w.assignments.map(a =>
-          a.userId !== userId ? a : { ...a, done: !prev }
+          (a.userId !== userId || a.roomId !== roomId) ? a : { ...a, done: !prev }
         ),
       }
     ));
     try {
-      await api.toggleDone(houseId, weekId, userId, !prev);
+      await api.toggleDone(houseId, weekId, userId, roomId, !prev);
     } catch (e) {
       // Rollback
       setWeeks(ws => ws.map(w =>
         w.id !== weekId ? w : {
           ...w,
           assignments: w.assignments.map(a =>
-            a.userId !== userId ? a : { ...a, done: prev }
+            (a.userId !== userId || a.roomId !== roomId) ? a : { ...a, done: prev }
           ),
         }
       ));
@@ -72,6 +72,10 @@ export function useWeeks() {
     setCurrentIdx(i => Math.max(0, Math.min(sorted.length - 1, i + delta)));
   }
   function goToCurrent() { setCurrentIdx(findCurrentIdx(sorted)); }
+  function goToId(weekId) {
+    const idx = sorted.findIndex(w => w.id === weekId);
+    if (idx >= 0) setCurrentIdx(idx);
+  }
 
   const resolvedIdx  = currentIdx === null ? 0 : Math.min(currentIdx, Math.max(sorted.length - 1, 0));
 
@@ -80,6 +84,6 @@ export function useWeeks() {
     currentWeek: sorted[resolvedIdx] ?? null,
     currentIdx:  resolvedIdx,
     loading, error, load,
-    toggleDone, generateWeek, goTo, goToCurrent,
+    toggleDone, generateWeek, goTo, goToCurrent, goToId,
   };
 }

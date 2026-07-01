@@ -2,18 +2,24 @@ import { useState, useEffect } from 'react';
 import { Header }             from './components/Header.jsx';
 import { WeekNavigator }      from './components/WeekNavigator.jsx';
 import { ChoreCard }          from './components/ChoreCard.jsx';
-import { AbsencesPanel }      from './components/AbsencesPanel.jsx';
 import { RevealModal }        from './components/RevealModal.jsx';
 import { CatMascot }          from './components/CatMascot.jsx';
 import { Toast, useToast }    from './components/Toast.jsx';
 import { WelcomeScreen }      from './components/WelcomeScreen.jsx';
 import { LoginScreen }        from './components/LoginScreen.jsx';
 import { CreateHouseScreen }  from './components/CreateHouseScreen.jsx';
-import { AdminPanel }         from './components/AdminPanel.jsx';
+import { SettingsPanel }      from './components/SettingsPanel.jsx';
+import { ViewModeSwitcher }   from './components/ViewModeSwitcher.jsx';
+import { WeekAggregateView }  from './components/WeekAggregateView.jsx';
+import { MonthAggregateView } from './components/MonthAggregateView.jsx';
+import { AbsencesFab }        from './components/AbsencesFab.jsx';
+import { AbsencesScreen }     from './components/AbsencesScreen.jsx';
 import { useWeeks }           from './hooks/useWeeks.js';
 import { useAbsences }        from './hooks/useAbsences.js';
 import { useHouse }           from './hooks/useHouse.js';
+import { api }                from './api.js';
 import { fmt, isCurW }        from './constants.js';
+import { findTurnoForDate }   from './lib/calendarBuckets.js';
 
 function loadSession() {
   return {
@@ -46,8 +52,10 @@ export default function App() {
                                         'welcome'
   );
   const [session,  setSession]  = useState(initial);
-  const [showAdmin, setShowAdmin] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showAbsences, setShowAbsences] = useState(false);
   const [showReveal, setShowReveal] = useState(false);
+  const [viewMode, setViewMode] = useState('oggi'); // 'oggi' | 'settimana' | 'mese'
 
   const { toast, show: showToast } = useToast();
   const weeksHook    = useWeeks();
@@ -116,6 +124,15 @@ export default function App() {
     setView('welcome');
   }
 
+  async function handleLeaveHouse() {
+    if (!window.confirm('Sei sicuro di voler abbandonare questa casa? Non potrai più accedere senza un nuovo invito.')) return;
+    try {
+      await api.leaveHouse(houseId, userId);
+      setShowSettings(false);
+      logout();
+    } catch (e) { showToast('❌ ' + e.message, 'error'); }
+  }
+
   async function refresh() {
     if (!houseId) return;
     try {
@@ -128,8 +145,8 @@ export default function App() {
     } catch (e) { showToast('❌ ' + e.message, 'error'); }
   }
 
-  async function handleToggle(weekId, uid) {
-    try { await weeksHook.toggleDone(houseId, weekId, uid); }
+  async function handleToggle(weekId, uid, roomId) {
+    try { await weeksHook.toggleDone(houseId, weekId, uid, roomId); }
     catch (e) { showToast('❌ ' + e.message, 'error'); }
   }
 
@@ -157,6 +174,13 @@ export default function App() {
     catch (e) { showToast('❌ ' + e.message, 'error'); }
   }
 
+  function jumpToDay(dateStr) {
+    const turno = findTurnoForDate(weeksHook.weeks, dateStr);
+    if (!turno) { showToast('Nessun turno disponibile per questo giorno'); return; }
+    weeksHook.goToId(turno.id);
+    setViewMode('oggi');
+  }
+
   // ---- Routing ----
   if (view === 'welcome')      return <WelcomeScreen onLogin={() => setView('login')} onCreate={() => setView('create-house')} />;
   if (view === 'login')        return <LoginScreen onSuccess={handleJoinSuccess} onBack={() => setView('welcome')} savedHouseId={initial.houseId || null} />;
@@ -167,19 +191,27 @@ export default function App() {
   const house = houseHook.house;
 
   const assignments = currentWeek?.assignments ?? [];
-  const myAssignment     = assignments.find(a => a.userId === userId);
+  const myAssignments     = assignments.filter(a => a.userId === userId);
   const othersAssignments = assignments.filter(a => a.userId !== userId);
+  const unassignedRooms = currentWeek
+    ? (house?.rooms ?? []).filter(r => !assignments.some(a => a.roomId === r.id))
+    : [];
 
   return (
     <>
       <Header
         houseName={session.houseName}
         currentUser={session.userName}
-        isAdmin={session.isAdmin}
-        onAdmin={() => setShowAdmin(true)}
+        onSettings={() => setShowSettings(true)}
       />
 
-      {currentWeek ? (
+      <ViewModeSwitcher mode={viewMode} onChange={setViewMode} />
+
+      {viewMode === 'settimana' ? (
+        <WeekAggregateView weeks={weeks} users={house?.users ?? []} onJumpToDay={jumpToDay} />
+      ) : viewMode === 'mese' ? (
+        <MonthAggregateView weeks={weeks} users={house?.users ?? []} userId={userId} onJumpToDay={jumpToDay} />
+      ) : currentWeek ? (
         <>
           <WeekNavigator
             week={currentWeek}
@@ -192,16 +224,19 @@ export default function App() {
           />
 
           <div className="px-4 pt-3 flex flex-col gap-3">
-            {/* Hero: il mio turno */}
-            {myAssignment && (
+            {/* Hero: il mio turno (può essere più di una stanza) */}
+            {myAssignments.map((a, i) => (
               <ChoreCard
-                assignment={myAssignment}
-                absent={absencesHook.isAbsent(myAssignment.userId, currentWeek.start, currentWeek.end)}
+                key={a.roomId}
+                assignment={a}
+                absent={absencesHook.isAbsent(a.userId, currentWeek.start, currentWeek.end)}
                 isMe
                 week={currentWeek}
                 onToggle={handleToggle}
+                roomIndex={i + 1}
+                roomTotal={myAssignments.length}
               />
-            )}
+            ))}
 
             {/* Sezione compatta: gli altri */}
             {othersAssignments.length > 0 && (
@@ -212,13 +247,32 @@ export default function App() {
                 <div className="divide-y divide-border">
                   {othersAssignments.map(asgn => (
                     <ChoreCard
-                      key={asgn.userId}
+                      key={`${asgn.userId}-${asgn.roomId}`}
                       assignment={asgn}
                       absent={absencesHook.isAbsent(asgn.userId, currentWeek.start, currentWeek.end)}
                       compact
                       week={currentWeek}
                       onToggle={handleToggle}
                     />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Stanze scoperte: tutti gli idonei sono assenti per l'intero turno */}
+            {unassignedRooms.length > 0 && (
+              <div className="bg-card rounded-2xl border border-dashed border-sage overflow-hidden">
+                <div className="px-4 pt-3 pb-1">
+                  <span className="text-[.62rem] font-bold uppercase tracking-[.08em] text-ink-2">Stanze scoperte</span>
+                </div>
+                <div className="divide-y divide-border">
+                  {unassignedRooms.map(r => (
+                    <div key={r.id} className="flex items-center gap-3 px-4 py-[11px] text-ink-2">
+                      <span className="text-[1.05rem]">{r.icon}</span>
+                      <span className="flex-1 text-[.85rem]">
+                        <strong className="text-ink">{r.name}</strong> — nessuno assegnato: tutti assenti questo turno
+                      </span>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -237,13 +291,6 @@ export default function App() {
         </div>
       )}
 
-      <AbsencesPanel
-        users={house?.users ?? []}
-        absences={absencesHook.absences}
-        onAdd={handleAddAbsence}
-        onRemove={handleRemoveAbsence}
-      />
-
       <div className="h-12" />
 
       {showReveal && (
@@ -254,11 +301,13 @@ export default function App() {
         />
       )}
 
-      {showAdmin && house && (
-        <AdminPanel
+      {showSettings && house && (
+        <SettingsPanel
           house={house}
-          onClose={() => setShowAdmin(false)}
+          isAdmin={session.isAdmin}
+          onClose={() => setShowSettings(false)}
           onLogout={logout}
+          onLeaveHouse={handleLeaveHouse}
           onRemoveUser={async (uid) => {
             await houseHook.removeUser(houseId, uid);
           }}
@@ -275,6 +324,24 @@ export default function App() {
           onRemoveRule={async (ruleId) => {
             await houseHook.removeRule(houseId, ruleId);
           }}
+          onUpdateRotation={async (rotationType, rotationDays) => {
+            await houseHook.updateRotation(houseId, rotationType, rotationDays);
+            await weeksHook.load(houseId);
+            showToast('✅ Rotazione aggiornata');
+          }}
+        />
+      )}
+
+      <AbsencesFab onClick={() => setShowAbsences(true)} />
+
+      {showAbsences && house && (
+        <AbsencesScreen
+          house={house}
+          currentUserId={userId}
+          absences={absencesHook.absences}
+          onAdd={handleAddAbsence}
+          onRemove={handleRemoveAbsence}
+          onClose={() => setShowAbsences(false)}
         />
       )}
 
