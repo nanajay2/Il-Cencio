@@ -44,6 +44,26 @@ export function computeNextWeek(weeks, users, rooms, rules) {
     return -1;
   }
 
+  // Quante stanze in totale userId ha fatto in passato (usato per far ruotare
+  // equamente sia chi resta senza turno quando le persone superano le stanze,
+  // sia chi si becca le stanze "in più" quando le stanze superano le persone)
+  function totalAssignedCount(userId) {
+    let count = 0;
+    for (const w of sorted) {
+      count += (w.assignments || []).filter(a => (a.user_id ?? a.userId) === userId).length;
+    }
+    return count;
+  }
+
+  // Indice in sorted per "l'ultima volta che userId ha avuto un turno qualsiasi"
+  // (usato per far ruotare equamente chi resta senza turno quando gli utenti superano le stanze)
+  function lastTimeAssigned(userId) {
+    for (let i = sorted.length - 1; i >= 0; i--) {
+      if ((sorted[i].assignments || []).some(a => (a.user_id ?? a.userId) === userId)) return i;
+    }
+    return -1;
+  }
+
   // ── Costruzione vincoli ──────────────────────────────────────────
   const poolFor    = {};          // roomId → Set<userId>
   const exclusions = new Set();   // 'userId:roomId'
@@ -61,25 +81,40 @@ export function computeNextWeek(weeks, users, rooms, rules) {
     }
   }
 
-  const usedUsers = new Set();
   const usedRooms = new Set();
-  const assigned  = new Map();   // userId → roomId
+  const weekLoad  = new Map();   // userId → quante stanze già assegnate in questa settimana
+  const assigned  = [];          // [{ user_id, room_id }]  — una persona può averne più di una
 
   function assign(userId, roomId) {
-    assigned.set(userId, roomId);
-    usedUsers.add(userId);
+    assigned.push({ user_id: userId, room_id: roomId });
+    weekLoad.set(userId, (weekLoad.get(userId) ?? 0) + 1);
     usedRooms.add(roomId);
   }
 
-  // Least-recently helper
+  // Sceglie chi assegnare a roomId dando priorità, in ordine:
+  // 1. chi ha meno stanze assegnate finora in questa settimana (spalma equamente
+  //    il carico quando le stanze superano le persone, invece di lasciarne alcune senza nessuno)
+  // 2. chi è senza turno da più tempo in generale (fa ruotare equamente chi resta
+  //    escluso quando gli utenti superano le stanze)
+  // 3. chi ha fatto meno stanze in totale nella storia (fa ruotare nel tempo anche
+  //    chi si becca il carico extra quando le stanze superano le persone)
+  // 4. chi non fa questa specifica stanza da più tempo (varietà per stanza)
   function pickLeast(pool, roomId) {
-    const avail = pool.filter(uid =>
-      !usedUsers.has(uid) && !exclusions.has(`${uid}:${roomId}`)
-    );
+    const avail = pool.filter(uid => !exclusions.has(`${uid}:${roomId}`));
     if (!avail.length) return null;
-    return avail.reduce((best, uid) =>
-      lastTimeDid(uid, roomId) < lastTimeDid(best, roomId) ? uid : best
-    );
+    return avail.reduce((best, uid) => {
+      const loadUid = weekLoad.get(uid) ?? 0, loadBest = weekLoad.get(best) ?? 0;
+      if (loadUid !== loadBest) return loadUid < loadBest ? uid : best;
+
+      const idleUid  = lastTimeAssigned(uid);
+      const idleBest = lastTimeAssigned(best);
+      if (idleUid !== idleBest) return idleUid < idleBest ? uid : best;
+
+      const totUid = totalAssignedCount(uid), totBest = totalAssignedCount(best);
+      if (totUid !== totBest) return totUid < totBest ? uid : best;
+
+      return lastTimeDid(uid, roomId) < lastTimeDid(best, roomId) ? uid : best;
+    });
   }
 
   const allUserIds = users.map(u => u.id);
@@ -87,7 +122,7 @@ export function computeNextWeek(weeks, users, rooms, rules) {
 
   // 1. Assegnazioni forzate (sequence)
   for (const [userId, roomId] of forced) {
-    if (!usedUsers.has(userId) && !usedRooms.has(roomId) &&
+    if (!weekLoad.has(userId) && !usedRooms.has(roomId) &&
         rooms.find(r => r.id === roomId)) {
       assign(userId, roomId);
     }
@@ -109,7 +144,7 @@ export function computeNextWeek(weeks, users, rooms, rules) {
     if (pick) assign(pick, room.id);
   }
 
-  const assignments = [...assigned.entries()].map(([user_id, room_id]) => ({
+  const assignments = assigned.map(({ user_id, room_id }) => ({
     user_id, room_id, done: false,
   }));
 
