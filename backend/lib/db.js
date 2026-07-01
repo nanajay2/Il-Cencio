@@ -1,10 +1,6 @@
 import { randomBytes } from 'crypto';
 import supabase from './supabase.js';
 
-function inviteCode() {
-  return randomBytes(4).toString('hex').toUpperCase();
-}
-
 function slugify(name) {
   return name.toLowerCase()
     .normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -22,7 +18,31 @@ export async function getHouse(houseId) {
     getUsers(houseId), getRooms(houseId), getRules(houseId),
   ]);
 
-  return { ...house, houseInviteCode: house.house_invite_code, users, rooms, rules };
+  return {
+    ...house,
+    houseInviteCode: house.house_invite_code,
+    rotationType: house.rotation_type,
+    rotationDays: house.rotation_days,
+    users, rooms, rules,
+  };
+}
+
+export async function getRotationConfig(houseId) {
+  const { data, error } = await supabase
+    .from('houses').select('rotation_type, rotation_days').eq('id', houseId).single();
+  if (error) throw error;
+  return { type: data.rotation_type, days: data.rotation_days };
+}
+
+export async function updateRotation(houseId, rotationType, rotationDays) {
+  const { error } = await supabase
+    .from('houses')
+    .update({
+      rotation_type: rotationType,
+      rotation_days: rotationType === 'daily' ? rotationDays : null,
+    })
+    .eq('id', houseId);
+  if (error) throw error;
 }
 
 export async function createHouse(name, adminName, pinHash) {
@@ -58,7 +78,7 @@ export async function getHouseMembers(houseId) {
 
   const { data: users, error: ue } = await supabase
     .from('users').select('id, name, pin_hash')
-    .eq('house_id', houseId).eq('claimed', true).order('id');
+    .eq('house_id', houseId).order('id');
   if (ue) throw ue;
 
   return {
@@ -80,7 +100,6 @@ export async function lookupHouseByCode(code) {
     .from('users')
     .select('id, name, pin_hash')
     .eq('house_id', data.id)
-    .eq('claimed', true)
     .order('id');
   if (ue) throw ue;
 
@@ -135,7 +154,7 @@ export async function getUserByEmail(email) {
 }
 
 export async function setPinHash(userId, pinHash) {
-  const { error } = await supabase.from('users').update({ pin_hash: pinHash }).eq('id', userId);
+  const { error } = await supabase.from('users').update({ pin_hash: pinHash, claimed: true }).eq('id', userId);
   if (error) throw error;
 }
 
@@ -151,14 +170,13 @@ export async function getUsers(houseId) {
   }));
 }
 
-export async function createUserSlot(houseId, name, email) {
-  const code = inviteCode();
+export async function createUserSlot(houseId, name) {
   const { data, error } = await supabase
     .from('users')
-    .insert({ house_id: houseId, name, email, is_admin: false, invite_code: code, claimed: false })
+    .insert({ house_id: houseId, name, is_admin: false, claimed: false })
     .select().single();
   if (error) throw error;
-  return { id: data.id, name, email, inviteCode: code, claimed: false };
+  return { id: data.id, name, claimed: false };
 }
 
 export async function claimUserSlot(code) {
@@ -336,10 +354,10 @@ export async function deleteWeeksFrom(houseId, fromDate) {
   if (error) throw error;
 }
 
-export async function setDone(houseId, weekId, userId, done) {
+export async function setDone(houseId, weekId, userId, roomId, done) {
   const { error } = await supabase
     .from('assignments').update({ done })
-    .eq('week_id', weekId).eq('house_id', houseId).eq('user_id', userId);
+    .eq('week_id', weekId).eq('house_id', houseId).eq('user_id', userId).eq('room_id', roomId);
   if (error) throw error;
 }
 
@@ -374,7 +392,7 @@ export async function deleteAbsence(houseId, absenceId) {
 }
 
 export const db = {
-  getHouse, createHouse,
+  getHouse, createHouse, getRotationConfig, updateRotation,
   getHouseMembers, lookupHouseByCode, registerUser, getUserById, getUserByEmail, setPinHash,
   getUsers, createUserSlot, claimUserSlot, deleteUser, leaveHouse,
   getRooms, createRoom, updateRoom, deleteRoom,

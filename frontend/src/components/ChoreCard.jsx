@@ -1,8 +1,8 @@
 import { isEditable } from '../constants.js';
 
 // assignment: { userId, userName, roomId, roomName, roomIcon, roomColor, done }
-export function ChoreCard({ assignment, absent, isMe, compact, week, onToggle }) {
-  const { userId, userName, roomName, roomIcon, roomColor, done } = assignment;
+export function ChoreCard({ assignment, absent, isMe, compact, week, onToggle, roomIndex, roomTotal }) {
+  const { userId, roomId, userName, roomName, roomIcon, roomColor, done } = assignment;
   const editable = isEditable(week);
 
   // ── Compact variant (altri coinquilini) ──────────────────────────
@@ -43,7 +43,9 @@ export function ChoreCard({ assignment, absent, isMe, compact, week, onToggle })
 
       <div className="p-5">
         <div className="flex items-start justify-between mb-1">
-          <span className="text-[.65rem] font-bold uppercase tracking-[.08em] text-ink-2">Il tuo turno</span>
+          <span className="text-[.65rem] font-bold uppercase tracking-[.08em] text-ink-2">
+            {roomTotal > 1 ? `Il tuo turno (${roomIndex}/${roomTotal})` : 'Il tuo turno'}
+          </span>
           {absent && (
             <span className="text-[.6rem] font-bold tracking-[.04em] text-brown-soft bg-cream-2 px-2 py-0.5 rounded-full">
               sei assente
@@ -73,7 +75,7 @@ export function ChoreCard({ assignment, absent, isMe, compact, week, onToggle })
               ? { background: '#F6F0F0', color: '#7A5038' }
               : { background: '#BDB395', color: '#4E220F', border: '1.5px solid #a89e83', boxShadow: '0 2px 8px rgba(168,158,131,.35)' }
             }
-            onClick={() => onToggle(week.id, userId)}
+            onClick={() => onToggle(week.id, userId, roomId)}
           >
             {done ? '↩ Segna come non fatto' : 'Segna come fatto ✓'}
           </button>

@@ -16,6 +16,12 @@ const titleCls   = 'font-bold text-[.92rem] text-ink mb-1';
 
 const selectCls = inputCls + ' appearance-none';
 
+const ROTATIONS = [
+  { value: 'weekly',  label: 'Settimanale' },
+  { value: 'daily',   label: 'Giornaliera personalizzata' },
+  { value: 'monthly', label: 'Mensile' },
+];
+
 const RULE_TYPES = [
   { value: 'pool_restriction', icon: '🚿', label: '🚿 Restrizione pool (es. Bagno)', hint: 'Solo le persone selezionate possono fare questa stanza.' },
   { value: 'sequence',         icon: '🔄', label: '🔄 Sequenza (es. Cucina→Corridoio)', hint: 'Chi fa la prima stanza, la settimana dopo fa automaticamente la seconda.' },
@@ -51,12 +57,18 @@ export function SettingsPanel({
   house, isAdmin, absences,
   onClose, onLogout, onLeaveHouse,
   onRemoveUser, onAddRoom, onRemoveRoom, onAddRule, onRemoveRule, onAddAbsence, onRemoveAbsence,
+  onUpdateRotation,
 }) {
   const [copied, setCopied] = useState(false);
   // Rooms state
   const [rName,  setRName]  = useState('');
   const [rIcon,  setRIcon]  = useState('🏠');
   const [rColor, setRColor] = useState('#BDB395');
+
+  // Rotation state
+  const [rotationType, setRotationType] = useState(house.rotationType ?? 'weekly');
+  const [rotationDays, setRotationDays] = useState(house.rotationDays ?? 3);
+  const [savingRotation, setSavingRotation] = useState(false);
 
   // Rules state
   const [ruleType,   setRuleType]   = useState(RULE_TYPES[0].value);
@@ -81,6 +93,15 @@ export function SettingsPanel({
 
   function toggleAllowedUser(id) {
     setPoolUsers(ids => ids.includes(id) ? ids.filter(u => u !== id) : [...ids, id]);
+  }
+
+  async function saveRotation() {
+    setSavingRotation(true);
+    try {
+      await onUpdateRotation(rotationType, rotationType === 'daily' ? rotationDays : null);
+    } finally {
+      setSavingRotation(false);
+    }
   }
 
   async function addRule() {
@@ -132,6 +153,48 @@ export function SettingsPanel({
                 {copied ? '✅ Copiato' : 'Copia'}
               </button>
             </div>
+          </section>
+        )}
+
+        {/* Rotazione turni — solo admin */}
+        {isAdmin && (
+          <section className={sectionCls}>
+            <div className={titleCls}>🔄 Rotazione turni</div>
+            <p className="text-[.77rem] text-ink-2 -mt-1">
+              Cambiare la rotazione rigenera i turni da oggi in poi; quelli passati restano invariati.
+            </p>
+
+            <div className="flex flex-wrap gap-1.5">
+              {ROTATIONS.map(r => (
+                <button
+                  key={r.value}
+                  type="button"
+                  onClick={() => setRotationType(r.value)}
+                  className={
+                    'px-3 py-1.5 rounded-full text-[.78rem] font-semibold border-[1.5px] transition-colors cursor-pointer ' +
+                    (rotationType === r.value
+                      ? 'bg-brown text-ink border-brown'
+                      : 'bg-cream text-ink-2 border-border')
+                  }
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
+
+            {rotationType === 'daily' && (
+              <input
+                type="number" min={1} max={30}
+                value={rotationDays}
+                onChange={e => setRotationDays(Number(e.target.value))}
+                className={inputCls}
+                style={{ maxWidth: '120px' }}
+              />
+            )}
+
+            <button onClick={saveRotation} disabled={savingRotation} className={btnCls + ' self-start'}>
+              {savingRotation ? 'Salvataggio…' : 'Salva'}
+            </button>
           </section>
         )}
 
