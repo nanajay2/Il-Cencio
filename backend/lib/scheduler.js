@@ -44,6 +44,15 @@ export function computeNextWeek(weeks, users, rooms, rules) {
     return -1;
   }
 
+  // Indice in sorted per "l'ultima volta che userId ha avuto un turno qualsiasi"
+  // (usato per far ruotare equamente chi resta senza turno quando gli utenti superano le stanze)
+  function lastTimeAssigned(userId) {
+    for (let i = sorted.length - 1; i >= 0; i--) {
+      if ((sorted[i].assignments || []).some(a => (a.user_id ?? a.userId) === userId)) return i;
+    }
+    return -1;
+  }
+
   // ── Costruzione vincoli ──────────────────────────────────────────
   const poolFor    = {};          // roomId → Set<userId>
   const exclusions = new Set();   // 'userId:roomId'
@@ -71,15 +80,20 @@ export function computeNextWeek(weeks, users, rooms, rules) {
     usedRooms.add(roomId);
   }
 
-  // Least-recently helper
+  // Least-recently helper: prima chi è senza turno da più tempo in generale
+  // (fa ruotare equamente chi resta escluso quando gli utenti superano le stanze),
+  // poi — a parità — chi non fa questa specifica stanza da più tempo.
   function pickLeast(pool, roomId) {
     const avail = pool.filter(uid =>
       !usedUsers.has(uid) && !exclusions.has(`${uid}:${roomId}`)
     );
     if (!avail.length) return null;
-    return avail.reduce((best, uid) =>
-      lastTimeDid(uid, roomId) < lastTimeDid(best, roomId) ? uid : best
-    );
+    return avail.reduce((best, uid) => {
+      const idleUid  = lastTimeAssigned(uid);
+      const idleBest = lastTimeAssigned(best);
+      if (idleUid !== idleBest) return idleUid < idleBest ? uid : best;
+      return lastTimeDid(uid, roomId) < lastTimeDid(best, roomId) ? uid : best;
+    });
   }
 
   const allUserIds = users.map(u => u.id);
