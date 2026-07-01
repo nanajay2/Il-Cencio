@@ -7,13 +7,36 @@ const inputCls =
 
 const labelCls = 'block text-[.7rem] font-bold text-ink-2 mb-1 uppercase tracking-[.06em]';
 
+const pillCls = (active) =>
+  'px-3 py-1.5 rounded-full text-[.78rem] font-semibold border-[1.5px] transition-colors cursor-pointer ' +
+  (active ? 'bg-brown text-ink border-brown' : 'bg-cream text-ink-2 border-border');
+
+const ROTATIONS = [
+  { value: 'weekly',  label: 'Settimanale' },
+  { value: 'daily',   label: 'Giornaliera personalizzata' },
+  { value: 'monthly', label: 'Mensile' },
+];
+
 export function CreateHouseScreen({ onSuccess, onBack }) {
+  const [step, setStep] = useState(1); // 1=casa, 2=coinquilini, 3=rotazione
+  const [session, setSession] = useState(null);
+
+  // Step 1
   const [houseName, setHouseName] = useState('');
   const [adminName, setAdminName] = useState('');
   const [pin,       setPin]       = useState('');
   const [pinConf,   setPinConf]   = useState('');
-  const [loading,    setLoading]    = useState(false);
-  const [error,      setError]      = useState(null);
+
+  // Step 2
+  const [pendingNames, setPendingNames] = useState([]);
+  const [nameInput,    setNameInput]    = useState('');
+
+  // Step 3
+  const [rotationType, setRotationType] = useState('weekly');
+  const [rotationDays, setRotationDays] = useState(3);
+
+  const [loading, setLoading] = useState(false);
+  const [error,   setError]   = useState(null);
 
   async function handleCreate() {
     if (!houseName.trim() || !adminName.trim() || !pin || !pinConf) return;
@@ -22,7 +45,51 @@ export function CreateHouseScreen({ onSuccess, onBack }) {
     setLoading(true);
     setError(null);
     try {
-      const session = await api.createHouse(houseName.trim(), adminName.trim(), pin);
+      const s = await api.createHouse(houseName.trim(), adminName.trim(), pin);
+      setSession(s);
+      setStep(2);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function addPendingName() {
+    const name = nameInput.trim();
+    if (!name) return;
+    setPendingNames(names => [...names, name]);
+    setNameInput('');
+  }
+
+  function removePendingName(i) {
+    setPendingNames(names => names.filter((_, idx) => idx !== i));
+  }
+
+  async function handleCoinquiliniContinue() {
+    setLoading(true);
+    setError(null);
+    try {
+      for (const name of pendingNames) {
+        await api.createUser(session.houseId, name, '');
+      }
+      setStep(3);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleFinish() {
+    if (rotationType === 'daily' && !(Number.isInteger(rotationDays) && rotationDays >= 1 && rotationDays <= 30)) {
+      setError('Scegli un numero di giorni tra 1 e 30');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await api.updateRotation(session.houseId, rotationType, rotationType === 'daily' ? rotationDays : null);
       onSuccess(session);
     } catch (e) {
       setError(e.message);
@@ -31,9 +98,10 @@ export function CreateHouseScreen({ onSuccess, onBack }) {
     }
   }
 
-  const canSubmit = houseName.trim() && adminName.trim() && pin.length === 4 && pinConf.length === 4;
+  const canSubmitStep1 = houseName.trim() && adminName.trim() && pin.length === 4 && pinConf.length === 4;
 
-  return (
+  // ── Step 1: casa + admin + PIN ─────────────────────────────────────
+  if (step === 1) return (
     <div className="min-h-screen bg-cream flex flex-col items-center justify-center p-6 gap-4">
       <div className="text-center mb-2">
         <div className="font-serif text-[1.8rem] text-brown">Crea la tua casa</div>
@@ -73,14 +141,124 @@ export function CreateHouseScreen({ onSuccess, onBack }) {
 
       <button
         onClick={handleCreate}
-        disabled={loading || !canSubmit}
+        disabled={loading || !canSubmitStep1}
         className="w-full max-w-[360px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {loading ? 'Creazione…' : 'Crea casa 🏠'}
+        {loading ? 'Creazione…' : 'Continua →'}
       </button>
 
       <button onClick={onBack} className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-brown transition-colors py-1">
         ← Torna indietro
+      </button>
+    </div>
+  );
+
+  // ── Step 2: coinquilini ─────────────────────────────────────────────
+  if (step === 2) return (
+    <div className="min-h-screen bg-cream flex flex-col items-center justify-center p-6 gap-4">
+      <div className="text-center mb-2">
+        <div className="font-serif text-[1.8rem] text-brown">Coinquilini</div>
+        <p className="text-[.85rem] text-ink-2 mt-1">
+          Aggiungi chi vivrà in questa casa: potranno accedere scegliendo solo nome e PIN. Potrai farlo anche dopo.
+        </p>
+      </div>
+
+      <div className="w-full max-w-[360px] flex flex-col gap-3">
+        <div className="flex gap-2">
+          <input
+            type="text" value={nameInput}
+            onChange={e => setNameInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && addPendingName()}
+            placeholder="es. Marco"
+            className={inputCls}
+          />
+          <button
+            onClick={addPendingName}
+            className="px-4 bg-brown text-ink font-bold text-[.85rem] rounded-[12px] border-0 cursor-pointer hover:bg-brown-mid transition-colors flex-shrink-0"
+          >
+            Aggiungi
+          </button>
+        </div>
+
+        {pendingNames.length > 0 && (
+          <div className="flex flex-col gap-1.5">
+            {pendingNames.map((name, i) => (
+              <div key={i} className="flex items-center justify-between px-3 py-[9px] bg-card rounded-[10px] border border-border text-[.83rem]">
+                <span className="font-semibold text-ink">{name}</span>
+                <button
+                  onClick={() => removePendingName(i)}
+                  className="border-0 bg-transparent cursor-pointer text-ink-2 hover:text-red transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {error && <p className="text-[.82rem] text-red text-center max-w-[320px]">{error}</p>}
+
+      <button
+        onClick={handleCoinquiliniContinue}
+        disabled={loading}
+        className="w-full max-w-[360px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {loading ? 'Salvataggio…' : 'Continua →'}
+      </button>
+
+      <button
+        onClick={() => setStep(3)}
+        className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-brown transition-colors py-1"
+      >
+        Salta, li aggiungo dopo →
+      </button>
+    </div>
+  );
+
+  // ── Step 3: rotazione ────────────────────────────────────────────────
+  return (
+    <div className="min-h-screen bg-cream flex flex-col items-center justify-center p-6 gap-4">
+      <div className="text-center mb-2">
+        <div className="font-serif text-[1.8rem] text-brown">Rotazione</div>
+        <p className="text-[.85rem] text-ink-2 mt-1">Con che frequenza ruotano i turni?</p>
+      </div>
+
+      <div className="w-full max-w-[360px] flex flex-col gap-3">
+        <div className="flex flex-wrap gap-1.5">
+          {ROTATIONS.map(r => (
+            <button
+              key={r.value}
+              type="button"
+              onClick={() => setRotationType(r.value)}
+              className={pillCls(rotationType === r.value)}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+
+        {rotationType === 'daily' && (
+          <div>
+            <label className={labelCls}>Ogni quanti giorni</label>
+            <input
+              type="number" min={1} max={30}
+              value={rotationDays}
+              onChange={e => setRotationDays(Number(e.target.value))}
+              className={inputCls}
+            />
+          </div>
+        )}
+      </div>
+
+      {error && <p className="text-[.82rem] text-red text-center max-w-[320px]">{error}</p>}
+
+      <button
+        onClick={handleFinish}
+        disabled={loading}
+        className="w-full max-w-[360px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {loading ? 'Creazione…' : 'Crea casa 🏠'}
       </button>
     </div>
   );

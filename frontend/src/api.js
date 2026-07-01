@@ -26,6 +26,8 @@ export const api = {
 
   // Casa
   getHouse:    (houseId)               => req(h(houseId)),
+  updateRotation: (houseId, rotationType, rotationDays) =>
+    req(`${h(houseId)}/rotation`, { method: 'PUT', body: JSON.stringify({ rotationType, rotationDays }) }),
 
   // Utenti
   createUser:  (houseId, name, email)  => req(`${h(houseId)}/users`, { method: 'POST', body: JSON.stringify({ name, email }) }),
@@ -44,8 +46,8 @@ export const api = {
   // Settimane
   getWeeks:    (houseId)               => req(`${h(houseId)}/weeks`),
   generateWeek:(houseId)               => req(`${h(houseId)}/weeks`, { method: 'POST' }),
-  toggleDone:  (houseId, weekId, userId, done) =>
-    req(`${h(houseId)}/weeks/${weekId}/done`, { method: 'PATCH', body: JSON.stringify({ userId, done }) }),
+  toggleDone:  (houseId, weekId, userId, roomId, done) =>
+    req(`${h(houseId)}/weeks/${weekId}/done`, { method: 'PATCH', body: JSON.stringify({ userId, roomId, done }) }),
 
   // Assenze
   getAbsences: (houseId)               => req(`${h(houseId)}/absences`),

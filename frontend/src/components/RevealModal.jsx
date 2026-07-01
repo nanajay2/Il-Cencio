@@ -4,12 +4,12 @@ import { isCurW } from '../constants.js';
 export function RevealModal({ week, userId, onDismiss }) {
   const dismissed = useRef(false);
 
-  const assignment = week?.assignments?.find(a => a.userId === userId);
+  const assignments = week?.assignments?.filter(a => a.userId === userId) ?? [];
   const revealKey  = week && userId ? `revealed_${week.id}_${userId}` : null;
 
   useEffect(() => {
     if (!week || !userId || !isCurW(week)) return;
-    if (!assignment) return;
+    if (!assignments.length) return;
     if (localStorage.getItem(revealKey)) return;
     localStorage.setItem(revealKey, '1');
     dismissed.current = false;
@@ -18,7 +18,7 @@ export function RevealModal({ week, userId, onDismiss }) {
   }, [week?.id, userId]);
 
   if (!week || !userId || !isCurW(week)) return null;
-  if (!assignment) return null;
+  if (!assignments.length) return null;
   if (!localStorage.getItem(revealKey)) return null;
 
   function dismiss() { dismissed.current = true; onDismiss(); }
@@ -36,9 +36,13 @@ export function RevealModal({ week, userId, onDismiss }) {
         <div className="text-[.72rem] font-bold uppercase tracking-[.1em] text-ink-2 mb-[10px]">
           Il tuo turno questa settimana
         </div>
-        <span className="block text-[2.2rem] mb-1.5">{assignment.roomIcon || '✨'}</span>
-        <div className="font-serif text-[2rem] text-brown leading-[1.2] mb-[14px]">{assignment.roomName}</div>
-        <div className="text-[.75rem] text-ink-2">Tocca per chiudere</div>
+        {assignments.map(a => (
+          <div key={a.roomId} className="mb-1.5">
+            <span className="block text-[2.2rem] mb-1.5">{a.roomIcon || '✨'}</span>
+            <div className="font-serif text-[2rem] text-brown leading-[1.2]">{a.roomName}</div>
+          </div>
+        ))}
+        <div className="text-[.75rem] text-ink-2 mt-2">Tocca per chiudere</div>
       </div>
     </div>
   );
