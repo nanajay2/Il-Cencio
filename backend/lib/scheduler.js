@@ -55,6 +55,15 @@ export function computeNextWeek(weeks, users, rooms, rules) {
     return count;
   }
 
+  // Indice in sorted per "l'ultima volta che userId ha avuto un turno qualsiasi"
+  // (usato per far ruotare equamente chi resta senza turno quando gli utenti superano le stanze)
+  function lastTimeAssigned(userId) {
+    for (let i = sorted.length - 1; i >= 0; i--) {
+      if ((sorted[i].assignments || []).some(a => (a.user_id ?? a.userId) === userId)) return i;
+    }
+    return -1;
+  }
+
   // ── Costruzione vincoli ──────────────────────────────────────────
   const poolFor    = {};          // roomId → Set<userId>
   const exclusions = new Set();   // 'userId:roomId'
@@ -85,16 +94,21 @@ export function computeNextWeek(weeks, users, rooms, rules) {
   // Sceglie chi assegnare a roomId dando priorità, in ordine:
   // 1. chi ha meno stanze assegnate finora in questa settimana (spalma equamente
   //    il carico quando le stanze superano le persone, invece di lasciarne alcune senza nessuno)
-  // 2. chi ha fatto meno stanze in totale nella storia (fa ruotare nel tempo sia chi
-  //    resta senza turno quando le persone superano le stanze, sia chi si becca il
-  //    carico extra quando le stanze superano le persone)
-  // 3. chi non fa questa specifica stanza da più tempo (varietà per stanza)
+  // 2. chi è senza turno da più tempo in generale (fa ruotare equamente chi resta
+  //    escluso quando gli utenti superano le stanze)
+  // 3. chi ha fatto meno stanze in totale nella storia (fa ruotare nel tempo anche
+  //    chi si becca il carico extra quando le stanze superano le persone)
+  // 4. chi non fa questa specifica stanza da più tempo (varietà per stanza)
   function pickLeast(pool, roomId) {
     const avail = pool.filter(uid => !exclusions.has(`${uid}:${roomId}`));
     if (!avail.length) return null;
     return avail.reduce((best, uid) => {
       const loadUid = weekLoad.get(uid) ?? 0, loadBest = weekLoad.get(best) ?? 0;
       if (loadUid !== loadBest) return loadUid < loadBest ? uid : best;
+
+      const idleUid  = lastTimeAssigned(uid);
+      const idleBest = lastTimeAssigned(best);
+      if (idleUid !== idleBest) return idleUid < idleBest ? uid : best;
 
       const totUid = totalAssignedCount(uid), totBest = totalAssignedCount(best);
       if (totUid !== totBest) return totUid < totBest ? uid : best;
