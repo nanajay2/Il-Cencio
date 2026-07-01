@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+@theme {
+  --font-family-sans:  'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-family-serif: 'DM Serif Display', serif;
+
+  --color-brown:      #BDB395;
+  --color-brown-mid:  #a89e83;
+  --color-brown-soft: #D5C7A3;
+  --color-cream:      #F6F0F0;
+  --color-cream-2:    #D5C7A3;
+  --color-card:       #F6F0F0;
+  --color-ink:        #4E220F;
+  --color-ink-2:      #7A5038;
+  --color-border:     #F2E2B1;
+  --color-sage:       #BDB395;
+  --color-red:        #b83232;
+  --color-red-pale:   #fceaea;
+  --color-green:      #1f6b52;
+  --color-green-pale: #d4ece5;
+}
+
+body {
+  font-family: var(--font-family-sans);
+  background-color: var(--color-cream);
+  color: var(--color-ink);
+  min-height: 100vh;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+/* ── Animazioni (non esprimibili in Tailwind) ───────────── */
+@keyframes slideUp     { from { transform: translateY(60px); opacity: 0; } }
+@keyframes popIn       { from { transform: scale(.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes revealBounce{ from { transform: translateY(0); } to { transform: translateY(-11px); } }
+@keyframes catBreathe  { 0%,100% { transform: scaleY(1); } 50% { transform: scaleY(1.04); } }
+@keyframes catBounce   { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+@keyframes catWiggle   { 0%,100% { transform: rotate(-8deg); } 50% { transform: rotate(8deg); } }
+@keyframes sparkleAnim { 0% { transform: scale(0); opacity: 1; } 70% { opacity: .6; } 100% { transform: scale(2.8); opacity: 0; } }
+@keyframes spin        { to { transform: rotate(360deg); } }
+
+/* ── Done-btn: --accent è dinamico per chore, non gestibile in Tailwind ─── */
+.done-btn {
+  display: flex; align-items: center; gap: 6px; margin-top: 9px;
+  background: none; border: 1.5px solid var(--color-border); border-radius: 999px;
+  padding: 6px 14px; font-family: inherit; font-size: .78rem; font-weight: 600;
+  color: var(--color-ink-2); cursor: pointer; transition: all .15s; width: fit-content;
+}
+.done-btn:hover  { border-color: var(--accent, #5a9e8a); color: var(--accent, #5a9e8a); }
+.done-btn.checked {
+  background: var(--accent, #5a9e8a); border-color: var(--accent, #5a9e8a);
+  color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.15);
+}
+.done-dot { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid currentColor; flex-shrink: 0; transition: all .15s; }
+.done-btn.checked .done-dot { background: #fff; border-color: #fff; }
+
+/* ── Gatto ───────────────────────────────────────────────── */
+.cat-tear { opacity: 0; transition: opacity .4s; }
+#cat-mascot.cat-triste .cat-tear { opacity: .9; }
+#cat-mascot.cat-triste    { transform: rotate(5deg); transform-origin: bottom center; }
+.cat-tranquillo { animation: catBreathe 3s ease-in-out infinite; transform-origin: bottom center; }
+.cat-felice     { animation: catBounce .7s ease-in-out infinite; }
+.cat-agitato    { animation: catWiggle .22s ease-in-out infinite; transform-origin: bottom center; }
+
+/* ── Sparkle (posizioni nth-child non gestibili in Tailwind) ─ */
+.sparkle { position: absolute; pointer-events: none; width: 9px; height: 9px; border-radius: 50%; animation: sparkleAnim 1.4s ease-out infinite; }
+.sparkle:nth-child(1) { top: 12%; left: 10%;  animation-delay: 0s;    background: #c97b4b; }
+.sparkle:nth-child(2) { top: 9%;  right: 15%; animation-delay: .25s;  background: #5a9e8a; }
+.sparkle:nth-child(3) { top: 72%; left: 7%;   animation-delay: .5s;   background: #c9a84c; }
+.sparkle:nth-child(4) { top: 68%; right: 9%;  animation-delay: .15s;  background: #6a96c4; }
+.sparkle:nth-child(5) { top: 38%; left: 4%;   animation-delay: .7s;   background: #c97b4b; }
+.sparkle:nth-child(6) { top: 42%; right: 4%;  animation-delay: .4s;   background: #8c9e8a; }

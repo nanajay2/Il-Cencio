@@ -122,7 +122,7 @@
       background: var(--card); border-radius: var(--r);
       border: 1px solid var(--border);
       box-shadow: 0 1px 3px rgba(0,0,0,.05), 0 4px 12px rgba(0,0,0,.06);
-      display: flex; align-items: stretch;
+      display: flex; align-items: stretch; position: relative;
       overflow: hidden; transition: box-shadow .18s, transform .18s;
     }
     .chore-card:hover {
@@ -323,6 +323,130 @@
       .header-title { font-size: 1.4rem; }
       .week-actions { flex-direction: column; }
     }
+
+    /* ─── Login overlay ──────────────────────────── */
+    .login-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(10,5,2,.72); backdrop-filter: blur(6px);
+      z-index: 400; align-items: flex-end; justify-content: center; padding: 0;
+    }
+    .login-overlay.open { display: flex; }
+    .login-sheet {
+      background: var(--card); border-radius: 24px 24px 0 0;
+      width: 100%; max-width: 480px; padding: 28px 24px 44px;
+      box-shadow: 0 -8px 40px rgba(0,0,0,.25);
+      animation: slideUp .35s cubic-bezier(.34,1.56,.64,1);
+    }
+    .login-sheet h2 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.3rem; margin-bottom: 4px; color: var(--text);
+    }
+    .login-sheet p { font-size: .82rem; color: var(--text-2); margin-bottom: 20px; }
+    .person-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .person-btn {
+      padding: 14px 12px; border: 1.5px solid var(--border);
+      border-radius: var(--r); background: var(--cream);
+      cursor: pointer; font-family: inherit; text-align: left;
+      transition: all .15s; display: flex; flex-direction: column; gap: 3px;
+    }
+    .person-btn:hover { border-color: var(--brown); background: var(--cream-2); transform: scale(1.02); }
+    .person-btn:active { transform: scale(.98); }
+    .pb-name { font-size: .95rem; font-weight: 800; color: var(--text); }
+    .pb-email { font-size: .65rem; color: var(--text-2); }
+
+    /* ─── Logout btn ─────────────────────────────── */
+    .logout-btn {
+      height: 34px; padding: 0 12px; border-radius: var(--r-pill);
+      border: none; background: rgba(255,255,255,.1); color: rgba(255,255,255,.75);
+      font-family: inherit; font-size: .72rem; font-weight: 700;
+      cursor: pointer; transition: background .15s; white-space: nowrap;
+    }
+    .logout-btn:hover { background: rgba(255,255,255,.2); }
+
+    /* ─── Card me / others ───────────────────────── */
+    .chore-card.me {
+      transform: scale(1.015);
+      box-shadow: 0 4px 14px rgba(0,0,0,.11), 0 10px 30px rgba(0,0,0,.13);
+      border-width: 2px; z-index: 1;
+    }
+    .chore-card.others { opacity: .68; }
+    .me-badge {
+      position: absolute; top: 9px; right: 10px;
+      font-size: .58rem; font-weight: 800; letter-spacing: .05em;
+      background: var(--brown); color: #fff;
+      padding: 3px 8px; border-radius: var(--r-pill);
+    }
+
+    /* ─── Reveal modal ───────────────────────────── */
+    .reveal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(5,2,0,.84); backdrop-filter: blur(10px);
+      z-index: 500; align-items: center; justify-content: center; padding: 24px;
+    }
+    .reveal-overlay.open { display: flex; }
+    .reveal-box {
+      background: var(--card); border-radius: 28px;
+      padding: 44px 32px 40px; text-align: center;
+      max-width: 300px; width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,.45);
+      animation: popIn .5s cubic-bezier(.34,1.56,.64,1);
+      position: relative; overflow: hidden;
+    }
+    @keyframes popIn {
+      from { transform: scale(.5); opacity: 0; }
+      to   { transform: scale(1);  opacity: 1; }
+    }
+    .reveal-cat { font-size: 2.8rem; display: block; margin-bottom: 14px; animation: revealBounce .65s ease-in-out infinite alternate; }
+    @keyframes revealBounce { from { transform: translateY(0); } to { transform: translateY(-11px); } }
+    .reveal-title { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--text-2); margin-bottom: 10px; }
+    .reveal-icon  { font-size: 2.2rem; display: block; margin-bottom: 6px; }
+    .reveal-chore {
+      font-family: 'DM Serif Display', serif;
+      font-size: 2rem; color: var(--brown); line-height: 1.2; margin-bottom: 14px;
+    }
+    .reveal-sub { font-size: .75rem; color: var(--text-2); }
+    .sparkle {
+      position: absolute; pointer-events: none;
+      width: 9px; height: 9px; border-radius: 50%;
+      animation: sparkleAnim 1.4s ease-out infinite;
+    }
+    @keyframes sparkleAnim {
+      0%   { transform: scale(0);   opacity: 1; }
+      70%  { opacity: .6; }
+      100% { transform: scale(2.8); opacity: 0; }
+    }
+    .sparkle:nth-child(1) { top: 12%; left: 10%;  animation-delay: 0s;    background: #c97b4b; }
+    .sparkle:nth-child(2) { top: 9%;  right: 15%; animation-delay: .25s;  background: #5a9e8a; }
+    .sparkle:nth-child(3) { top: 72%; left: 7%;   animation-delay: .5s;   background: #c9a84c; }
+    .sparkle:nth-child(4) { top: 68%; right: 9%;  animation-delay: .15s;  background: #6a96c4; }
+    .sparkle:nth-child(5) { top: 38%; left: 4%;   animation-delay: .7s;   background: #c97b4b; }
+    .sparkle:nth-child(6) { top: 42%; right: 4%;  animation-delay: .4s;   background: #8c9e8a; }
+
+    /* ─── Cat mascot ─────────────────────────────── */
+    #cat-mascot {
+      position: fixed; bottom: 20px; right: 16px;
+      width: 64px; height: 64px; z-index: 100;
+      cursor: default; user-select: none;
+      filter: drop-shadow(0 3px 8px rgba(0,0,0,.18));
+    }
+    .cat-tear { opacity: 0; transition: opacity .4s; }
+    #cat-mascot.cat-triste .cat-tear { opacity: .9; }
+    #cat-mascot.cat-triste { transform: rotate(5deg); transform-origin: bottom center; }
+    @keyframes catBreathe {
+      0%,100% { transform: scaleY(1);    }
+      50%      { transform: scaleY(1.04); }
+    }
+    @keyframes catBounce {
+      0%,100% { transform: translateY(0);     }
+      50%      { transform: translateY(-12px); }
+    }
+    @keyframes catWiggle {
+      0%,100% { transform: rotate(-8deg); }
+      50%      { transform: rotate(8deg);  }
+    }
+    .cat-tranquillo { animation: catBreathe 3s ease-in-out infinite; transform-origin: bottom center; }
+    .cat-felice     { animation: catBounce .7s ease-in-out infinite; }
+    .cat-agitato    { animation: catWiggle .22s ease-in-out infinite; transform-origin: bottom center; }
   </style>
 </head>
 <body>
@@ -335,6 +459,7 @@
       <div class="header-date" id="header-date"></div>
     </div>
     <div class="header-btns">
+      <button class="logout-btn" id="logout-btn" onclick="logout()" style="display:none">Esci →</button>
       <button class="icon-btn" onclick="refreshData()" title="Aggiorna">↻</button>
       <button class="icon-btn" onclick="openSetup()">⚙️</button>
     </div>
@@ -432,6 +557,80 @@
   </div>
 </div>
 
+<!-- ── Login overlay ──────────────────────────────── -->
+<div class="login-overlay" id="login-overlay">
+  <div class="login-sheet">
+    <div class="modal-handle"></div>
+    <h2>Chi sei? 🏠</h2>
+    <p>Tocca il tuo nome per accedere</p>
+    <div class="person-grid">
+      <button class="person-btn" onclick="loginAs('Giada')">
+        <span class="pb-name">Giada</span>
+        <span class="pb-email">giada.dt02@gmail.com</span>
+      </button>
+      <button class="person-btn" onclick="loginAs('Silvia')">
+        <span class="pb-name">Silvia</span>
+        <span class="pb-email">silvia.saladino90@gmail.com</span>
+      </button>
+      <button class="person-btn" onclick="loginAs('Giulia')">
+        <span class="pb-name">Giulia</span>
+        <span class="pb-email">giuliabracchitta2@gmail.com</span>
+      </button>
+      <button class="person-btn" onclick="loginAs('Marco')">
+        <span class="pb-name">Marco</span>
+        <span class="pb-email">marcoskype3@gmail.com</span>
+      </button>
+      <button class="person-btn" onclick="loginAs('Eliana')">
+        <span class="pb-name">Eliana</span>
+        <span class="pb-email">ely.maria75@gmail.com</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Reveal modal ───────────────────────────────── -->
+<div class="reveal-overlay" id="reveal-overlay" onclick="dismissReveal()">
+  <div class="reveal-box">
+    <span class="sparkle"></span>
+    <span class="sparkle"></span>
+    <span class="sparkle"></span>
+    <span class="sparkle"></span>
+    <span class="sparkle"></span>
+    <span class="sparkle"></span>
+    <span class="reveal-cat">🐱</span>
+    <div class="reveal-title">Il tuo turno questa settimana</div>
+    <span class="reveal-icon" id="reveal-chore-icon"></span>
+    <div class="reveal-chore" id="reveal-chore-name"></div>
+    <div class="reveal-sub">Tocca per chiudere</div>
+  </div>
+</div>
+
+<!-- ── Cat mascot ─────────────────────────────────── -->
+<div id="cat-mascot" class="cat-tranquillo">
+  <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+    <path d="M48,53 Q61,42 55,27" stroke="#2e1a0e" stroke-width="3" stroke-linecap="round" fill="none"/>
+    <ellipse cx="30" cy="46" rx="17" ry="13" fill="#f5efe6" stroke="#2e1a0e" stroke-width="1.5"/>
+    <ellipse cx="30" cy="49" rx="8" ry="5.5" fill="#ede4d8"/>
+    <circle cx="30" cy="24" r="14" fill="#f5efe6" stroke="#2e1a0e" stroke-width="1.5"/>
+    <polygon points="18,15 13,4 24,13" fill="#c97b4b"/>
+    <polygon points="42,15 47,4 36,13" fill="#c97b4b"/>
+    <polygon points="18,15 16,7 23,13" fill="#f5efe6" opacity=".45"/>
+    <polygon points="42,15 44,7 37,13" fill="#f5efe6" opacity=".45"/>
+    <ellipse cx="25" cy="23" rx="2.5" ry="3" fill="#2e1a0e"/>
+    <ellipse cx="35" cy="23" rx="2.5" ry="3" fill="#2e1a0e"/>
+    <circle cx="26" cy="21.5" r=".9" fill="#fff"/>
+    <circle cx="36" cy="21.5" r=".9" fill="#fff"/>
+    <path d="M28.5,28.5 L30,30.5 L31.5,28.5 Z" fill="#c97b4b"/>
+    <line x1="22" y1="28" x2="13" y2="26" stroke="#2e1a0e" stroke-width=".8" opacity=".4"/>
+    <line x1="22" y1="30" x2="13" y2="31.5" stroke="#2e1a0e" stroke-width=".8" opacity=".4"/>
+    <line x1="38" y1="28" x2="47" y2="26" stroke="#2e1a0e" stroke-width=".8" opacity=".4"/>
+    <line x1="38" y1="30" x2="47" y2="31.5" stroke="#2e1a0e" stroke-width=".8" opacity=".4"/>
+    <path d="M27,31.5 Q30,34.5 33,31.5" stroke="#2e1a0e" stroke-width="1" stroke-linecap="round" fill="none"/>
+    <ellipse class="cat-tear" cx="24" cy="30" rx="1.3" ry="2.5" fill="#6a96c4"/>
+    <ellipse class="cat-tear" cx="36" cy="30" rx="1.3" ry="2.5" fill="#6a96c4"/>
+  </svg>
+</div>
+
 <script>
 // ── Constants ──────────────────────────────────────────────────────────────
 const PEOPLE = ['Giada', 'Silvia', 'Giulia', 'Eliana', 'Marco'];
@@ -458,6 +657,11 @@ const MONTHS = ['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov
 const DAYS   = ['domenica','lunedì','martedì','mercoledì','giovedì','venerdì','sabato'];
 
 const WEEKS_AHEAD = 4;
+const PEOPLE_EMAILS = {
+  Giada: 'giada.dt02@gmail.com', Silvia: 'silvia.saladino90@gmail.com',
+  Giulia: 'giuliabracchitta2@gmail.com', Marco: 'marcoskype3@gmail.com',
+  Eliana: 'ely.maria75@gmail.com'
+};
 
 // ── Initial seed data ──────────────────────────────────────────────────────
 const SEED = {
@@ -490,6 +694,7 @@ let cfg = {
 };
 let data = null;
 let currentWeekIdx = null;
+let currentUser = localStorage.getItem('currentUser');
 
 // ── API ────────────────────────────────────────────────────────────────────
 const BIN_URL = id => `https://api.jsonbin.io/v3/b/${id}`;
@@ -578,6 +783,7 @@ function render() {
 
   renderAbsences();
   renderWeeks();
+  updateCat();
 }
 
 function renderWeeks() {
@@ -609,12 +815,13 @@ function renderWeeks() {
 
   // Chore cards
   const editable = isEditable(week);
-  const html = CHORES.map(chore => {
+  const cards = CHORES.map(chore => {
     const person = Object.entries(week.assignments || {}).find(([,c]) => c === chore)?.[0];
-    if (!person) return '';
+    if (!person) return null;
     const done   = week.done?.[person] || false;
     const absent = isAbsent(person, week.start, week.end);
     const color  = CHORE_COLORS[chore];
+    const isMe   = !!currentUser && person === currentUser;
 
     const doneBtn = editable
       ? `<button
@@ -629,8 +836,13 @@ function renderWeeks() {
            🔒 ${done ? 'Fatto ✓' : 'Non fatto'}
          </span>`;
 
-    return `
-      <div class="chore-card ${done ? 'done' : ''} ${absent ? 'absent' : ''}">
+    const cardClass   = isMe ? 'me' : (currentUser ? 'others' : '');
+    const meBadge     = isMe ? '<div class="me-badge">TU 🏠</div>' : '';
+    const borderStyle = isMe ? `border-color:${color};` : '';
+
+    return { isMe, html: `
+      <div class="chore-card ${done ? 'done' : ''} ${absent ? 'absent' : ''} ${cardClass}" style="${borderStyle}">
+        ${meBadge}
         <div class="card-accent" style="background:${color}"></div>
         <div class="card-inner">
           <div class="card-icon">${ICONS[chore]}</div>
@@ -642,10 +854,13 @@ function renderWeeks() {
             ${doneBtn}
           </div>
         </div>
-      </div>`;
-  }).join('');
+      </div>` };
+  }).filter(Boolean);
 
-  document.getElementById('chore-cards').innerHTML = html;
+  if (currentUser) cards.sort((a, b) => (b.isMe ? 1 : 0) - (a.isMe ? 1 : 0));
+  document.getElementById('chore-cards').innerHTML = cards.map(c => c.html).join('');
+
+  if (currentUser && isCurW(week)) checkReveal(week);
 }
 
 function renderAbsences() {
@@ -849,6 +1064,62 @@ function togglePanel() {
   b.classList.toggle('open'); h.classList.toggle('open');
 }
 
+// ── Login ──────────────────────────────────────────────────────────────────
+function showLoginOverlay() {
+  document.getElementById('login-overlay').classList.add('open');
+}
+function loginAs(name) {
+  currentUser = name;
+  localStorage.setItem('currentUser', name);
+  document.getElementById('login-overlay').classList.remove('open');
+  document.getElementById('logout-btn').style.display = '';
+  render();
+}
+function logout() {
+  currentUser = null;
+  localStorage.removeItem('currentUser');
+  document.getElementById('logout-btn').style.display = 'none';
+  renderWeeks();
+  showLoginOverlay();
+}
+
+// ── Reveal ─────────────────────────────────────────────────────────────────
+function checkReveal(week) {
+  const key = `revealed_${week.id}_${currentUser}`;
+  if (localStorage.getItem(key)) return;
+  const chore = week.assignments?.[currentUser];
+  if (!chore) return;
+  localStorage.setItem(key, '1');
+  document.getElementById('reveal-chore-name').textContent = chore;
+  document.getElementById('reveal-chore-icon').textContent = ICONS[chore] || '✨';
+  document.getElementById('reveal-overlay').classList.add('open');
+  setTimeout(dismissReveal, 4500);
+}
+function dismissReveal() {
+  document.getElementById('reveal-overlay').classList.remove('open');
+}
+
+// ── Cat ────────────────────────────────────────────────────────────────────
+function updateCat() {
+  const el = document.getElementById('cat-mascot');
+  if (!el) return;
+  if (!currentUser || !data) { el.className = 'cat-tranquillo'; return; }
+
+  const sorted   = sortedWeeks();
+  const curIdx   = sorted.findIndex(w => isCurW(w));
+  const curWeek  = curIdx >= 0 ? sorted[curIdx]     : null;
+  const prevWeek = curIdx >  0 ? sorted[curIdx - 1] : null;
+
+  const day      = new Date().getDay();
+  const curDone  = curWeek?.done?.[currentUser]  === true;
+  const prevDone = prevWeek ? prevWeek.done?.[currentUser] === true : true;
+
+  if (curWeek && (day === 4 || day === 5) && !curDone) el.className = 'cat-agitato';
+  else if (curDone)                                     el.className = 'cat-felice';
+  else if (prevWeek && !prevDone)                       el.className = 'cat-triste';
+  else                                                  el.className = 'cat-tranquillo';
+}
+
 // ── Init ───────────────────────────────────────────────────────────────────
 (async function init() {
   // Always render header date
@@ -856,13 +1127,18 @@ function togglePanel() {
   document.getElementById('header-date').textContent =
     `${DAYS[now.getDay()]}, ${now.getDate()} ${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
 
+  if (currentUser) document.getElementById('logout-btn').style.display = '';
+
   if (!cfg.mk || !cfg.id) { render(); openSetup(); return; }
+  if (!currentUser) showLoginOverlay();
+
   try {
     data = await loadBin();
     purgeOldWeeks(data);
     const added = ensureFutureWeeks();
     if (added) await saveBin(data);
     render();
+    updateCat();
   } catch(e) { toast('❌ ' + e.message, 'error'); render(); }
 })();
 </script>
