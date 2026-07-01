@@ -54,15 +54,22 @@ function nextPeriod(lastStart, rotation) {
  * @param {Array}  rooms  — [{ id, sort_order }]
  * @param {Array}  rules  — [{ type, config }]
  * @param {Object} rotation — { type: 'weekly'|'daily'|'monthly', days: number|null }
+ * @param {Array}  absences — [{ userId, from, to }]
  * @returns {{ id, start, end, assignments: [{ user_id, room_id, done }] }} | null
  */
-export function computeNextWeek(weeks, users, rooms, rules, rotation = { type: 'weekly', days: null }) {
+export function computeNextWeek(weeks, users, rooms, rules, rotation = { type: 'weekly', days: null }, absences = []) {
   const sorted = [...weeks].sort((a, b) => a.start.localeCompare(b.start));
   const last   = sorted[sorted.length - 1];
   if (!last) return null;
 
   const [ns, ne] = nextPeriod(last.start, rotation);
   if (weeks.find(w => w.start === ns)) return null;
+
+  // Vero solo se l'assenza copre il turno per intero: un'assenza parziale
+  // non esclude, la persona fa comunque il turno (resta solo il badge in UI).
+  function isFullyAbsent(userId) {
+    return absences.some(a => a.userId === userId && a.from <= ns && a.to >= ne);
+  }
 
   // Indice in sorted per "l'ultima volta che userId ha fatto roomId"
   function lastTimeDid(userId, roomId) {
@@ -130,7 +137,7 @@ export function computeNextWeek(weeks, users, rooms, rules, rotation = { type: '
   //    chi si becca il carico extra quando le stanze superano le persone)
   // 4. chi non fa questa specifica stanza da più tempo (varietà per stanza)
   function pickLeast(pool, roomId) {
-    const avail = pool.filter(uid => !exclusions.has(`${uid}:${roomId}`));
+    const avail = pool.filter(uid => !exclusions.has(`${uid}:${roomId}`) && !isFullyAbsent(uid));
     if (!avail.length) return null;
     return avail.reduce((best, uid) => {
       const loadUid = weekLoad.get(uid) ?? 0, loadBest = weekLoad.get(best) ?? 0;
@@ -153,7 +160,7 @@ export function computeNextWeek(weeks, users, rooms, rules, rotation = { type: '
   // 1. Assegnazioni forzate (sequence)
   for (const [userId, roomId] of forced) {
     if (!weekLoad.has(userId) && !usedRooms.has(roomId) &&
-        rooms.find(r => r.id === roomId)) {
+        rooms.find(r => r.id === roomId) && !isFullyAbsent(userId)) {
       assign(userId, roomId);
     }
   }
@@ -182,12 +189,13 @@ export function computeNextWeek(weeks, users, rooms, rules, rotation = { type: '
 }
 
 export async function ensureFutureWeeks(db, houseId) {
-  const [weeks, users, rooms, rules, rotation] = await Promise.all([
+  const [weeks, users, rooms, rules, rotation, absences] = await Promise.all([
     db.getWeeks(houseId),
     db.getUsers(houseId),
     db.getRooms(houseId),
     db.getRules(houseId),
     db.getRotationConfig(houseId),
+    db.getAbsences(houseId),
   ]);
 
   if (!users.length || !rooms.length) return 0;
@@ -212,7 +220,7 @@ export async function ensureFutureWeeks(db, houseId) {
       : addDays(anchor, -(rotation.type === 'daily' ? (rotation.days || 1) : 7));
 
     const fakeWeek = { id: prevStart, start: prevStart, end: addDays(anchor, -1), assignments: [] };
-    const seed = computeNextWeek([fakeWeek], users, rooms, rules, rotation);
+    const seed = computeNextWeek([fakeWeek], users, rooms, rules, rotation, absences);
     if (seed) {
       await db.insertWeek(seed, houseId);
       current.push(seed);
@@ -222,7 +230,7 @@ export async function ensureFutureWeeks(db, houseId) {
 
   while (safety++ < 20) {
     if (current.filter(w => w.start > t).length >= WEEKS_AHEAD) break;
-    const nw = computeNextWeek(current, users, rooms, rules, rotation);
+    const nw = computeNextWeek(current, users, rooms, rules, rotation, absences);
     if (!nw) break;
     await db.insertWeek(nw, houseId);
     current.push(nw);

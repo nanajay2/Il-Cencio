@@ -47,7 +47,7 @@ export function ChoreCard({ assignment, absent, isMe, compact, week, onToggle, r
             {roomTotal > 1 ? `Il tuo turno (${roomIndex}/${roomTotal})` : 'Il tuo turno'}
           </span>
           {absent && (
-            <span className="text-[.6rem] font-bold tracking-[.04em] text-brown-soft bg-cream-2 px-2 py-0.5 rounded-full">
+            <span className="text-[.6rem] font-bold tracking-[.04em] text-ink-2 bg-cream-2 px-2 py-0.5 rounded-full">
               sei assente
             </span>
           )}

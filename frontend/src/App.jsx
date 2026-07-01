@@ -12,6 +12,8 @@ import { SettingsPanel }      from './components/SettingsPanel.jsx';
 import { ViewModeSwitcher }   from './components/ViewModeSwitcher.jsx';
 import { WeekAggregateView }  from './components/WeekAggregateView.jsx';
 import { MonthAggregateView } from './components/MonthAggregateView.jsx';
+import { AbsencesFab }        from './components/AbsencesFab.jsx';
+import { AbsencesScreen }     from './components/AbsencesScreen.jsx';
 import { useWeeks }           from './hooks/useWeeks.js';
 import { useAbsences }        from './hooks/useAbsences.js';
 import { useHouse }           from './hooks/useHouse.js';
@@ -51,6 +53,7 @@ export default function App() {
   );
   const [session,  setSession]  = useState(initial);
   const [showSettings, setShowSettings] = useState(false);
+  const [showAbsences, setShowAbsences] = useState(false);
   const [showReveal, setShowReveal] = useState(false);
   const [viewMode, setViewMode] = useState('oggi'); // 'oggi' | 'settimana' | 'mese'
 
@@ -190,6 +193,9 @@ export default function App() {
   const assignments = currentWeek?.assignments ?? [];
   const myAssignments     = assignments.filter(a => a.userId === userId);
   const othersAssignments = assignments.filter(a => a.userId !== userId);
+  const unassignedRooms = currentWeek
+    ? (house?.rooms ?? []).filter(r => !assignments.some(a => a.roomId === r.id))
+    : [];
 
   return (
     <>
@@ -252,6 +258,25 @@ export default function App() {
                 </div>
               </div>
             )}
+
+            {/* Stanze scoperte: tutti gli idonei sono assenti per l'intero turno */}
+            {unassignedRooms.length > 0 && (
+              <div className="bg-card rounded-2xl border border-dashed border-sage overflow-hidden">
+                <div className="px-4 pt-3 pb-1">
+                  <span className="text-[.62rem] font-bold uppercase tracking-[.08em] text-ink-2">Stanze scoperte</span>
+                </div>
+                <div className="divide-y divide-border">
+                  {unassignedRooms.map(r => (
+                    <div key={r.id} className="flex items-center gap-3 px-4 py-[11px] text-ink-2">
+                      <span className="text-[1.05rem]">{r.icon}</span>
+                      <span className="flex-1 text-[.85rem]">
+                        <strong className="text-ink">{r.name}</strong> — nessuno assegnato: tutti assenti questo turno
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </>
       ) : loading ? (
@@ -280,7 +305,6 @@ export default function App() {
         <SettingsPanel
           house={house}
           isAdmin={session.isAdmin}
-          absences={absencesHook.absences}
           onClose={() => setShowSettings(false)}
           onLogout={logout}
           onLeaveHouse={handleLeaveHouse}
@@ -300,13 +324,24 @@ export default function App() {
           onRemoveRule={async (ruleId) => {
             await houseHook.removeRule(houseId, ruleId);
           }}
-          onAddAbsence={handleAddAbsence}
-          onRemoveAbsence={handleRemoveAbsence}
           onUpdateRotation={async (rotationType, rotationDays) => {
             await houseHook.updateRotation(houseId, rotationType, rotationDays);
             await weeksHook.load(houseId);
             showToast('✅ Rotazione aggiornata');
           }}
+        />
+      )}
+
+      <AbsencesFab onClick={() => setShowAbsences(true)} />
+
+      {showAbsences && house && (
+        <AbsencesScreen
+          house={house}
+          currentUserId={userId}
+          absences={absencesHook.absences}
+          onAdd={handleAddAbsence}
+          onRemove={handleRemoveAbsence}
+          onClose={() => setShowAbsences(false)}
         />
       )}
 
