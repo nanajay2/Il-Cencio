@@ -205,7 +205,9 @@ router.post('/:houseId/rules', async (req, res) => {
   const { type, config } = req.body;
   if (!type || !config) return res.status(400).json({ error: 'type e config richiesti' });
   try {
-    res.status(201).json(await db.createRule(req.params.houseId, type, config));
+    const rule = await db.createRule(req.params.houseId, type, config);
+    await invalidateUpcomingWeeks(db, req.params.houseId);
+    res.status(201).json(rule);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -214,6 +216,7 @@ router.post('/:houseId/rules', async (req, res) => {
 router.delete('/:houseId/rules/:ruleId', async (req, res) => {
   try {
     await db.deleteRule(req.params.houseId, Number(req.params.ruleId));
+    await invalidateUpcomingWeeks(db, req.params.houseId);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });

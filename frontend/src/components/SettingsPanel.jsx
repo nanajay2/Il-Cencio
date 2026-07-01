@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { AbsencesPanel } from './AbsencesPanel.jsx';
 
 const inputCls =
   'border-[1.5px] border-border rounded-[10px] px-3 py-2 text-[.84rem] font-sans ' +
@@ -54,9 +53,9 @@ function describeRule(rule, rooms, users) {
 }
 
 export function SettingsPanel({
-  house, isAdmin, absences,
+  house, isAdmin,
   onClose, onLogout, onLeaveHouse,
-  onRemoveUser, onAddRoom, onRemoveRoom, onAddRule, onRemoveRule, onAddAbsence, onRemoveAbsence,
+  onRemoveUser, onAddRoom, onRemoveRoom, onAddRule, onRemoveRule,
   onUpdateRotation,
 }) {
   const [copied, setCopied] = useState(false);
@@ -365,14 +364,6 @@ export function SettingsPanel({
             )}
           </section>
         )}
-
-        {/* Assenze — identico per tutti */}
-        <AbsencesPanel
-          users={house.users}
-          absences={absences}
-          onAdd={onAddAbsence}
-          onRemove={onRemoveAbsence}
-        />
 
         {/* Logout / abbandona */}
         <div className="flex flex-col gap-2">

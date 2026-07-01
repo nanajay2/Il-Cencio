@@ -18,12 +18,12 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   const { houseId } = req.params;
   try {
-    const [weeks, users, rooms, rules, rotation] = await Promise.all([
+    const [weeks, users, rooms, rules, rotation, absences] = await Promise.all([
       db.getWeeks(houseId), db.getUsers(houseId),
       db.getRooms(houseId), db.getRules(houseId),
-      db.getRotationConfig(houseId),
+      db.getRotationConfig(houseId), db.getAbsences(houseId),
     ]);
-    const nw = computeNextWeek(weeks, users, rooms, rules, rotation);
+    const nw = computeNextWeek(weeks, users, rooms, rules, rotation, absences);
     if (!nw) return res.status(409).json({ error: 'Il turno successivo esiste già' });
     await db.insertWeek(nw, houseId);
     const allWeeks = await db.getWeeks(houseId);
