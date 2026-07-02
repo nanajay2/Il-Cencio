@@ -34,8 +34,9 @@ Web app per gestire i turni di pulizia settimanali in una casa condivisa. Ogni c
 - **Versione app** — mostrata in basso nella schermata di benvenuto (letta da `frontend/package.json`)
 - **PWA installabile** — manifest + service worker (`frontend/public/sw.js`), installabile da schermata Home su Android/iOS
 - **Notifiche push** — opt-in da ⚙️ Impostazioni: avviso quando viene generata la settimana con i propri turni, reminder giornaliero (9:00) per i task non ancora segnati come fatti, avviso il giorno dopo la fine di un turno per chi ha lasciato task incompleti, e notifica a tutti i coinquilini quando viene registrata una nuova assenza. Su iOS richiede Safari 16.4+ e l'app installata da schermata Home (le Web Push non funzionano da Safari diretto)
-- **Scambio turni** (🔁) — due coinquilini possono scambiarsi una stanza assegnata nella settimana corrente; lo scambio si applica solo dopo che entrambi hanno acconsentito (proposta + accettazione), con notifica push a entrambi i passaggi
+- **Scambio turni** (🔁) — due coinquilini possono scambiarsi una stanza assegnata nella settimana corrente, oppure una persona può darne una direttamente a chi non ha turni quella settimana (trasferimento a senso unico); si applica solo dopo che il destinatario ha accettato, con notifica push a entrambi i passaggi
 - **Notifica nuova versione** — a ogni avvio il backend confronta la versione in `backend/package.json` con l'ultima notificata (tabella `app_meta`); se è cambiata, avvisa tutte le case che è disponibile un aggiornamento
+- **Aggiornamento PWA in-place** — il service worker prende il controllo automaticamente a ogni nuova versione (`skipWaiting`/`clients.claim`); l'app rileva il cambio e si ricarica da sola una volta, senza bisogno di eliminare e reinstallare l'icona in home
 
 ## Setup
 
@@ -48,6 +49,7 @@ Web app per gestire i turni di pulizia settimanali in una casa condivisa. Ogni c
    - `backend/supabase_migration_004_push_subscriptions.sql` (notifiche push)
    - `backend/supabase_migration_005_shift_swaps.sql` (scambio turni)
    - `backend/supabase_migration_006_app_meta.sql` (metadati app, es. notifica nuova versione)
+   - `backend/supabase_migration_007_swap_gift.sql` (scambio turni verso chi non ha turni)
 3. Genera una coppia di chiavi VAPID per le notifiche push:
    ```
    cd backend && npx web-push generate-vapid-keys

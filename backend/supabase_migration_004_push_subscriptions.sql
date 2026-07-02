@@ -14,3 +14,6 @@ create table push_subscriptions (
 );
 
 create index push_subscriptions_house_user_idx on push_subscriptions (house_id, user_id);
+
+-- L'app non usa Supabase Auth: il backend accede sempre con la anon key.
+alter table push_subscriptions disable row level security;
