@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { MONTHS, DAYS, fmt, todayStr } from '../constants.js';
 import { firstOfMonth, monthRangeOf, daysInRange } from '../lib/calendarBuckets.js';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock.js';
 
 const inputCls =
   'border-[1.5px] border-border rounded-[10px] px-3 py-2 text-[.84rem] font-sans ' +
@@ -31,6 +32,7 @@ function nextMonth(dateStr) {
 }
 
 export function AbsencesScreen({ house, currentUserId, absences, onAdd, onRemove, onClose }) {
+  useBodyScrollLock();
   const [anchor, setAnchor] = useState(firstOfMonth(todayStr()));
   const [rangeStart, setRangeStart] = useState(null);
   const [rangeEnd,   setRangeEnd]   = useState(null);

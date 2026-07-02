@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock.js';
+import { usePush } from '../hooks/usePush.js';
 
 const inputCls =
   'border-[1.5px] border-border rounded-[10px] px-3 py-2 text-[.84rem] font-sans ' +
@@ -53,11 +55,13 @@ function describeRule(rule, rooms, users) {
 }
 
 export function SettingsPanel({
-  house, isAdmin,
+  house, isAdmin, houseId, userId,
   onClose, onLogout, onLeaveHouse,
   onRemoveUser, onAddRoom, onRemoveRoom, onAddRule, onRemoveRule,
   onUpdateRotation,
 }) {
+  useBodyScrollLock();
+  const push = usePush();
   const [copied, setCopied] = useState(false);
   // Rooms state
   const [rName,  setRName]  = useState('');
@@ -154,6 +158,46 @@ export function SettingsPanel({
             </div>
           </section>
         )}
+
+        {/* Notifiche push */}
+        <section className={sectionCls}>
+          <div className={titleCls}>🔔 Notifiche push</div>
+          {push.status === 'unsupported' && (
+            <p className="text-[.77rem] text-ink-2 -mt-1">
+              Non supportate su questo browser. Su iOS servono Safari 16.4+ e l'app installata da schermata Home.
+            </p>
+          )}
+          {push.status === 'denied' && (
+            <>
+              <p className="text-[.77rem] text-ink-2 -mt-1">
+                Permesso negato. Riabilita le notifiche per questo sito dalle impostazioni del browser
+                (di solito dall'icona accanto alla barra degli indirizzi → Autorizzazioni sito → Notifiche),
+                poi tocca "Riprova" qui sotto.
+              </p>
+              <button
+                onClick={() => push.subscribe(houseId, userId)}
+                disabled={push.loading}
+                className={btnCls}
+              >
+                Riprova
+              </button>
+            </>
+          )}
+          {(push.status === 'inactive' || push.status === 'active') && (
+            <>
+              <p className="text-[.77rem] text-ink-2 -mt-1">
+                Ricevi un promemoria quando e' il tuo turno.
+              </p>
+              <button
+                onClick={() => push.status === 'active' ? push.unsubscribe(houseId) : push.subscribe(houseId, userId)}
+                disabled={push.loading}
+                className={btnCls}
+              >
+                {push.status === 'active' ? 'Disattiva notifiche' : 'Attiva notifiche'}
+              </button>
+            </>
+          )}
+        </section>
 
         {/* Rotazione turni — solo admin */}
         {isAdmin && (

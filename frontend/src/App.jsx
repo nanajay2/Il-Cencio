@@ -14,9 +14,12 @@ import { WeekAggregateView }  from './components/WeekAggregateView.jsx';
 import { MonthAggregateView } from './components/MonthAggregateView.jsx';
 import { AbsencesFab }        from './components/AbsencesFab.jsx';
 import { AbsencesScreen }     from './components/AbsencesScreen.jsx';
+import { SwapsFab }           from './components/SwapsFab.jsx';
+import { SwapsScreen }        from './components/SwapsScreen.jsx';
 import { useWeeks }           from './hooks/useWeeks.js';
 import { useAbsences }        from './hooks/useAbsences.js';
 import { useHouse }           from './hooks/useHouse.js';
+import { useSwaps }           from './hooks/useSwaps.js';
 import { api }                from './api.js';
 import { fmt, isCurW }        from './constants.js';
 import { findTurnoForDate }   from './lib/calendarBuckets.js';
@@ -54,6 +57,7 @@ export default function App() {
   const [session,  setSession]  = useState(initial);
   const [showSettings, setShowSettings] = useState(false);
   const [showAbsences, setShowAbsences] = useState(false);
+  const [showSwaps, setShowSwaps] = useState(false);
   const [showReveal, setShowReveal] = useState(false);
   const [viewMode, setViewMode] = useState('oggi'); // 'oggi' | 'settimana' | 'mese'
 
@@ -61,6 +65,7 @@ export default function App() {
   const weeksHook    = useWeeks();
   const absencesHook = useAbsences();
   const houseHook    = useHouse();
+  const swapsHook    = useSwaps();
 
   const houseId = session.houseId;
   const userId  = session.userId;
@@ -71,6 +76,7 @@ export default function App() {
     houseHook.load(houseId).catch(() => {});
     weeksHook.load(houseId).catch(e => showToast('❌ ' + e.message, 'error'));
     absencesHook.load(houseId).catch(e => showToast('❌ ' + e.message, 'error'));
+    swapsHook.load(houseId).catch(e => showToast('❌ ' + e.message, 'error'));
   }, [houseId]);
 
   // Trigger reveal when current week changes and user is chosen
@@ -171,6 +177,26 @@ export default function App() {
 
   async function handleRemoveAbsence(id) {
     try { await absencesHook.removeAbsence(houseId, id); }
+    catch (e) { showToast('❌ ' + e.message, 'error'); }
+  }
+
+  async function handleProposeSwap(weekId, fromUserId, fromRoomId, toUserId, toRoomId) {
+    try {
+      await swapsHook.proposeSwap(houseId, weekId, fromUserId, fromRoomId, toUserId, toRoomId);
+      showToast('✅ Richiesta di scambio inviata', 'success');
+    } catch (e) { showToast('❌ ' + e.message, 'error'); }
+  }
+
+  async function handleAcceptSwap(swapId) {
+    try {
+      await swapsHook.acceptSwap(houseId, swapId);
+      await weeksHook.load(houseId);
+      showToast('✅ Scambio accettato', 'success');
+    } catch (e) { showToast('❌ ' + e.message, 'error'); }
+  }
+
+  async function handleDeclineSwap(swapId) {
+    try { await swapsHook.declineSwap(houseId, swapId); }
     catch (e) { showToast('❌ ' + e.message, 'error'); }
   }
 
@@ -305,24 +331,31 @@ export default function App() {
         <SettingsPanel
           house={house}
           isAdmin={session.isAdmin}
+          houseId={houseId}
+          userId={userId}
           onClose={() => setShowSettings(false)}
           onLogout={logout}
           onLeaveHouse={handleLeaveHouse}
           onRemoveUser={async (uid) => {
             await houseHook.removeUser(houseId, uid);
+            await weeksHook.load(houseId);
           }}
           onAddRoom={async (data) => {
             await houseHook.addRoom(houseId, data);
+            await weeksHook.load(houseId);
             showToast(`✅ Stanza aggiunta`);
           }}
           onRemoveRoom={async (roomId) => {
             await houseHook.removeRoom(houseId, roomId);
+            await weeksHook.load(houseId);
           }}
           onAddRule={async (type, config) => {
             await houseHook.addRule(houseId, type, config);
+            await weeksHook.load(houseId);
           }}
           onRemoveRule={async (ruleId) => {
             await houseHook.removeRule(houseId, ruleId);
+            await weeksHook.load(houseId);
           }}
           onUpdateRotation={async (rotationType, rotationDays) => {
             await houseHook.updateRotation(houseId, rotationType, rotationDays);
@@ -342,6 +375,24 @@ export default function App() {
           onAdd={handleAddAbsence}
           onRemove={handleRemoveAbsence}
           onClose={() => setShowAbsences(false)}
+        />
+      )}
+
+      <SwapsFab
+        onClick={() => setShowSwaps(true)}
+        pendingCount={swapsHook.swaps.filter(s => s.toUserId === userId && s.status === 'pending').length}
+      />
+
+      {showSwaps && house && (
+        <SwapsScreen
+          house={house}
+          userId={userId}
+          currentWeek={currentWeek}
+          swaps={swapsHook.swaps}
+          onPropose={handleProposeSwap}
+          onAccept={handleAcceptSwap}
+          onDecline={handleDeclineSwap}
+          onClose={() => setShowSwaps(false)}
         />
       )}
 

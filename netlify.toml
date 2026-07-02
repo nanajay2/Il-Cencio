@@ -7,3 +7,10 @@
   from   = "/*"
   to     = "/index.html"
   status = 200
+
+# Il service worker non deve mai essere servito da cache: altrimenti i
+# client restano bloccati su una versione vecchia dopo un deploy.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"

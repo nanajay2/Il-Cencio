@@ -137,6 +137,7 @@ router.post('/:houseId/users', async (req, res) => {
   if (!name || !name.trim()) return res.status(400).json({ error: 'name richiesto' });
   try {
     const user = await db.createUserSlot(req.params.houseId, name.trim());
+    await invalidateUpcomingWeeks(db, req.params.houseId);
     res.status(201).json(user);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -147,6 +148,7 @@ router.post('/:houseId/users', async (req, res) => {
 router.delete('/:houseId/users/:userId', async (req, res) => {
   try {
     await db.deleteUser(req.params.houseId, Number(req.params.userId));
+    await invalidateUpcomingWeeks(db, req.params.houseId);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -217,6 +219,31 @@ router.delete('/:houseId/rules/:ruleId', async (req, res) => {
   try {
     await db.deleteRule(req.params.houseId, Number(req.params.ruleId));
     await invalidateUpcomingWeeks(db, req.params.houseId);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── Push notifications ──────────────────────────────────────────────
+
+router.post('/:houseId/push/subscribe', async (req, res) => {
+  const { userId, subscription } = req.body;
+  if (!userId || !subscription?.endpoint || !subscription?.keys)
+    return res.status(400).json({ error: 'userId e subscription richiesti' });
+  try {
+    await db.savePushSubscription(req.params.houseId, Number(userId), subscription);
+    res.status(201).json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.delete('/:houseId/push/subscribe', async (req, res) => {
+  const { endpoint } = req.body;
+  if (!endpoint) return res.status(400).json({ error: 'endpoint richiesto' });
+  try {
+    await db.deletePushSubscription(req.params.houseId, endpoint);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });

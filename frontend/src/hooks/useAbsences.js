@@ -31,7 +31,10 @@ export function useAbsences() {
   }
 
   function isAbsent(userId, weekStart, weekEnd) {
-    return absences.some(a => a.userId === userId && a.from <= weekEnd && a.to >= weekStart);
+    // Vero solo se l'assenza copre l'intera settimana, coerente con
+    // isFullyAbsent in backend/lib/scheduler.js: un'assenza parziale non
+    // esclude dal turno, quindi non deve mostrare il badge "assente".
+    return absences.some(a => a.userId === userId && a.from <= weekStart && a.to >= weekEnd);
   }
 
   return { absences, loading, error, load, addAbsence, removeAbsence, isAbsent };
