@@ -27,6 +27,12 @@ export async function getHouse(houseId) {
   };
 }
 
+export async function getAllHouseIds() {
+  const { data, error } = await supabase.from('houses').select('id');
+  if (error) throw error;
+  return data.map(h => h.id);
+}
+
 export async function getRotationConfig(houseId) {
   const { data, error } = await supabase
     .from('houses').select('rotation_type, rotation_days').eq('id', houseId).single();
@@ -391,12 +397,141 @@ export async function deleteAbsence(houseId, absenceId) {
   if (error) throw error;
 }
 
+// ── Push subscriptions ───────────────────────────────────────────
+
+export async function getPushSubscriptions(houseId) {
+  const { data, error } = await supabase
+    .from('push_subscriptions').select('*').eq('house_id', houseId);
+  if (error) throw error;
+  return data.map(s => ({
+    id: s.id, houseId: s.house_id, userId: s.user_id,
+    endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth },
+  }));
+}
+
+export async function savePushSubscription(houseId, userId, { endpoint, keys }) {
+  const { error } = await supabase
+    .from('push_subscriptions')
+    .upsert(
+      { house_id: houseId, user_id: userId, endpoint, p256dh: keys.p256dh, auth: keys.auth },
+      { onConflict: 'endpoint' }
+    );
+  if (error) throw error;
+}
+
+export async function deletePushSubscription(houseId, endpoint) {
+  const { error } = await supabase
+    .from('push_subscriptions').delete().eq('house_id', houseId).eq('endpoint', endpoint);
+  if (error) throw error;
+}
+
+export async function deletePushSubscriptionByEndpoint(endpoint) {
+  const { error } = await supabase
+    .from('push_subscriptions').delete().eq('endpoint', endpoint);
+  if (error) throw error;
+}
+
+// ── Shift swaps ───────────────────────────────────────────────────
+
+function mapSwap(s) {
+  return {
+    id: s.id, houseId: s.house_id, weekId: s.week_id, status: s.status,
+    fromUserId: s.from_user_id, fromUserName: s.from_user.name,
+    fromRoomId: s.from_room_id, fromRoomName: s.from_room.name,
+    toUserId: s.to_user_id, toUserName: s.to_user.name,
+    toRoomId: s.to_room_id, toRoomName: s.to_room.name,
+    createdAt: s.created_at,
+  };
+}
+
+const SWAP_SELECT = '*, from_user:users!shift_swaps_from_user_id_fkey(id, name), ' +
+  'to_user:users!shift_swaps_to_user_id_fkey(id, name), ' +
+  'from_room:rooms!shift_swaps_from_room_id_fkey(id, name), ' +
+  'to_room:rooms!shift_swaps_to_room_id_fkey(id, name)';
+
+export async function getSwapRequests(houseId) {
+  const { data, error } = await supabase
+    .from('shift_swaps').select(SWAP_SELECT).eq('house_id', houseId).order('created_at', { ascending: false });
+  if (error) throw error;
+  return data.map(mapSwap);
+}
+
+export async function getSwapById(houseId, swapId) {
+  const { data, error } = await supabase
+    .from('shift_swaps').select(SWAP_SELECT).eq('house_id', houseId).eq('id', swapId).single();
+  if (error) throw error;
+  return mapSwap(data);
+}
+
+export async function createSwapRequest(houseId, { weekId, fromUserId, fromRoomId, toUserId, toRoomId }) {
+  const { data, error } = await supabase
+    .from('shift_swaps')
+    .insert({
+      house_id: houseId, week_id: weekId,
+      from_user_id: fromUserId, from_room_id: fromRoomId,
+      to_user_id: toUserId, to_room_id: toRoomId,
+    })
+    .select('id').single();
+  if (error) throw error;
+  return getSwapById(houseId, data.id);
+}
+
+export async function updateSwapStatus(houseId, swapId, status) {
+  const { error } = await supabase
+    .from('shift_swaps').update({ status }).eq('id', swapId).eq('house_id', houseId);
+  if (error) throw error;
+}
+
+export async function getAssignment(houseId, weekId, userId, roomId) {
+  const { data, error } = await supabase
+    .from('assignments').select('*')
+    .eq('house_id', houseId).eq('week_id', weekId).eq('user_id', userId).eq('room_id', roomId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+// Scambia le stanze assegnate a due utenti nella stessa settimana. Il
+// completamento (done) non viene portato dietro: la responsabilita' del
+// task cambia persona.
+export async function swapAssignments(houseId, weekId, fromUserId, fromRoomId, toUserId, toRoomId) {
+  const { error: de } = await supabase
+    .from('assignments').delete()
+    .eq('house_id', houseId).eq('week_id', weekId)
+    .or(`and(user_id.eq.${fromUserId},room_id.eq.${fromRoomId}),and(user_id.eq.${toUserId},room_id.eq.${toRoomId})`);
+  if (de) throw de;
+
+  const { error: ie } = await supabase.from('assignments').insert([
+    { house_id: houseId, week_id: weekId, user_id: fromUserId, room_id: toRoomId, done: false },
+    { house_id: houseId, week_id: weekId, user_id: toUserId,   room_id: fromRoomId, done: false },
+  ]);
+  if (ie) throw ie;
+}
+
+// ── App meta ──────────────────────────────────────────────────────
+
+export async function getAppMeta(key) {
+  const { data, error } = await supabase
+    .from('app_meta').select('value').eq('key', key).maybeSingle();
+  if (error) throw error;
+  return data?.value ?? null;
+}
+
+export async function setAppMeta(key, value) {
+  const { error } = await supabase
+    .from('app_meta').upsert({ key, value }, { onConflict: 'key' });
+  if (error) throw error;
+}
+
 export const db = {
-  getHouse, createHouse, getRotationConfig, updateRotation,
+  getHouse, createHouse, getAllHouseIds, getRotationConfig, updateRotation,
   getHouseMembers, lookupHouseByCode, registerUser, getUserById, getUserByEmail, setPinHash,
   getUsers, createUserSlot, claimUserSlot, deleteUser, leaveHouse,
   getRooms, createRoom, updateRoom, deleteRoom,
   getRules, createRule, deleteRule,
   getWeeks, insertWeek, deleteWeeksBefore, deleteWeeksFrom, setDone,
   getAbsences, insertAbsence, deleteAbsence,
+  getPushSubscriptions, savePushSubscription, deletePushSubscription, deletePushSubscriptionByEndpoint,
+  getSwapRequests, getSwapById, createSwapRequest, updateSwapStatus, getAssignment, swapAssignments,
+  getAppMeta, setAppMeta,
 };

@@ -32,26 +32,48 @@ Web app per gestire i turni di pulizia settimanali in una casa condivisa. Ogni c
 - **Assenze** — segna un periodo di assenza per una persona; la sua card viene mostrata come assente per quelle settimane
 - **Accesso** — registrazione tramite codice invito della casa + PIN a 4 cifre, nessuna email richiesta
 - **Versione app** — mostrata in basso nella schermata di benvenuto (letta da `frontend/package.json`)
+- **PWA installabile** — manifest + service worker (`frontend/public/sw.js`), installabile da schermata Home su Android/iOS
+- **Notifiche push** — opt-in da ⚙️ Impostazioni: avviso quando viene generata la settimana con i propri turni, reminder giornaliero (9:00) per i task non ancora segnati come fatti, avviso il giorno dopo la fine di un turno per chi ha lasciato task incompleti, e notifica a tutti i coinquilini quando viene registrata una nuova assenza. Su iOS richiede Safari 16.4+ e l'app installata da schermata Home (le Web Push non funzionano da Safari diretto)
+- **Scambio turni** (🔁) — due coinquilini possono scambiarsi una stanza assegnata nella settimana corrente; lo scambio si applica solo dopo che entrambi hanno acconsentito (proposta + accettazione), con notifica push a entrambi i passaggi
+- **Notifica nuova versione** — a ogni avvio il backend confronta la versione in `backend/package.json` con l'ultima notificata (tabella `app_meta`); se è cambiata, avvisa tutte le case che è disponibile un aggiornamento
 
 ## Setup
 
 ### Backend
 
 1. Crea un progetto su [Supabase](https://supabase.com)
-2. Esegui `backend/supabase_schema_v2.sql` nell'SQL Editor di Supabase (schema multi-casa corrente)
-3. Copia `backend/.env` da un template con:
+2. Esegui nell'SQL Editor di Supabase, in ordine:
+   - `backend/supabase_schema_v2.sql` (schema multi-casa corrente)
+   - `backend/supabase_migration_003_rotation.sql` (rotazione turni configurabile)
+   - `backend/supabase_migration_004_push_subscriptions.sql` (notifiche push)
+   - `backend/supabase_migration_005_shift_swaps.sql` (scambio turni)
+   - `backend/supabase_migration_006_app_meta.sql` (metadati app, es. notifica nuova versione)
+3. Genera una coppia di chiavi VAPID per le notifiche push:
+   ```
+   cd backend && npx web-push generate-vapid-keys
+   ```
+4. Copia `backend/.env` da un template con:
    ```
    SUPABASE_URL=...
    SUPABASE_KEY=...
    PORT=3001
+   VAPID_PUBLIC_KEY=...
+   VAPID_PRIVATE_KEY=...
+   VAPID_SUBJECT=mailto:tuo@indirizzo.it
    ```
-4. `cd backend && npm install && npm run dev`
+5. `cd backend && npm install && npm run dev`
+
+In produzione (es. Railway), imposta le stesse variabili d'ambiente (`SUPABASE_URL`, `SUPABASE_KEY`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`) nel pannello del servizio.
 
 ### Frontend
 
-1. `cd frontend && npm install && npm run dev`
-2. In sviluppo Vite fa da proxy verso `http://localhost:3001` per le chiamate `/api` (vedi `vite.config.js`)
-3. In produzione, il frontend è pensato per essere buildato con `npm run build` e servito staticamente (Netlify); il backend va hostato separatamente e la sua URL configurata come base per le chiamate API
+1. Copia `frontend/.env` con:
+   ```
+   VITE_VAPID_PUBLIC_KEY=...   # stessa VAPID_PUBLIC_KEY del backend
+   ```
+2. `cd frontend && npm install && npm run dev`
+3. In sviluppo Vite fa da proxy verso `http://localhost:3001` per le chiamate `/api` (vedi `vite.config.js`)
+4. In produzione, il frontend è pensato per essere buildato con `npm run build` e servito staticamente (Netlify, vedi `netlify.toml` — imposta `VITE_VAPID_PUBLIC_KEY` tra le env var di build); il backend va hostato separatamente (es. Railway) e la sua URL configurata come base per le chiamate API
 
 ### Prima casa
 
@@ -67,13 +89,21 @@ Dalla schermata di benvenuto → **Entra** → codice invito casa + registrazion
 
 ```
 frontend/            React + Vite + Tailwind (UI)
-  src/components/     Schermate e pannelli (WelcomeScreen, AdminPanel, ChoreCard, ...)
-  src/hooks/          Stato applicativo (useHouse, useWeeks, useAbsences)
+  public/sw.js         Service worker (cache app shell, push, notificationclick)
+  src/components/      Schermate e pannelli (WelcomeScreen, AdminPanel, ChoreCard, ...)
+  src/hooks/            Stato applicativo (useHouse, useWeeks, useAbsences, usePush, useBodyScrollLock)
 backend/              API REST Express
-  routes/             houses (case, stanze, regole, utenti), weeks, absences
+  routes/             houses (case, stanze, regole, utenti, push), weeks, absences, swaps
   lib/scheduler.js    Algoritmo di calcolo turni
   lib/db.js           Accesso a Supabase
-  supabase_schema_v2.sql   Schema DB corrente (multi-casa)
+  lib/push.js         Invio notifiche push (web-push)
+  lib/reminders.js    Cron giornaliero per i reminder push
+  lib/versionNotifier.js Notifica push su nuova versione rilasciata
+  supabase_schema_v2.sql                       Schema DB corrente (multi-casa)
+  supabase_migration_003_rotation.sql          Rotazione turni configurabile
+  supabase_migration_004_push_subscriptions.sql Notifiche push
+  supabase_migration_005_shift_swaps.sql       Scambio turni
+  supabase_migration_006_app_meta.sql          Metadati app (versione notificata)
 netlify.toml          Config deploy frontend
 README.md
 ```

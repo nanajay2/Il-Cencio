@@ -4,8 +4,8 @@
   "description": "Turni di pulizia per Via Risorgimento",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#BDB395",
-  "theme_color": "#BDB395",
+  "background_color": "#8A8C5A",
+  "theme_color": "#8A8C5A",
   "icons": [
     {
       "src": "/icon-192.png",

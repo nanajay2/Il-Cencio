@@ -54,4 +54,17 @@ export const api = {
   addAbsence:  (houseId, userId, from, to) =>
     req(`${h(houseId)}/absences`, { method: 'POST', body: JSON.stringify({ userId, from, to }) }),
   deleteAbsence:(houseId, absenceId)   => req(`${h(houseId)}/absences/${absenceId}`, { method: 'DELETE' }),
+
+  // Notifiche push
+  pushSubscribe:  (houseId, userId, subscription) =>
+    req(`${h(houseId)}/push/subscribe`, { method: 'POST', body: JSON.stringify({ userId, subscription }) }),
+  pushUnsubscribe:(houseId, endpoint) =>
+    req(`${h(houseId)}/push/subscribe`, { method: 'DELETE', body: JSON.stringify({ endpoint }) }),
+
+  // Scambio turni
+  getSwaps:    (houseId)               => req(`${h(houseId)}/swaps`),
+  createSwap:  (houseId, weekId, fromUserId, fromRoomId, toUserId, toRoomId) =>
+    req(`${h(houseId)}/swaps`, { method: 'POST', body: JSON.stringify({ weekId, fromUserId, fromRoomId, toUserId, toRoomId }) }),
+  acceptSwap:  (houseId, swapId)       => req(`${h(houseId)}/swaps/${swapId}/accept`, { method: 'POST' }),
+  declineSwap: (houseId, swapId)       => req(`${h(houseId)}/swaps/${swapId}/decline`, { method: 'POST' }),
 };
