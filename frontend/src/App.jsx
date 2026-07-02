@@ -20,6 +20,7 @@ import { useWeeks }           from './hooks/useWeeks.js';
 import { useAbsences }        from './hooks/useAbsences.js';
 import { useHouse }           from './hooks/useHouse.js';
 import { useSwaps }           from './hooks/useSwaps.js';
+import { usePush }            from './hooks/usePush.js';
 import { api }                from './api.js';
 import { fmt, isCurW }        from './constants.js';
 import { findTurnoForDate }   from './lib/calendarBuckets.js';
@@ -66,6 +67,7 @@ export default function App() {
   const absencesHook = useAbsences();
   const houseHook    = useHouse();
   const swapsHook    = useSwaps();
+  const pushHook     = usePush();
 
   const houseId = session.houseId;
   const userId  = session.userId;
@@ -78,6 +80,20 @@ export default function App() {
     absencesHook.load(houseId).catch(e => showToast('❌ ' + e.message, 'error'));
     swapsHook.load(houseId).catch(e => showToast('❌ ' + e.message, 'error'));
   }, [houseId]);
+
+  // Chiede il permesso di notifica appena l'utente entra, ma solo la prima
+  // volta in assoluto per lui in questo browser (permesso mai deciso prima
+  // e mai richiesto automaticamente prima): dopo puo' sempre riattivarle
+  // a mano da Impostazioni, non lo richiediamo piu' in automatico.
+  useEffect(() => {
+    if (!houseId || !userId) return;
+    if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    if (Notification.permission !== 'default') return;
+    const key = `push_auto_prompted_${userId}`;
+    if (localStorage.getItem(key)) return;
+    localStorage.setItem(key, '1');
+    pushHook.subscribe(houseId, userId).catch(() => {});
+  }, [houseId, userId]);
 
   // Trigger reveal when current week changes and user is chosen
   useEffect(() => {
