@@ -19,8 +19,8 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   const { houseId } = req.params;
   const { weekId, fromUserId, fromRoomId, toUserId, toRoomId } = req.body;
-  if (!weekId || !fromUserId || !fromRoomId || !toUserId || !toRoomId)
-    return res.status(400).json({ error: 'weekId, fromUserId, fromRoomId, toUserId, toRoomId richiesti' });
+  if (!weekId || !fromUserId || !fromRoomId || !toUserId)
+    return res.status(400).json({ error: 'weekId, fromUserId, fromRoomId, toUserId richiesti' });
   if (Number(fromUserId) === Number(toUserId))
     return res.status(400).json({ error: 'Non puoi proporre uno scambio con te stesso' });
 
@@ -30,21 +30,24 @@ router.post('/', async (req, res) => {
     if (!week) return res.status(404).json({ error: 'Settimana non trovata' });
     if (week.end < todayStr()) return res.status(400).json({ error: 'Non puoi scambiare un turno gia\' passato' });
 
-    const [fromAsg, toAsg] = await Promise.all([
-      db.getAssignment(houseId, weekId, Number(fromUserId), Number(fromRoomId)),
-      db.getAssignment(houseId, weekId, Number(toUserId), Number(toRoomId)),
-    ]);
-    if (!fromAsg || !toAsg)
+    // toRoomId assente = trasferimento a senso unico verso un coinquilino
+    // senza turni questa settimana: nessuna assegnazione da verificare per lui.
+    const checks = [db.getAssignment(houseId, weekId, Number(fromUserId), Number(fromRoomId))];
+    if (toRoomId) checks.push(db.getAssignment(houseId, weekId, Number(toUserId), Number(toRoomId)));
+    const [fromAsg, toAsg] = await Promise.all(checks);
+    if (!fromAsg || (toRoomId && !toAsg))
       return res.status(400).json({ error: 'Una delle due assegnazioni indicate non esiste in questa settimana' });
 
     const swap = await db.createSwapRequest(houseId, {
       weekId, fromUserId: Number(fromUserId), fromRoomId: Number(fromRoomId),
-      toUserId: Number(toUserId), toRoomId: Number(toRoomId),
+      toUserId: Number(toUserId), toRoomId: toRoomId ? Number(toRoomId) : null,
     });
 
     sendNotification(houseId, {
       title: 'Richiesta di scambio turno',
-      body: `${swap.fromUserName} ti propone di scambiare ${swap.fromRoomName} con ${swap.toRoomName}.`,
+      body: swap.toRoomName
+        ? `${swap.fromUserName} ti propone di scambiare ${swap.fromRoomName} con ${swap.toRoomName}.`
+        : `${swap.fromUserName} ti propone di darti ${swap.fromRoomName}.`,
       url: '/',
     }, swap.toUserId).catch(e => console.error('Notifica richiesta scambio fallita:', e.message));
 
@@ -60,11 +63,10 @@ router.post('/:swapId/accept', async (req, res) => {
     const swap = await db.getSwapById(houseId, Number(swapId));
     if (swap.status !== 'pending') return res.status(409).json({ error: 'Richiesta gia\' evasa' });
 
-    const [fromAsg, toAsg] = await Promise.all([
-      db.getAssignment(houseId, swap.weekId, swap.fromUserId, swap.fromRoomId),
-      db.getAssignment(houseId, swap.weekId, swap.toUserId, swap.toRoomId),
-    ]);
-    if (!fromAsg || !toAsg) {
+    const checks = [db.getAssignment(houseId, swap.weekId, swap.fromUserId, swap.fromRoomId)];
+    if (swap.toRoomId) checks.push(db.getAssignment(houseId, swap.weekId, swap.toUserId, swap.toRoomId));
+    const [fromAsg, toAsg] = await Promise.all(checks);
+    if (!fromAsg || (swap.toRoomId && !toAsg)) {
       await db.updateSwapStatus(houseId, swap.id, 'declined');
       return res.status(409).json({ error: 'Le assegnazioni originali non esistono piu\' (impostazioni cambiate nel frattempo)' });
     }
@@ -74,7 +76,9 @@ router.post('/:swapId/accept', async (req, res) => {
 
     sendNotification(houseId, {
       title: 'Scambio turno accettato',
-      body: `${swap.toUserName} ha accettato lo scambio: ora fai ${swap.toRoomName} invece di ${swap.fromRoomName}.`,
+      body: swap.toRoomName
+        ? `${swap.toUserName} ha accettato lo scambio: ora fai ${swap.toRoomName} invece di ${swap.fromRoomName}.`
+        : `${swap.toUserName} ha accettato: ora ${swap.fromRoomName} tocca a lui/lei.`,
       url: '/',
     }, swap.fromUserId).catch(e => console.error('Notifica esito scambio fallita:', e.message));
 

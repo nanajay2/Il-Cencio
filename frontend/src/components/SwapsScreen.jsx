@@ -39,13 +39,13 @@ export function SwapsScreen({ house, userId, currentWeek, swaps, onPropose, onAc
     setToRoomId(asgns[0]?.roomId ?? '');
   }
 
-  const canPropose = currentWeek && fromRoomId && toUserId && toRoomId && !saving;
+  const canPropose = currentWeek && fromRoomId && toUserId && !saving;
 
   async function handlePropose() {
     if (!canPropose) return;
     setSaving(true);
     try {
-      await onPropose(currentWeek.id, userId, Number(fromRoomId), Number(toUserId), Number(toRoomId));
+      await onPropose(currentWeek.id, userId, Number(fromRoomId), Number(toUserId), toRoomId ? Number(toRoomId) : null);
     } finally {
       setSaving(false);
     }
@@ -79,7 +79,11 @@ export function SwapsScreen({ house, userId, currentWeek, swaps, onPropose, onAc
               {incoming.map(s => (
                 <div key={s.id} className="flex items-center justify-between gap-2 px-3 py-[9px] bg-cream rounded-[10px] text-[.83rem] border border-border">
                   <span>
-                    <strong>{s.fromUserName}</strong> ti propone: la sua <strong>{s.fromRoomName}</strong> in cambio della tua <strong>{s.toRoomName}</strong>
+                    {s.toRoomName ? (
+                      <><strong>{s.fromUserName}</strong> ti propone: la sua <strong>{s.fromRoomName}</strong> in cambio della tua <strong>{s.toRoomName}</strong></>
+                    ) : (
+                      <><strong>{s.fromUserName}</strong> ti propone di darti la sua <strong>{s.fromRoomName}</strong></>
+                    )}
                   </span>
                   <div className="flex gap-1.5 flex-shrink-0">
                     <button onClick={() => onAccept(s.id)} className={btnCls}>✓ Accetta</button>
@@ -102,7 +106,11 @@ export function SwapsScreen({ house, userId, currentWeek, swaps, onPropose, onAc
             <div className="flex flex-col gap-1.5">
               {outgoing.map(s => (
                 <div key={s.id} className="px-3 py-[9px] bg-cream rounded-[10px] text-[.83rem] border border-border text-ink-2">
-                  In attesa che <strong className="text-ink">{s.toUserName}</strong> accetti lo scambio della tua <strong className="text-ink">{s.fromRoomName}</strong> con la sua <strong className="text-ink">{s.toRoomName}</strong>
+                  {s.toRoomName ? (
+                    <>In attesa che <strong className="text-ink">{s.toUserName}</strong> accetti lo scambio della tua <strong className="text-ink">{s.fromRoomName}</strong> con la sua <strong className="text-ink">{s.toRoomName}</strong></>
+                  ) : (
+                    <>In attesa che <strong className="text-ink">{s.toUserName}</strong> accetti di ricevere la tua <strong className="text-ink">{s.fromRoomName}</strong></>
+                  )}
                 </div>
               ))}
             </div>
@@ -115,7 +123,7 @@ export function SwapsScreen({ house, userId, currentWeek, swaps, onPropose, onAc
             <p className="text-[.77rem] text-ink-2 -mt-1">Non hai turni da scambiare questa settimana.</p>
           ) : (
             <>
-              <p className="text-[.77rem] text-ink-2 -mt-1">Scambia una tua stanza con quella di un coinquilino in questa settimana.</p>
+              <p className="text-[.77rem] text-ink-2 -mt-1">Scambia una tua stanza con quella di un coinquilino, oppure dagliela direttamente se questa settimana non ne ha.</p>
 
               <div>
                 <label className="block text-[.7rem] font-bold text-ink-2 mb-1 uppercase tracking-[.05em]">La tua stanza</label>
@@ -134,7 +142,7 @@ export function SwapsScreen({ house, userId, currentWeek, swaps, onPropose, onAc
               <div>
                 <label className="block text-[.7rem] font-bold text-ink-2 mb-1 uppercase tracking-[.05em]">La sua stanza</label>
                 {toUserAssignments.length === 0 ? (
-                  <p className="text-[.8rem] text-ink-2">Nessun turno assegnato questa settimana.</p>
+                  <p className="text-[.8rem] text-ink-2">Non ha turni questa settimana: gli/le daresti la tua stanza senza riceverne una in cambio.</p>
                 ) : (
                   <select value={toRoomId} onChange={e => setToRoomId(e.target.value)} className={inputCls + ' w-full'}>
                     {toUserAssignments.map(a => <option key={a.roomId} value={a.roomId}>{a.roomIcon} {a.roomName}</option>)}

@@ -87,6 +87,23 @@ export default function App() {
     if (!localStorage.getItem(key)) setShowReveal(true);
   }, [weeksHook.currentWeek?.id, userId]);
 
+  // Ricarica i dati quando l'app torna in primo piano (es. tocco su una
+  // notifica push che mette a fuoco una tab gia' aperta invece di
+  // ricaricare la pagina): altrimenti richieste di scambio, assenze e
+  // turni creati da altri coinquilini restano invisibili finche' non si
+  // ricarica manualmente.
+  useEffect(() => {
+    if (!houseId) return;
+    function onVisible() {
+      if (document.visibilityState !== 'visible') return;
+      weeksHook.load(houseId).catch(() => {});
+      absencesHook.load(houseId).catch(() => {});
+      swapsHook.load(houseId).catch(() => {});
+    }
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [houseId]);
+
   function applySession(s) {
     setSession(s);
     saveSession(s);
@@ -379,7 +396,10 @@ export default function App() {
       )}
 
       <SwapsFab
-        onClick={() => setShowSwaps(true)}
+        onClick={() => {
+          setShowSwaps(true);
+          swapsHook.load(houseId).catch(() => {});
+        }}
         pendingCount={swapsHook.swaps.filter(s => s.toUserId === userId && s.status === 'pending').length}
       />
 

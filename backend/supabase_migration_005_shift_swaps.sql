@@ -21,3 +21,6 @@ alter table shift_swaps
 
 create index shift_swaps_house_status_idx on shift_swaps (house_id, status);
 create index shift_swaps_to_user_idx      on shift_swaps (to_user_id, status);
+
+-- L'app non usa Supabase Auth: il backend accede sempre con la anon key.
+alter table shift_swaps disable row level security;
