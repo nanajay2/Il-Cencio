@@ -16,6 +16,7 @@ import { AbsencesFab }        from './components/AbsencesFab.jsx';
 import { AbsencesScreen }     from './components/AbsencesScreen.jsx';
 import { SwapsFab }           from './components/SwapsFab.jsx';
 import { SwapsScreen }        from './components/SwapsScreen.jsx';
+import { InstallGate }        from './components/InstallGate.jsx';
 import { useWeeks }           from './hooks/useWeeks.js';
 import { useAbsences }        from './hooks/useAbsences.js';
 import { useHouse }           from './hooks/useHouse.js';
@@ -24,6 +25,11 @@ import { usePush }            from './hooks/usePush.js';
 import { api }                from './api.js';
 import { fmt, isCurW }        from './constants.js';
 import { findTurnoForDate }   from './lib/calendarBuckets.js';
+import { isStandalone }       from './lib/platform.js';
+
+// In sviluppo (npm run dev) l'app resta usabile da browser normale per
+// comodita'; in produzione (build) e' obbligatorio averla installata.
+const BYPASS_INSTALL_GATE = import.meta.env.DEV;
 
 function loadSession() {
   return {
@@ -241,6 +247,7 @@ export default function App() {
   }
 
   // ---- Routing ----
+  if (!BYPASS_INSTALL_GATE && !isStandalone()) return <InstallGate />;
   if (view === 'welcome')      return <WelcomeScreen onLogin={() => setView('login')} onCreate={() => setView('create-house')} />;
   if (view === 'login')        return <LoginScreen onSuccess={handleJoinSuccess} onBack={() => setView('welcome')} savedHouseId={initial.houseId || null} />;
   if (view === 'create-house') return <CreateHouseScreen onSuccess={handleCreateSuccess} onBack={() => setView('welcome')} />;
