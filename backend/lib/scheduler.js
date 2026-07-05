@@ -1,4 +1,8 @@
-export const WEEKS_AHEAD = 4;
+// Genera automaticamente i turni finche' non coprono almeno questo orizzonte
+// da oggi, indipendentemente dal tipo di rotazione (settimanale/giornaliera
+// personalizzata/mensile hanno durate diverse, quindi contare "N periodi"
+// come si faceva prima dava orizzonti molto diversi tra loro).
+export const AUTO_GENERATE_HORIZON_DAYS = 30;
 
 function addDays(s, n) {
   const d = new Date(s + 'T12:00:00Z');
@@ -228,8 +232,10 @@ export async function ensureFutureWeeks(db, houseId) {
     }
   }
 
-  while (safety++ < 20) {
-    if (current.filter(w => w.start > t).length >= WEEKS_AHEAD) break;
+  const horizon = addDays(t, AUTO_GENERATE_HORIZON_DAYS);
+  while (safety++ < 40) {
+    const last = current[current.length - 1];
+    if (last && last.end >= horizon) break;
     const nw = computeNextWeek(current, users, rooms, rules, rotation, absences);
     if (!nw) break;
     await db.insertWeek(nw, houseId);

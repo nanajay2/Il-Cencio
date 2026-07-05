@@ -4,6 +4,11 @@ import { sendNotification } from '../lib/push.js';
 
 const router = Router({ mergeParams: true });
 
+// URL assoluto del backend, necessario al service worker per chiamare
+// l'API accetta/rifiuta direttamente dalla notifica push (in dev, vuoto:
+// usa il proxy relativo di Vite verso localhost:3001).
+const API_BASE = process.env.PUBLIC_API_URL || '';
+
 function todayStr() {
   return new Date().toISOString().split('T')[0];
 }
@@ -48,7 +53,9 @@ router.post('/', async (req, res) => {
       body: swap.toRoomName
         ? `${swap.fromUserName} ti propone di scambiare ${swap.fromRoomName} con ${swap.toRoomName}.`
         : `${swap.fromUserName} ti propone di darti ${swap.fromRoomName}.`,
-      url: '/',
+      url: `/?swap=${swap.id}`,
+      houseId, swapId: swap.id, apiBase: API_BASE,
+      actionable: true,
     }, swap.toUserId).catch(e => console.error('Notifica richiesta scambio fallita:', e.message));
 
     res.status(201).json(swap);
@@ -79,7 +86,7 @@ router.post('/:swapId/accept', async (req, res) => {
       body: swap.toRoomName
         ? `${swap.toUserName} ha accettato lo scambio: ora fai ${swap.toRoomName} invece di ${swap.fromRoomName}.`
         : `${swap.toUserName} ha accettato: ora ${swap.fromRoomName} tocca a lui/lei.`,
-      url: '/',
+      url: `/?swap=${swap.id}`,
     }, swap.fromUserId).catch(e => console.error('Notifica esito scambio fallita:', e.message));
 
     res.json({ ok: true });
@@ -99,7 +106,7 @@ router.post('/:swapId/decline', async (req, res) => {
     sendNotification(houseId, {
       title: 'Scambio turno rifiutato',
       body: `${swap.toUserName} ha rifiutato la proposta di scambio.`,
-      url: '/',
+      url: `/?swap=${swap.id}`,
     }, swap.fromUserId).catch(e => console.error('Notifica esito scambio fallita:', e.message));
 
     res.json({ ok: true });

@@ -34,7 +34,7 @@ Web app per gestire i turni di pulizia settimanali in una casa condivisa. Ogni c
 - **Versione app** — mostrata in basso nella schermata di benvenuto (letta da `frontend/package.json`)
 - **PWA installabile e obbligatoria** — manifest + service worker (`frontend/public/sw.js`); in produzione l'app non è utilizzabile da browser normale, un gate (`InstallGate.jsx`) blocca l'accesso finché non è installata sulla schermata Home (bottone diretto su Chrome/Edge Android e desktop, istruzioni guidate su iOS Safari). In sviluppo (`npm run dev`) il gate è disattivato per comodità
 - **Notifiche push** — il permesso viene richiesto automaticamente al primo accesso di ogni utente (solo se non è mai stato deciso prima; in seguito si riattiva/disattiva a mano da ⚙️ Impostazioni). Avvisano di: settimana con i propri turni generata, reminder giornaliero (9:00) per i task non ancora segnati come fatti, turno non completato il giorno dopo la fine settimana, nuova assenza registrata da un coinquilino. Su iOS richiede Safari 16.4+ e l'app installata da schermata Home (le Web Push non funzionano da Safari diretto)
-- **Scambio turni** (🔁) — due coinquilini possono scambiarsi una stanza assegnata nella settimana corrente, oppure una persona può darne una direttamente a chi non ha turni quella settimana (trasferimento a senso unico); si applica solo dopo che il destinatario ha accettato, con notifica push a entrambi i passaggi
+- **Scambio turni** (🔁) — due coinquilini possono scambiarsi una stanza assegnata nella settimana corrente, oppure una persona può darne una direttamente a chi non ha turni quella settimana (trasferimento a senso unico); si applica solo dopo che il destinatario ha accettato, con notifica push a entrambi i passaggi. La notifica di richiesta apre l'app direttamente sulla proposta (deep link `?swap=`), e su Chrome/Edge (Android e desktop) ha i bottoni "Accetta"/"Rifiuta" direttamente sulla notifica, senza aprire l'app — non supportato da Safari iOS, dove resta comunque cliccabile per aprire l'app
 - **Notifica nuova versione** — a ogni avvio il backend confronta la versione in `backend/package.json` con l'ultima notificata (tabella `app_meta`); se è cambiata, avvisa tutte le case che è disponibile un aggiornamento
 - **Aggiornamento PWA in-place** — il service worker prende il controllo automaticamente a ogni nuova versione (`skipWaiting`/`clients.claim`); l'app rileva il cambio e si ricarica da sola una volta, senza bisogno di eliminare e reinstallare l'icona in home
 
@@ -62,6 +62,9 @@ Web app per gestire i turni di pulizia settimanali in una casa condivisa. Ogni c
    VAPID_PUBLIC_KEY=...
    VAPID_PRIVATE_KEY=...
    VAPID_SUBJECT=mailto:tuo@indirizzo.it
+   PUBLIC_API_URL=...   # solo in produzione: URL pubblico del backend (es. Railway),
+                        # usato dal service worker per chiamare accetta/rifiuta scambio
+                        # direttamente dai bottoni sulla notifica push. Vuoto in sviluppo.
    ```
 5. `cd backend && npm install && npm run dev`
 

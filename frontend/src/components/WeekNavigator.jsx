@@ -1,6 +1,6 @@
 import { fmt, isCurW, isPastW } from '../constants.js';
 
-export function WeekNavigator({ week, currentIdx, totalWeeks, onPrev, onNext, onThisWeek, onGenerate }) {
+export function WeekNavigator({ week, currentIdx, totalWeeks, onPrev, onNext, onThisWeek }) {
   if (!week) return null;
 
   const isCur  = isCurW(week);
@@ -42,20 +42,12 @@ export function WeekNavigator({ week, currentIdx, totalWeeks, onPrev, onNext, on
         </button>
       </div>
 
-      <div className="flex gap-2 mt-3">
-        <button
-          onClick={onThisWeek}
-          className="flex-1 py-2 rounded-full bg-brown text-ink font-bold text-[.78rem] border-0 cursor-pointer hover:bg-brown-mid transition-colors"
-        >
-          Oggi
-        </button>
-        <button
-          onClick={onGenerate}
-          className="flex-1 py-2 rounded-full border border-border bg-card text-ink-2 font-semibold text-[.78rem] cursor-pointer hover:bg-cream-2 hover:border-sage transition-colors"
-        >
-          ＋ Prossima
-        </button>
-      </div>
+      <button
+        onClick={onThisWeek}
+        className="w-full mt-3 py-2 rounded-full bg-brown text-ink font-bold text-[.78rem] border-0 cursor-pointer hover:bg-brown-mid transition-colors"
+      >
+        Oggi
+      </button>
     </div>
   );
 }
