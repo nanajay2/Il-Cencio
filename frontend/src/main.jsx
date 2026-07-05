@@ -10,6 +10,16 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 );
 
 if ('serviceWorker' in navigator) {
+  // Inoltra i messaggi del service worker (click su una notifica di
+  // scambio, azione accetta/rifiuta) come eventi custom che App.jsx ascolta.
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    if (event.data?.type === 'push-open-swap') {
+      window.dispatchEvent(new CustomEvent('push-open-swap', { detail: event.data }));
+    } else if (event.data?.type === 'swaps-updated') {
+      window.dispatchEvent(new CustomEvent('swaps-updated'));
+    }
+  });
+
   // Il service worker chiama skipWaiting()/clients.claim() appena installato,
   // quindi quando prende il controllo vuol dire che e' stata scaricata una
   // nuova versione: ricarichiamo una volta sola per aggiornare l'app senza

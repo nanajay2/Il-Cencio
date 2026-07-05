@@ -17,12 +17,6 @@ const titleCls   = 'font-bold text-[.92rem] text-ink mb-1';
 
 const selectCls = inputCls + ' appearance-none';
 
-const ROTATIONS = [
-  { value: 'weekly',  label: 'Settimanale' },
-  { value: 'daily',   label: 'Giornaliera personalizzata' },
-  { value: 'monthly', label: 'Mensile' },
-];
-
 const RULE_TYPES = [
   { value: 'pool_restriction', icon: '🚿', label: '🚿 Restrizione pool (es. Bagno)', hint: 'Solo le persone selezionate possono fare questa stanza.' },
   { value: 'sequence',         icon: '🔄', label: '🔄 Sequenza (es. Cucina→Corridoio)', hint: 'Chi fa la prima stanza, la settimana dopo fa automaticamente la seconda.' },
@@ -57,21 +51,10 @@ function describeRule(rule, rooms, users) {
 export function SettingsPanel({
   house, isAdmin, houseId, userId,
   onClose, onLogout, onLeaveHouse,
-  onRemoveUser, onAddRoom, onRemoveRoom, onAddRule, onRemoveRule,
-  onUpdateRotation,
+  onAddRule, onRemoveRule,
 }) {
   useBodyScrollLock();
   const push = usePush();
-  const [copied, setCopied] = useState(false);
-  // Rooms state
-  const [rName,  setRName]  = useState('');
-  const [rIcon,  setRIcon]  = useState('🏠');
-  const [rColor, setRColor] = useState('#BDB395');
-
-  // Rotation state
-  const [rotationType, setRotationType] = useState(house.rotationType ?? 'weekly');
-  const [rotationDays, setRotationDays] = useState(house.rotationDays ?? 3);
-  const [savingRotation, setSavingRotation] = useState(false);
 
   // Rules state
   const [ruleType,   setRuleType]   = useState(RULE_TYPES[0].value);
@@ -82,29 +65,8 @@ export function SettingsPanel({
   const [exclUser,   setExclUser]   = useState('');
   const [exclRoom,   setExclRoom]   = useState('');
 
-  function copyCode() {
-    navigator.clipboard.writeText(house.houseInviteCode ?? '');
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
-
-  async function addRoom() {
-    if (!rName.trim()) return;
-    await onAddRoom({ name: rName.trim(), icon: rIcon, color: rColor, sortOrder: house.rooms.length });
-    setRName('');
-  }
-
   function toggleAllowedUser(id) {
     setPoolUsers(ids => ids.includes(id) ? ids.filter(u => u !== id) : [...ids, id]);
-  }
-
-  async function saveRotation() {
-    setSavingRotation(true);
-    try {
-      await onUpdateRotation(rotationType, rotationType === 'daily' ? rotationDays : null);
-    } finally {
-      setSavingRotation(false);
-    }
   }
 
   async function addRule() {
@@ -142,22 +104,6 @@ export function SettingsPanel({
             <CloseIcon />
           </button>
         </div>
-
-        {/* Codice invito casa */}
-        {house.houseInviteCode && (
-          <section className={sectionCls}>
-            <div className={titleCls}>🔑 Codice invito casa</div>
-            <p className="text-[.77rem] text-ink-2 -mt-1">Condividi questo codice con i nuovi coinquilini per farli registrare.</p>
-            <div className="flex items-center gap-2 mt-1">
-              <code className="flex-1 text-center text-[1.3rem] font-mono font-bold tracking-[.15em] bg-cream-2 border border-border rounded-[10px] py-2 text-brown">
-                {house.houseInviteCode}
-              </code>
-              <button onClick={copyCode} className={btnCls}>
-                {copied ? '✅ Copiato' : 'Copia'}
-              </button>
-            </div>
-          </section>
-        )}
 
         {/* Notifiche push */}
         <section className={sectionCls}>
@@ -197,111 +143,6 @@ export function SettingsPanel({
               </button>
             </>
           )}
-        </section>
-
-        {/* Rotazione turni — solo admin */}
-        {isAdmin && (
-          <section className={sectionCls}>
-            <div className={titleCls}>🔄 Rotazione turni</div>
-            <p className="text-[.77rem] text-ink-2 -mt-1">
-              Cambiare la rotazione rigenera i turni da oggi in poi; quelli passati restano invariati.
-            </p>
-
-            <div className="flex flex-wrap gap-1.5">
-              {ROTATIONS.map(r => (
-                <button
-                  key={r.value}
-                  type="button"
-                  onClick={() => setRotationType(r.value)}
-                  className={
-                    'px-3 py-1.5 rounded-full text-[.78rem] font-semibold border-[1.5px] transition-colors cursor-pointer ' +
-                    (rotationType === r.value
-                      ? 'bg-brown text-ink border-brown'
-                      : 'bg-cream text-ink-2 border-border')
-                  }
-                >
-                  {r.label}
-                </button>
-              ))}
-            </div>
-
-            {rotationType === 'daily' && (
-              <input
-                type="number" min={1} max={30}
-                value={rotationDays}
-                onChange={e => setRotationDays(Number(e.target.value))}
-                className={inputCls}
-                style={{ maxWidth: '120px' }}
-              />
-            )}
-
-            <button onClick={saveRotation} disabled={savingRotation} className={btnCls + ' self-start'}>
-              {savingRotation ? 'Salvataggio…' : 'Salva'}
-            </button>
-          </section>
-        )}
-
-        {/* Coinquilini */}
-        <section className={sectionCls}>
-          <div className={titleCls}>👥 Coinquilini</div>
-
-          {isAdmin ? (
-            <div className="flex flex-col gap-1.5 mt-1">
-              {house.users.map(u => (
-                <div key={u.id} className="flex items-center justify-between px-3 py-[9px] bg-cream rounded-[10px] border border-border text-[.83rem]">
-                  <span>
-                    <strong>{u.name}</strong>
-                    <span className="text-ink-2 ml-1.5">{u.email}</span>
-                    {u.isAdmin && <span className="ml-1.5 text-[.62rem] font-bold bg-brown text-ink px-[7px] py-[2px] rounded-full">admin</span>}
-                    {!u.claimed && <span className="ml-1.5 text-[.62rem] font-bold bg-cream-2 text-ink-2 px-[7px] py-[2px] rounded-full">non attivato</span>}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    {u.inviteCode && (
-                      <code className="text-[.65rem] bg-cream-2 px-1.5 py-0.5 rounded text-brown font-mono">{u.inviteCode}</code>
-                    )}
-                    {!u.isAdmin && (
-                      <button onClick={() => onRemoveUser(u.id)} className={dangerCls}>✕</button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col gap-1.5 mt-1">
-              {house.users.map(u => (
-                <div key={u.id} className="px-3 py-[9px] bg-cream rounded-[10px] border border-border text-[.83rem]">
-                  {u.name}
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        {/* Stanze — admin: gestibili; utente normale: sola lettura */}
-        <section className={sectionCls}>
-          <div className={titleCls}>🏠 Stanze</div>
-
-          {isAdmin && (
-            <div className="flex gap-2 flex-wrap">
-              <input value={rName} onChange={e => setRName(e.target.value)} placeholder="Nome stanza" className={inputCls} style={{ minWidth: '120px' }} />
-              <input value={rIcon} onChange={e => setRIcon(e.target.value)} placeholder="Emoji" className={`${inputCls} max-w-[60px] text-center`} maxLength={2} />
-              <input type="color" value={rColor} onChange={e => setRColor(e.target.value)} className="h-[38px] w-[46px] border border-border rounded-[10px] cursor-pointer bg-cream p-1 flex-shrink-0" />
-              <button onClick={addRoom} className={btnCls}>Aggiungi</button>
-            </div>
-          )}
-
-          <div className="flex flex-col gap-1.5 mt-1">
-            {house.rooms.map(r => (
-              <div key={r.id} className="flex items-center justify-between px-3 py-[9px] bg-cream rounded-[10px] border border-border text-[.83rem]">
-                <span className="flex items-center gap-2">
-                  <span className="text-[1.1rem]">{r.icon}</span>
-                  <strong>{r.name}</strong>
-                  <span className="w-3.5 h-3.5 rounded-full inline-block" style={{ background: r.color }} />
-                </span>
-                {isAdmin && <button onClick={() => onRemoveRoom(r.id)} className={dangerCls}>✕</button>}
-              </div>
-            ))}
-          </div>
         </section>
 
         {/* Regole — admin: sempre visibile (per poterle aggiungere); utente normale: solo se ce ne sono, in lettura */}

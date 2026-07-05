@@ -12,10 +12,12 @@ import { SettingsPanel }      from './components/SettingsPanel.jsx';
 import { ViewModeSwitcher }   from './components/ViewModeSwitcher.jsx';
 import { WeekAggregateView }  from './components/WeekAggregateView.jsx';
 import { MonthAggregateView } from './components/MonthAggregateView.jsx';
-import { AbsencesFab }        from './components/AbsencesFab.jsx';
 import { AbsencesScreen }     from './components/AbsencesScreen.jsx';
-import { SwapsFab }           from './components/SwapsFab.jsx';
 import { SwapsScreen }        from './components/SwapsScreen.jsx';
+import { MenuFab }            from './components/MenuFab.jsx';
+import { RoomsScreen }        from './components/RoomsScreen.jsx';
+import { CoinquiliniScreen }  from './components/CoinquiliniScreen.jsx';
+import { RotationScreen }     from './components/RotationScreen.jsx';
 import { InstallGate }        from './components/InstallGate.jsx';
 import { useWeeks }           from './hooks/useWeeks.js';
 import { useAbsences }        from './hooks/useAbsences.js';
@@ -65,6 +67,9 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showAbsences, setShowAbsences] = useState(false);
   const [showSwaps, setShowSwaps] = useState(false);
+  const [showRooms, setShowRooms] = useState(false);
+  const [showCoinquilini, setShowCoinquilini] = useState(false);
+  const [showRotation, setShowRotation] = useState(false);
   const [showReveal, setShowReveal] = useState(false);
   const [viewMode, setViewMode] = useState('oggi'); // 'oggi' | 'settimana' | 'mese'
 
@@ -124,6 +129,38 @@ export default function App() {
     }
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [houseId]);
+
+  // Deep link da una notifica di scambio turno: apre direttamente la
+  // schermata scambi, sia quando l'app viene aperta da zero (?swap= nella
+  // URL) sia quando il service worker mette a fuoco una tab gia' aperta
+  // (messaggio push-open-swap).
+  useEffect(() => {
+    if (!houseId) return;
+    const swapParam = new URLSearchParams(window.location.search).get('swap');
+    if (swapParam) {
+      setShowSwaps(true);
+      swapsHook.load(houseId).catch(() => {});
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [houseId]);
+
+  useEffect(() => {
+    if (!houseId) return;
+    function onOpenSwap() {
+      setShowSwaps(true);
+      swapsHook.load(houseId).catch(() => {});
+    }
+    function onSwapsUpdated() {
+      swapsHook.load(houseId).catch(() => {});
+      weeksHook.load(houseId).catch(() => {});
+    }
+    window.addEventListener('push-open-swap', onOpenSwap);
+    window.addEventListener('swaps-updated', onSwapsUpdated);
+    return () => {
+      window.removeEventListener('push-open-swap', onOpenSwap);
+      window.removeEventListener('swaps-updated', onSwapsUpdated);
+    };
   }, [houseId]);
 
   function applySession(s) {
@@ -268,7 +305,6 @@ export default function App() {
       <Header
         houseName={session.houseName}
         currentUser={session.userName}
-        onSettings={() => setShowSettings(true)}
       />
 
       <ViewModeSwitcher mode={viewMode} onChange={setViewMode} />
@@ -286,7 +322,6 @@ export default function App() {
             onPrev={() => weeksHook.goTo(-1)}
             onNext={() => weeksHook.goTo(1)}
             onThisWeek={weeksHook.goToCurrent}
-            onGenerate={handleGenerate}
           />
 
           <div className="px-4 pt-3 flex flex-col gap-3">
@@ -357,7 +392,7 @@ export default function App() {
         </div>
       )}
 
-      <div className="h-12" />
+      <div style={{ height: 'calc(env(safe-area-inset-bottom) + 6rem)' }} />
 
       {showReveal && (
         <RevealModal
@@ -376,19 +411,6 @@ export default function App() {
           onClose={() => setShowSettings(false)}
           onLogout={logout}
           onLeaveHouse={handleLeaveHouse}
-          onRemoveUser={async (uid) => {
-            await houseHook.removeUser(houseId, uid);
-            await weeksHook.load(houseId);
-          }}
-          onAddRoom={async (data) => {
-            await houseHook.addRoom(houseId, data);
-            await weeksHook.load(houseId);
-            showToast(`✅ Stanza aggiunta`);
-          }}
-          onRemoveRoom={async (roomId) => {
-            await houseHook.removeRoom(houseId, roomId);
-            await weeksHook.load(houseId);
-          }}
           onAddRule={async (type, config) => {
             await houseHook.addRule(houseId, type, config);
             await weeksHook.load(houseId);
@@ -397,15 +419,23 @@ export default function App() {
             await houseHook.removeRule(houseId, ruleId);
             await weeksHook.load(houseId);
           }}
-          onUpdateRotation={async (rotationType, rotationDays) => {
-            await houseHook.updateRotation(houseId, rotationType, rotationDays);
-            await weeksHook.load(houseId);
-            showToast('✅ Rotazione aggiornata');
-          }}
         />
       )}
 
-      <AbsencesFab onClick={() => setShowAbsences(true)} />
+      <MenuFab
+        isAdmin={session.isAdmin}
+        pendingSwaps={swapsHook.swaps.filter(s => s.toUserId === userId && s.status === 'pending').length}
+        onOpenAbsences={() => setShowAbsences(true)}
+        onOpenSwaps={() => {
+          setShowSwaps(true);
+          swapsHook.load(houseId).catch(() => {});
+        }}
+        onOpenRooms={() => setShowRooms(true)}
+        onOpenCoinquilini={() => setShowCoinquilini(true)}
+        onOpenRotation={() => setShowRotation(true)}
+        onOpenSettings={() => setShowSettings(true)}
+        onGenerateWeek={handleGenerate}
+      />
 
       {showAbsences && house && (
         <AbsencesScreen
@@ -418,14 +448,6 @@ export default function App() {
         />
       )}
 
-      <SwapsFab
-        onClick={() => {
-          setShowSwaps(true);
-          swapsHook.load(houseId).catch(() => {});
-        }}
-        pendingCount={swapsHook.swaps.filter(s => s.toUserId === userId && s.status === 'pending').length}
-      />
-
       {showSwaps && house && (
         <SwapsScreen
           house={house}
@@ -436,6 +458,49 @@ export default function App() {
           onAccept={handleAcceptSwap}
           onDecline={handleDeclineSwap}
           onClose={() => setShowSwaps(false)}
+        />
+      )}
+
+      {showRooms && house && (
+        <RoomsScreen
+          house={house}
+          onAddRoom={async (data) => {
+            await houseHook.addRoom(houseId, data);
+            await weeksHook.load(houseId);
+            showToast('✅ Stanza aggiunta');
+          }}
+          onRemoveRoom={async (roomId) => {
+            await houseHook.removeRoom(houseId, roomId);
+            await weeksHook.load(houseId);
+          }}
+          onClose={() => setShowRooms(false)}
+        />
+      )}
+
+      {showCoinquilini && house && session.isAdmin && (
+        <CoinquiliniScreen
+          house={house}
+          onAddUser={async (name) => {
+            await houseHook.addUser(houseId, name, '');
+            await weeksHook.load(houseId);
+            showToast(`✅ ${name} aggiunto`, 'success');
+          }}
+          onRemoveUser={async (uid) => {
+            await houseHook.removeUser(houseId, uid);
+            await weeksHook.load(houseId);
+          }}
+          onClose={() => setShowCoinquilini(false)}
+        />
+      )}
+
+      {showRotation && house && session.isAdmin && (
+        <RotationScreen
+          house={house}
+          onUpdateRotation={async (rotationType, rotationDays) => {
+            await houseHook.updateRotation(houseId, rotationType, rotationDays);
+            await weeksHook.load(houseId);
+          }}
+          onClose={() => setShowRotation(false)}
         />
       )}
 
