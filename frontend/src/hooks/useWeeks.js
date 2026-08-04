@@ -90,6 +90,26 @@ export function useWeeks() {
 
     setCurrentIdx(Math.max(0, Math.min(sorted.length - 1, nextIdx)));
   }
+  // Genera settimane finché l'ultima disponibile copre targetEndDate (usato
+  // dalle viste Settimana/Mese quando si scorre oltre i dati già caricati).
+  async function ensureThrough(houseId, targetEndDate) {
+    let lastEnd = sorted[sorted.length - 1]?.end ?? null;
+    if (lastEnd && lastEnd >= targetEndDate) return;
+    if (navLoading) return;
+    setNavLoading(true);
+    try {
+      let safety = 0;
+      while ((!lastEnd || lastEnd < targetEndDate) && safety++ < 30) {
+        const nw = await generateWeek(houseId);
+        lastEnd = nw.end;
+      }
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setNavLoading(false);
+    }
+  }
+
   function goToCurrent() { setCurrentIdx(findCurrentIdx(sorted)); }
   function goToId(weekId) {
     const idx = sorted.findIndex(w => w.id === weekId);
@@ -103,6 +123,6 @@ export function useWeeks() {
     currentWeek: sorted[resolvedIdx] ?? null,
     currentIdx:  resolvedIdx,
     loading, navLoading, error, load,
-    toggleDone, generateWeek, goTo, goToCurrent, goToId,
+    toggleDone, generateWeek, goTo, goToCurrent, goToId, ensureThrough,
   };
 }

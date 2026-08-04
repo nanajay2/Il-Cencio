@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Loader2, ClipboardList } from 'lucide-react';
 import { Header }             from './components/Header.jsx';
-import { WeekNavigator }      from './components/WeekNavigator.jsx';
 import { ChoreCard }          from './components/ChoreCard.jsx';
 import { RevealModal }        from './components/RevealModal.jsx';
 import { CatMascot }          from './components/CatMascot.jsx';
@@ -72,7 +71,7 @@ export default function App() {
   const [showCoinquilini, setShowCoinquilini] = useState(false);
   const [showRotation, setShowRotation] = useState(false);
   const [showReveal, setShowReveal] = useState(false);
-  const [viewMode, setViewMode] = useState('oggi'); // 'oggi' | 'settimana' | 'mese'
+  const [viewMode, setViewMode] = useState('settimana'); // 'settimana' | 'mese'
 
   const { toast, show: showToast } = useToast();
   const weeksHook    = useWeeks();
@@ -270,7 +269,7 @@ export default function App() {
     const turno = findTurnoForDate(weeksHook.weeks, dateStr);
     if (!turno) { showToast('Nessun turno disponibile per questo giorno'); return; }
     weeksHook.goToId(turno.id);
-    setViewMode('oggi');
+    setViewMode('settimana');
   }
 
   // ---- Routing ----
@@ -299,13 +298,19 @@ export default function App() {
 
       <ViewModeSwitcher mode={viewMode} onChange={setViewMode} />
 
-      {viewMode === 'settimana' ? (
-        <WeekAggregateView weeks={weeks} users={house?.users ?? []} onJumpToDay={jumpToDay} />
-      ) : viewMode === 'mese' ? (
-        <MonthAggregateView weeks={weeks} users={house?.users ?? []} userId={userId} onJumpToDay={jumpToDay} />
+      {viewMode === 'mese' ? (
+        <MonthAggregateView
+          weeks={weeks}
+          users={house?.users ?? []}
+          userId={userId}
+          houseId={houseId}
+          ensureThrough={weeksHook.ensureThrough}
+          navLoading={weeksHook.navLoading}
+          onJumpToDay={jumpToDay}
+        />
       ) : currentWeek ? (
         <>
-          <WeekNavigator
+          <WeekAggregateView
             week={currentWeek}
             currentIdx={currentIdx}
             totalWeeks={weeks.length}

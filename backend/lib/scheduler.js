@@ -151,28 +151,33 @@ export function computeNextWeek(weeks, users, rooms, rules, rotation = { type: '
   }
 
   // Sceglie chi assegnare a roomId dando priorità, in ordine:
-  // 1. chi ha meno stanze assegnate finora in questa settimana (spalma equamente
-  //    il carico quando le stanze superano le persone, invece di lasciarne alcune senza nessuno)
-  // 2. chi è senza turno da più tempo in generale (fa ruotare equamente chi resta
-  //    escluso quando gli utenti superano le stanze)
-  // 3. chi ha fatto meno stanze in totale nella storia (fa ruotare nel tempo anche
-  //    chi si becca il carico extra quando le stanze superano le persone)
-  // 4. chi non fa questa specifica stanza da più tempo (varietà per stanza)
+  // 1. chi non fa questa specifica stanza da più tempo (varietà per stanza — il
+  //    criterio principale: senza questo, chi resta "occupato" da un'assegnazione
+  //    forzata come le regole di sequenza risulterebbe sempre svantaggiato nei
+  //    confronti successivi e finirebbe incastrato sempre sulla stessa stanza)
+  // 2. chi ha fatto meno stanze in totale nella storia (bilancia il carico
+  //    complessivo nel tempo)
+  // 3. chi è senza turno da più tempo in generale (fa ruotare chi resta escluso
+  //    quando gli utenti superano le stanze)
+  // 4. chi ha meno stanze assegnate finora in questa settimana (spalma il
+  //    carico extra quando le stanze superano le persone — ultimo criterio,
+  //    altrimenti sovrasta la varietà per stanza)
   function pickLeast(pool, roomId) {
-    const avail = pool.filter(uid => !exclusions.has(`${uid}:${roomId}`) && !isFullyAbsent(uid));
+    const avail = pool.filter(uid => !exclusions.has(`${uid}:${roomId}`) && !isAbsentEnoughToExclude(uid));
     if (!avail.length) return null;
     return avail.reduce((best, uid) => {
-      const loadUid = weekLoad.get(uid) ?? 0, loadBest = weekLoad.get(best) ?? 0;
-      if (loadUid !== loadBest) return loadUid < loadBest ? uid : best;
+      const lastUid = lastTimeDid(uid, roomId), lastBest = lastTimeDid(best, roomId);
+      if (lastUid !== lastBest) return lastUid < lastBest ? uid : best;
+
+      const totUid = totalAssignedCount(uid), totBest = totalAssignedCount(best);
+      if (totUid !== totBest) return totUid < totBest ? uid : best;
 
       const idleUid  = lastTimeAssigned(uid);
       const idleBest = lastTimeAssigned(best);
       if (idleUid !== idleBest) return idleUid < idleBest ? uid : best;
 
-      const totUid = totalAssignedCount(uid), totBest = totalAssignedCount(best);
-      if (totUid !== totBest) return totUid < totBest ? uid : best;
-
-      return lastTimeDid(uid, roomId) < lastTimeDid(best, roomId) ? uid : best;
+      const loadUid = weekLoad.get(uid) ?? 0, loadBest = weekLoad.get(best) ?? 0;
+      return loadUid < loadBest ? uid : best;
     });
   }
 
@@ -182,24 +187,30 @@ export function computeNextWeek(weeks, users, rooms, rules, rotation = { type: '
   // 1. Assegnazioni forzate (sequence)
   for (const [userId, roomId] of forced) {
     if (!weekLoad.has(userId) && !usedRooms.has(roomId) &&
-        rooms.find(r => r.id === roomId) && !isFullyAbsent(userId)) {
+        rooms.find(r => r.id === roomId) && !isAbsentEnoughToExclude(userId)) {
       assign(userId, roomId);
     }
   }
 
-  // 2. Pool-restricted rooms
+  // 2. Pool-restricted rooms — prova prima chi non ha ancora nulla questa
+  //    settimana, così non si "ruba" la stanza a chi aspetta il suo turno solo
+  //    perché il tie-break li preferiva; ricade su tutto il pool solo se
+  //    proprio nessun membro è più libero (più stanze che persone nel pool).
   for (const [roomIdStr, allowedSet] of Object.entries(poolFor)) {
     const roomId = parseInt(roomIdStr);
     if (usedRooms.has(roomId)) continue;
-    const allowed = [...allowedSet].filter(uid => allUserIds.includes(uid));
-    const pick    = pickLeast(allowed, roomId);
+    const allowed  = [...allowedSet].filter(uid => allUserIds.includes(uid));
+    const free     = allowed.filter(uid => !weekLoad.has(uid));
+    const pick     = pickLeast(free.length ? free : allowed, roomId);
     if (pick) assign(pick, roomId);
   }
 
-  // 3. Stanze rimanenti → utenti rimanenti (least-recently)
+  // 3. Stanze rimanenti → utenti rimanenti (least-recently), stesso principio:
+  //    priorità a chi è ancora completamente libero.
   for (const room of sortedRooms) {
     if (usedRooms.has(room.id)) continue;
-    const pick = pickLeast(allUserIds, room.id);
+    const free = allUserIds.filter(uid => !weekLoad.has(uid));
+    const pick = pickLeast(free.length ? free : allUserIds, room.id);
     if (pick) assign(pick, room.id);
   }
 
