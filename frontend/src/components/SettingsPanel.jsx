@@ -250,6 +250,17 @@ export function SettingsPanel({
           </section>
         )}
 
+        {/* Supporto */}
+        <a
+          href="https://buymeacoffee.com/dadaism0x"
+          target="_blank"
+          rel="noopener noreferrer"
+          className={sectionCls + ' text-center no-underline hover:opacity-90 transition-opacity'}
+        >
+          <div className={titleCls + ' mb-0'}>☕ Ti piace l'app?</div>
+          <p className="text-[.8rem] text-ink-2">Offrimi un caffè e aiutami a tenerla sempre viva ✨</p>
+        </a>
+
         {/* Logout / abbandona */}
         <div className="flex flex-col gap-2">
           {onLogout && (
