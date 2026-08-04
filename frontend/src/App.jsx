@@ -26,7 +26,7 @@ import { useHouse }           from './hooks/useHouse.js';
 import { useSwaps }           from './hooks/useSwaps.js';
 import { usePush }            from './hooks/usePush.js';
 import { api }                from './api.js';
-import { isCurW }             from './constants.js';
+import { isCurW, todayStr }   from './constants.js';
 import { findTurnoForDate }   from './lib/calendarBuckets.js';
 import { isStandalone }       from './lib/platform.js';
 
@@ -100,6 +100,7 @@ export default function App() {
   const [showRotation, setShowRotation] = useState(false);
   const [showReveal, setShowReveal] = useState(false);
   const [viewMode, setViewMode] = useState('settimana'); // 'settimana' | 'mese'
+  const [weekAnchorDay, setWeekAnchorDay] = useState(todayStr());
 
   const { toast, show: showToast } = useToast();
   const weeksHook    = useWeeks();
@@ -298,14 +299,25 @@ export default function App() {
   async function handleAddAbsence(uid, from, to) {
     try {
       await absencesHook.addAbsence(houseId, uid, from, to);
+      await weeksHook.load(houseId);
       const name = houseHook.house?.users?.find(u => u.id === uid)?.name ?? 'Utente';
       showToast(`Assenza di ${name} aggiunta`, 'success');
     } catch (e) { showToast(e.message, 'error'); }
   }
 
+  async function handleUpdateAbsence(id, uid, from, to) {
+    try {
+      await absencesHook.updateAbsence(houseId, id, uid, from, to);
+      await weeksHook.load(houseId);
+      showToast('Assenza aggiornata', 'success');
+    } catch (e) { showToast(e.message, 'error'); }
+  }
+
   async function handleRemoveAbsence(id) {
-    try { await absencesHook.removeAbsence(houseId, id); }
-    catch (e) { showToast(e.message, 'error'); }
+    try {
+      await absencesHook.removeAbsence(houseId, id);
+      await weeksHook.load(houseId);
+    } catch (e) { showToast(e.message, 'error'); }
   }
 
   async function handleProposeSwap(weekId, fromUserId, fromRoomId, toUserId, toRoomId) {
@@ -332,6 +344,7 @@ export default function App() {
     const turno = findTurnoForDate(weeksHook.weeks, dateStr);
     if (!turno) { showToast('Nessun turno disponibile per questo giorno'); return; }
     weeksHook.goToId(turno.id);
+    setWeekAnchorDay(dateStr);
     setViewMode('settimana');
   }
 
@@ -348,7 +361,7 @@ export default function App() {
   if (view === 'create-house') return <CreateHouseScreen onSuccess={handleCreateSuccess} onBack={addingHouse ? cancelAddHouse : () => setView('welcome')} />;
 
   // ---- Main app ----
-  const { currentWeek, weeks, currentIdx, loading } = weeksHook;
+  const { currentWeek, weeks, loading } = weeksHook;
   const house = houseHook.house;
 
   const assignments = currentWeek?.assignments ?? [];
@@ -393,13 +406,15 @@ export default function App() {
       ) : currentWeek ? (
         <>
           <WeekAggregateView
-            week={currentWeek}
-            currentIdx={currentIdx}
-            totalWeeks={weeks.length}
+            weeks={weeks}
+            users={house?.users ?? []}
+            userId={userId}
+            houseId={houseId}
+            ensureThrough={weeksHook.ensureThrough}
             navLoading={weeksHook.navLoading}
-            onPrev={() => weeksHook.goTo(-1, houseId)}
-            onNext={() => weeksHook.goTo(1, houseId)}
-            onThisWeek={weeksHook.goToCurrent}
+            onJumpToDay={jumpToDay}
+            onToday={() => { weeksHook.goToCurrent(); setWeekAnchorDay(todayStr()); }}
+            anchorDay={weekAnchorDay}
           />
 
           <div className="px-4 pt-3 flex flex-col gap-3">
@@ -524,6 +539,7 @@ export default function App() {
           currentUserId={userId}
           absences={absencesHook.absences}
           onAdd={handleAddAbsence}
+          onUpdate={handleUpdateAbsence}
           onRemove={handleRemoveAbsence}
           onClose={() => setShowAbsences(false)}
         />
@@ -533,6 +549,7 @@ export default function App() {
         <SwapsScreen
           house={house}
           userId={userId}
+          weeks={weeks}
           currentWeek={currentWeek}
           swaps={swapsHook.swaps}
           onPropose={handleProposeSwap}

@@ -400,10 +400,31 @@ export async function insertAbsence(houseId, userId, from, to) {
   return { id: data.id, userId: data.user_id, userName: data.users.name, from: data.from_date, to: data.to_date };
 }
 
+export async function updateAbsence(houseId, absenceId, { userId, from, to }) {
+  const patch = {};
+  if (userId !== undefined) patch.user_id   = userId;
+  if (from   !== undefined) patch.from_date = from;
+  if (to     !== undefined) patch.to_date   = to;
+  const { data, error } = await supabase
+    .from('absences').update(patch).eq('id', absenceId).eq('house_id', houseId)
+    .select('*, users(id, name)').single();
+  if (error) throw error;
+  return { id: data.id, userId: data.user_id, userName: data.users.name, from: data.from_date, to: data.to_date };
+}
+
 export async function deleteAbsence(houseId, absenceId) {
   const { error } = await supabase
     .from('absences').delete().eq('id', absenceId).eq('house_id', houseId);
   if (error) throw error;
+}
+
+// Cancella fisicamente le assenze ormai concluse (to_date nel passato): non
+// intersecano più nessun turno corrente/futuro, tenerle intasa solo la UI.
+export async function deleteExpiredAbsences(cutoffDate) {
+  const { data, error } = await supabase
+    .from('absences').delete().lt('to_date', cutoffDate).select('id');
+  if (error) throw error;
+  return data?.length ?? 0;
 }
 
 // ── Push subscriptions ───────────────────────────────────────────
@@ -545,7 +566,7 @@ export const db = {
   getRooms, createRoom, updateRoom, deleteRoom,
   getRules, createRule, updateRule, deleteRule,
   getWeeks, insertWeek, deleteWeeksBefore, deleteWeeksFrom, setDone,
-  getAbsences, insertAbsence, deleteAbsence,
+  getAbsences, insertAbsence, updateAbsence, deleteAbsence, deleteExpiredAbsences,
   getPushSubscriptions, savePushSubscription, deletePushSubscription, deletePushSubscriptionByEndpoint,
   getSwapRequests, getSwapById, createSwapRequest, updateSwapStatus, getAssignment, swapAssignments,
   getAppMeta, setAppMeta,

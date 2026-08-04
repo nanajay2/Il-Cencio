@@ -25,6 +25,12 @@ export function useAbsences() {
     return abs;
   }
 
+  async function updateAbsence(houseId, absenceId, userId, from, to) {
+    const abs = await api.updateAbsence(houseId, absenceId, userId, from, to);
+    setAbsences(a => a.map(x => x.id === absenceId ? abs : x));
+    return abs;
+  }
+
   async function removeAbsence(houseId, absenceId) {
     await api.deleteAbsence(houseId, absenceId);
     setAbsences(a => a.filter(x => x.id !== absenceId));
@@ -37,5 +43,5 @@ export function useAbsences() {
     return absences.some(a => a.userId === userId && a.from <= weekStart && a.to >= weekEnd);
   }
 
-  return { absences, loading, error, load, addAbsence, removeAbsence, isAbsent };
+  return { absences, loading, error, load, addAbsence, updateAbsence, removeAbsence, isAbsent };
 }

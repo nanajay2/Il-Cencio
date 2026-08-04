@@ -46,6 +46,15 @@ export function findTurnoForDate(weeks, dateStr) {
   return weeks.find(w => dateStr >= w.start && dateStr <= w.end) ?? null;
 }
 
+// Sfondo del giorno: pieno se una sola stanza quel turno, "torta" a spicchi
+// uguali (uno per stanza) se ne ho più di una. Condiviso da Mese e Settimana.
+export function dayBackground(colors) {
+  if (colors.length === 0) return undefined;
+  if (colors.length === 1) return colors[0];
+  const step = 100 / colors.length;
+  return `conic-gradient(${colors.map((c, i) => `${c} ${i * step}% ${(i + 1) * step}%`).join(', ')})`;
+}
+
 // Per persona: conteggio totale + stanze con conteggio per stanza.
 export function aggregateByUser(turnos, users) {
   const byUser = new Map();

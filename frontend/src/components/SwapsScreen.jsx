@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, ArrowLeftRight, Check } from 'lucide-react';
+import { fmt, todayStr, isCurW } from '../constants.js';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock.js';
 
 const btnCls =
@@ -12,32 +13,45 @@ const inputCls =
 const sectionCls = 'bg-card rounded-2xl border border-border p-5 flex flex-col gap-3';
 const titleCls   = 'font-bold text-[.92rem] text-ink mb-1';
 
-export function SwapsScreen({ house, userId, currentWeek, swaps, onPropose, onAccept, onDecline, onClose }) {
+export function SwapsScreen({ house, userId, weeks, currentWeek, swaps, onPropose, onAccept, onDecline, onClose }) {
   useBodyScrollLock();
 
-  const myAssignments = (currentWeek?.assignments ?? []).filter(a => a.userId === userId);
+  const eligibleWeeks = (weeks ?? []).filter(w => w.end >= todayStr());
+  const [selectedWeekId, setSelectedWeekId] = useState(currentWeek?.id ?? eligibleWeeks[0]?.id ?? '');
+  const selectedWeek = eligibleWeeks.find(w => w.id === selectedWeekId) ?? null;
+
+  const myAssignments = (selectedWeek?.assignments ?? []).filter(a => a.userId === userId);
   const otherUsers = (house.users ?? []).filter(u => u.id !== userId);
 
   const [fromRoomId, setFromRoomId] = useState(myAssignments[0]?.roomId ?? '');
   const [toUserId,   setToUserId]   = useState(otherUsers[0]?.id ?? '');
   const [saving,     setSaving]     = useState(false);
 
-  const toUserAssignments = (currentWeek?.assignments ?? []).filter(a => a.userId === Number(toUserId));
+  const toUserAssignments = (selectedWeek?.assignments ?? []).filter(a => a.userId === Number(toUserId));
   const [toRoomId, setToRoomId] = useState(toUserAssignments[0]?.roomId ?? '');
+
+  // Cambiando turno, le stanze assegnate a me/al destinatario possono
+  // differire: reimposto le selezioni sulla base del nuovo turno.
+  useEffect(() => {
+    setFromRoomId(myAssignments[0]?.roomId ?? '');
+    const asgns = (selectedWeek?.assignments ?? []).filter(a => a.userId === Number(toUserId));
+    setToRoomId(asgns[0]?.roomId ?? '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedWeekId]);
 
   function selectToUser(id) {
     setToUserId(id);
-    const asgns = (currentWeek?.assignments ?? []).filter(a => a.userId === Number(id));
+    const asgns = (selectedWeek?.assignments ?? []).filter(a => a.userId === Number(id));
     setToRoomId(asgns[0]?.roomId ?? '');
   }
 
-  const canPropose = currentWeek && fromRoomId && toUserId && !saving;
+  const canPropose = selectedWeek && fromRoomId && toUserId && !saving;
 
   async function handlePropose() {
     if (!canPropose) return;
     setSaving(true);
     try {
-      await onPropose(currentWeek.id, userId, Number(fromRoomId), Number(toUserId), toRoomId ? Number(toRoomId) : null);
+      await onPropose(selectedWeek.id, userId, Number(fromRoomId), Number(toUserId), toRoomId ? Number(toRoomId) : null);
     } finally {
       setSaving(false);
     }
@@ -113,8 +127,20 @@ export function SwapsScreen({ house, userId, currentWeek, swaps, onPropose, onAc
 
         <section className={sectionCls}>
           <div className={titleCls}>Proponi uno scambio</div>
+
+          <div>
+            <label className="block text-[.7rem] font-bold text-ink-2 mb-1 uppercase tracking-[.05em]">Turno</label>
+            <select value={selectedWeekId} onChange={e => setSelectedWeekId(e.target.value)} className={inputCls + ' w-full'}>
+              {eligibleWeeks.map(w => (
+                <option key={w.id} value={w.id}>
+                  {fmt(w.start)} – {fmt(w.end)}{isCurW(w) ? ' (attuale)' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {myAssignments.length === 0 || otherUsers.length === 0 ? (
-            <p className="text-[.77rem] text-ink-2 -mt-1">Non hai turni da scambiare questa settimana.</p>
+            <p className="text-[.77rem] text-ink-2 -mt-1">Non hai turni da scambiare in questo turno.</p>
           ) : (
             <>
               <p className="text-[.77rem] text-ink-2 -mt-1">Scambia una tua stanza con quella di un coinquilino, oppure dagliela direttamente se questa settimana non ne ha.</p>
