@@ -1,5 +1,4 @@
 const MODES = [
-  { key: 'oggi',      label: 'Oggi' },
   { key: 'settimana', label: 'Settimana' },
   { key: 'mese',      label: 'Mese' },
 ];

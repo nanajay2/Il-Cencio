@@ -1,3 +1,4 @@
+import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { MONTHS } from '../constants.js';
 import { useAggregateView } from '../hooks/useAggregateView.js';
 import { findTurnoForDate } from '../lib/calendarBuckets.js';
@@ -12,27 +13,27 @@ function dayBackground(colors) {
   return `conic-gradient(${colors.map((c, i) => `${c} ${i * step}% ${(i + 1) * step}%`).join(', ')})`;
 }
 
-export function MonthAggregateView({ weeks, users, userId, onJumpToDay }) {
-  const { range, perUser, days, goPrev, goNext, goToday } = useAggregateView(weeks, users, 'month');
+export function MonthAggregateView({ weeks, users, userId, houseId, ensureThrough, navLoading, onJumpToDay }) {
+  const { range, perUser, days, goPrev, goNext, goToday } = useAggregateView(weeks, users, 'month', houseId, ensureThrough);
   const [y, m] = range.start.split('-').map(Number);
 
   return (
     <div className="px-4 pt-3 flex flex-col gap-3">
       <div className="flex items-center gap-3">
         <button
-          onClick={goPrev}
-          className="w-9 h-9 rounded-full border border-sage bg-card flex items-center justify-center text-[1.1rem] text-ink cursor-pointer transition-all hover:bg-cream-2 flex-shrink-0"
+          onClick={goPrev} disabled={navLoading}
+          className="w-9 h-9 rounded-full border border-sage bg-card flex items-center justify-center text-ink cursor-pointer transition-all hover:bg-cream-2 disabled:opacity-30 disabled:cursor-default flex-shrink-0"
         >
-          ‹
+          <ChevronLeft size={18} />
         </button>
         <div className="flex-1 text-center text-[.92rem] font-bold text-ink capitalize">
           {MONTHS[m - 1]} {y}
         </div>
         <button
-          onClick={goNext}
-          className="w-9 h-9 rounded-full border border-sage bg-card flex items-center justify-center text-[1.1rem] text-ink cursor-pointer transition-all hover:bg-cream-2 flex-shrink-0"
+          onClick={goNext} disabled={navLoading}
+          className="w-9 h-9 rounded-full border border-sage bg-card flex items-center justify-center text-ink cursor-pointer transition-all hover:bg-cream-2 disabled:opacity-30 disabled:cursor-default flex-shrink-0"
         >
-          ›
+          {navLoading ? <Loader2 size={18} className="animate-spin" /> : <ChevronRight size={18} />}
         </button>
       </div>
 
