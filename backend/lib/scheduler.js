@@ -194,23 +194,30 @@ export function computeNextWeek(weeks, users, rooms, rules, rotation = { type: '
 
   // 2. Pool-restricted rooms — prova prima chi non ha ancora nulla questa
   //    settimana, così non si "ruba" la stanza a chi aspetta il suo turno solo
-  //    perché il tie-break li preferiva; ricade su tutto il pool solo se
-  //    proprio nessun membro è più libero (più stanze che persone nel pool).
+  //    perché il tie-break li preferiva; ricade su tutto il pool se nessuno dei
+  //    "liberi" è idoneo (es. tutti assenti), non solo se il pool è vuoto —
+  //    altrimenti la stanza resta scoperta anche quando qualcuno del pool,
+  //    già occupato altrove, potrebbe comunque farla.
   for (const [roomIdStr, allowedSet] of Object.entries(poolFor)) {
     const roomId = parseInt(roomIdStr);
     if (usedRooms.has(roomId)) continue;
     const allowed  = [...allowedSet].filter(uid => allUserIds.includes(uid));
     const free     = allowed.filter(uid => !weekLoad.has(uid));
-    const pick     = pickLeast(free.length ? free : allowed, roomId);
+    const pick     = pickLeast(free, roomId) ?? pickLeast(allowed, roomId);
     if (pick) assign(pick, roomId);
   }
 
   // 3. Stanze rimanenti → utenti rimanenti (least-recently), stesso principio:
-  //    priorità a chi è ancora completamente libero.
+  //    priorità a chi è ancora completamente libero, ma ricade su tutti se tra
+  //    i "liberi" nessuno è idoneo (es. tutti assenti tranne chi ha già un
+  //    turno) invece di lasciare la stanza scoperta. Le stanze con
+  //    pool_restriction sono escluse: se lo step 2 non ha trovato nessuno
+  //    idoneo nel pool consentito, la regola impone che restino scoperte,
+  //    non che si aprano a chiunque altro in casa.
   for (const room of sortedRooms) {
-    if (usedRooms.has(room.id)) continue;
+    if (usedRooms.has(room.id) || poolFor[room.id]) continue;
     const free = allUserIds.filter(uid => !weekLoad.has(uid));
-    const pick = pickLeast(free.length ? free : allUserIds, room.id);
+    const pick = pickLeast(free, room.id) ?? pickLeast(allUserIds, room.id);
     if (pick) assign(pick, room.id);
   }
 
