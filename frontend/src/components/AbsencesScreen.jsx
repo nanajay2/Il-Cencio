@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { X, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 import { MONTHS, DAYS, fmt, todayStr } from '../constants.js';
 import { firstOfMonth, monthRangeOf, daysInRange } from '../lib/calendarBuckets.js';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock.js';
@@ -12,15 +13,6 @@ const btnCls =
 
 const sectionCls = 'bg-card rounded-2xl border border-border p-5 flex flex-col gap-3';
 const titleCls   = 'font-bold text-[.92rem] text-ink mb-1';
-
-function CloseIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="18" y1="6" x2="6" y2="18" />
-      <line x1="6" y1="6" x2="18" y2="18" />
-    </svg>
-  );
-}
 
 function prevMonth(dateStr) {
   const [y, m] = dateStr.split('-').map(Number);
@@ -74,7 +66,9 @@ export function AbsencesScreen({ house, currentUserId, absences, onAdd, onRemove
       <div className="max-w-[480px] mx-auto flex flex-col gap-4 pb-8" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)' }}>
 
         <div className="flex items-center justify-between gap-3">
-          <h2 className="font-serif text-[1.6rem] text-ink truncate">🗓️ Assenze</h2>
+          <h2 className="font-serif text-[1.6rem] text-ink truncate flex items-center gap-2">
+            <CalendarDays size={22} className="flex-shrink-0" /> Assenze
+          </h2>
           <button
             onClick={onClose}
             aria-label="Chiudi"
@@ -83,7 +77,7 @@ export function AbsencesScreen({ house, currentUserId, absences, onAdd, onRemove
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(78,34,15,.18)'; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'rgba(78,34,15,.1)'; }}
           >
-            <CloseIcon />
+            <X size={14} strokeWidth={1.8} />
           </button>
         </div>
 
@@ -94,18 +88,18 @@ export function AbsencesScreen({ house, currentUserId, absences, onAdd, onRemove
           <div className="flex items-center gap-3">
             <button
               onClick={() => setAnchor(prevMonth(anchor))}
-              className="w-9 h-9 rounded-full border border-sage bg-cream flex items-center justify-center text-[1.1rem] text-ink cursor-pointer transition-all hover:bg-cream-2 flex-shrink-0"
+              className="w-9 h-9 rounded-full border border-sage bg-cream flex items-center justify-center text-ink cursor-pointer transition-all hover:bg-cream-2 flex-shrink-0"
             >
-              ‹
+              <ChevronLeft size={18} />
             </button>
             <div className="flex-1 text-center text-[.92rem] font-bold text-ink capitalize">
               {MONTHS[m - 1]} {y}
             </div>
             <button
               onClick={() => setAnchor(nextMonth(anchor))}
-              className="w-9 h-9 rounded-full border border-sage bg-cream flex items-center justify-center text-[1.1rem] text-ink cursor-pointer transition-all hover:bg-cream-2 flex-shrink-0"
+              className="w-9 h-9 rounded-full border border-sage bg-cream flex items-center justify-center text-ink cursor-pointer transition-all hover:bg-cream-2 flex-shrink-0"
             >
-              ›
+              <ChevronRight size={18} />
             </button>
           </div>
 
@@ -164,7 +158,7 @@ export function AbsencesScreen({ house, currentUserId, absences, onAdd, onRemove
                   onClick={() => onRemove(a.id)}
                   className="border-0 bg-transparent cursor-pointer text-ink-2 text-[.9rem] px-[7px] py-[3px] rounded-md transition-all hover:text-red hover:bg-red-pale"
                 >
-                  ✕
+                  <X size={14} strokeWidth={1.8} />
                 </button>
               </div>
             ))}

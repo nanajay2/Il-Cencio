@@ -1,6 +1,5 @@
 
-# Il Cencio · Turni di Casa — Via Risorgimento
-
+# Il Cencio · Turni di Casa 
 Web app per gestire i turni di pulizia settimanali in una casa condivisa. Ogni casa configura le proprie stanze, i propri coinquilini e le proprie regole di assegnazione; l'algoritmo genera automaticamente il calendario dei turni.
 
 ## Stack

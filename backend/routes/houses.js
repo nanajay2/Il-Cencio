@@ -215,6 +215,18 @@ router.post('/:houseId/rules', async (req, res) => {
   }
 });
 
+router.put('/:houseId/rules/:ruleId', async (req, res) => {
+  const { type, config } = req.body;
+  if (!type || !config) return res.status(400).json({ error: 'type e config richiesti' });
+  try {
+    await db.updateRule(req.params.houseId, Number(req.params.ruleId), { type, config });
+    await invalidateUpcomingWeeks(db, req.params.houseId);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 router.delete('/:houseId/rules/:ruleId', async (req, res) => {
   try {
     await db.deleteRule(req.params.houseId, Number(req.params.ruleId));

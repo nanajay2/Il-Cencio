@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { Cat } from 'lucide-react';
 import { isCurW } from '../constants.js';
 
 export function RevealModal({ week, userId, onDismiss }) {
@@ -32,7 +33,7 @@ export function RevealModal({ week, userId, onDismiss }) {
         <span className="sparkle" /><span className="sparkle" /><span className="sparkle" />
         <span className="sparkle" /><span className="sparkle" /><span className="sparkle" />
 
-        <span className="block text-[2.8rem] mb-[14px] [animation:revealBounce_.65s_ease-in-out_infinite_alternate]">🐱</span>
+        <span className="flex justify-center text-brown mb-[14px] [animation:revealBounce_.65s_ease-in-out_infinite_alternate]"><Cat size={45} /></span>
         <div className="text-[.72rem] font-bold uppercase tracking-[.1em] text-ink-2 mb-[10px]">
           Il tuo turno questa settimana
         </div>

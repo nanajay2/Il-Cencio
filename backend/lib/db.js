@@ -294,6 +294,15 @@ export async function createRule(houseId, type, config) {
   return { id: data.id, type: data.type, config: data.config };
 }
 
+export async function updateRule(houseId, ruleId, { type, config }) {
+  const patch = {};
+  if (type   !== undefined) patch.type   = type;
+  if (config !== undefined) patch.config = config;
+  const { error } = await supabase
+    .from('rules').update(patch).eq('id', ruleId).eq('house_id', houseId);
+  if (error) throw error;
+}
+
 export async function deleteRule(houseId, ruleId) {
   const { error } = await supabase
     .from('rules').delete().eq('id', ruleId).eq('house_id', houseId);
@@ -534,7 +543,7 @@ export const db = {
   getHouseMembers, lookupHouseByCode, registerUser, getUserById, getUserByEmail, setPinHash,
   getUsers, createUserSlot, claimUserSlot, deleteUser, leaveHouse,
   getRooms, createRoom, updateRoom, deleteRoom,
-  getRules, createRule, deleteRule,
+  getRules, createRule, updateRule, deleteRule,
   getWeeks, insertWeek, deleteWeeksBefore, deleteWeeksFrom, setDone,
   getAbsences, insertAbsence, deleteAbsence,
   getPushSubscriptions, savePushSubscription, deletePushSubscription, deletePushSubscriptionByEndpoint,

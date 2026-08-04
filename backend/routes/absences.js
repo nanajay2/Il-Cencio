@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { db } from '../lib/db.js';
 import { sendNotificationExcluding } from '../lib/push.js';
+import { invalidateUpcomingWeeks } from '../lib/scheduler.js';
 
 const router = Router({ mergeParams: true });
 
@@ -24,6 +25,7 @@ router.post('/', async (req, res) => {
   if (from > to) return res.status(400).json({ error: 'from deve essere ≤ to' });
   try {
     const absence = await db.insertAbsence(req.params.houseId, Number(userId), from, to);
+    await invalidateUpcomingWeeks(db, req.params.houseId);
     sendNotificationExcluding(req.params.houseId, {
       title: 'Nuova assenza',
       body: `${absence.userName} sarà assente dal ${fmt(from)} al ${fmt(to)}.`,
@@ -38,6 +40,7 @@ router.post('/', async (req, res) => {
 router.delete('/:absenceId', async (req, res) => {
   try {
     await db.deleteAbsence(req.params.houseId, Number(req.params.absenceId));
+    await invalidateUpcomingWeeks(db, req.params.houseId);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });

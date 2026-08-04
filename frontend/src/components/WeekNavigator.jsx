@@ -1,6 +1,7 @@
+import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { fmt, isCurW, isPastW } from '../constants.js';
 
-export function WeekNavigator({ week, currentIdx, totalWeeks, onPrev, onNext, onThisWeek }) {
+export function WeekNavigator({ week, currentIdx, totalWeeks, navLoading, onPrev, onNext, onThisWeek }) {
   if (!week) return null;
 
   const isCur  = isCurW(week);
@@ -16,10 +17,10 @@ export function WeekNavigator({ week, currentIdx, totalWeeks, onPrev, onNext, on
     <div className="px-4 pt-4 pb-1">
       <div className="flex items-center gap-3">
         <button
-          onClick={onPrev} disabled={currentIdx === 0}
-          className="w-9 h-9 rounded-full border border-sage bg-card flex items-center justify-center text-[1.1rem] text-ink cursor-pointer transition-all hover:bg-cream-2 disabled:opacity-30 disabled:cursor-default flex-shrink-0"
+          onClick={onPrev} disabled={currentIdx === 0 || navLoading}
+          className="w-9 h-9 rounded-full border border-sage bg-card flex items-center justify-center text-ink cursor-pointer transition-all hover:bg-cream-2 disabled:opacity-30 disabled:cursor-default flex-shrink-0"
         >
-          ‹
+          <ChevronLeft size={18} />
         </button>
 
         <div className="flex-1 text-center">
@@ -35,10 +36,10 @@ export function WeekNavigator({ week, currentIdx, totalWeeks, onPrev, onNext, on
         </div>
 
         <button
-          onClick={onNext} disabled={currentIdx === totalWeeks - 1}
-          className="w-9 h-9 rounded-full border border-sage bg-card flex items-center justify-center text-[1.1rem] text-ink cursor-pointer transition-all hover:bg-cream-2 disabled:opacity-30 disabled:cursor-default flex-shrink-0"
+          onClick={onNext} disabled={navLoading}
+          className="w-9 h-9 rounded-full border border-sage bg-card flex items-center justify-center text-ink cursor-pointer transition-all hover:bg-cream-2 disabled:opacity-30 disabled:cursor-default flex-shrink-0"
         >
-          ›
+          {navLoading ? <Loader2 size={18} className="animate-spin" /> : <ChevronRight size={18} />}
         </button>
       </div>
 

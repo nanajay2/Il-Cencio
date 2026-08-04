@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
+import { CircleCheck, CircleX, Info } from 'lucide-react';
 
 export function useToast() {
   const [toast, setToast] = useState({ msg: '', type: '', visible: false });
@@ -13,6 +14,8 @@ export function useToast() {
   return { toast, show };
 }
 
+const ICONS = { error: CircleX, success: CircleCheck };
+
 export function Toast({ toast }) {
   const colorCls = toast.type === 'error'   ? 'bg-red'
                  : toast.type === 'success' ? 'bg-green'
@@ -22,10 +25,13 @@ export function Toast({ toast }) {
     ? 'translate-y-0 scale-100'
     : 'translate-y-20 scale-95';
 
+  const Icon = ICONS[toast.type] ?? Info;
+
   return (
     <div
-      className={`fixed bottom-6 left-1/2 -translate-x-1/2 ${visibleCls} ${colorCls} text-white px-6 py-[11px] rounded-full text-[.83rem] font-bold tracking-[.02em] shadow-[0_6px_24px_rgba(0,0,0,.22)] transition-[transform] duration-[280ms] pointer-events-none z-[300] [transition-timing-function:cubic-bezier(.34,1.4,.64,1)]`}
+      className={`fixed bottom-6 left-1/2 -translate-x-1/2 ${visibleCls} ${colorCls} text-white px-6 py-[11px] rounded-full text-[.83rem] font-bold tracking-[.02em] shadow-[0_6px_24px_rgba(0,0,0,.22)] transition-[transform] duration-[280ms] pointer-events-none z-[300] [transition-timing-function:cubic-bezier(.34,1.4,.64,1)] flex items-center gap-2`}
     >
+      <Icon size={16} strokeWidth={2.5} className="flex-shrink-0" />
       {toast.msg}
     </div>
   );

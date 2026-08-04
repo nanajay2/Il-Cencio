@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Loader2, ClipboardList } from 'lucide-react';
 import { Header }             from './components/Header.jsx';
 import { WeekNavigator }      from './components/WeekNavigator.jsx';
 import { ChoreCard }          from './components/ChoreCard.jsx';
@@ -25,7 +26,7 @@ import { useHouse }           from './hooks/useHouse.js';
 import { useSwaps }           from './hooks/useSwaps.js';
 import { usePush }            from './hooks/usePush.js';
 import { api }                from './api.js';
-import { fmt, isCurW }        from './constants.js';
+import { isCurW }             from './constants.js';
 import { findTurnoForDate }   from './lib/calendarBuckets.js';
 import { isStandalone }       from './lib/platform.js';
 
@@ -87,9 +88,9 @@ export default function App() {
   useEffect(() => {
     if (!houseId) return;
     houseHook.load(houseId).catch(() => {});
-    weeksHook.load(houseId).catch(e => showToast('❌ ' + e.message, 'error'));
-    absencesHook.load(houseId).catch(e => showToast('❌ ' + e.message, 'error'));
-    swapsHook.load(houseId).catch(e => showToast('❌ ' + e.message, 'error'));
+    weeksHook.load(houseId).catch(e => showToast(e.message, 'error'));
+    absencesHook.load(houseId).catch(e => showToast(e.message, 'error'));
+    swapsHook.load(houseId).catch(e => showToast(e.message, 'error'));
   }, [houseId]);
 
   // Chiede il permesso di notifica appena l'utente entra, ma solo la prima
@@ -212,7 +213,7 @@ export default function App() {
       await api.leaveHouse(houseId, userId);
       setShowSettings(false);
       logout();
-    } catch (e) { showToast('❌ ' + e.message, 'error'); }
+    } catch (e) { showToast(e.message, 'error'); }
   }
 
   async function refresh() {
@@ -223,57 +224,46 @@ export default function App() {
         weeksHook.load(houseId),
         absencesHook.load(houseId),
       ]);
-      showToast('Aggiornato ↻');
-    } catch (e) { showToast('❌ ' + e.message, 'error'); }
+      showToast('Aggiornato', 'success');
+    } catch (e) { showToast(e.message, 'error'); }
   }
 
   async function handleToggle(weekId, uid, roomId) {
     try { await weeksHook.toggleDone(houseId, weekId, uid, roomId); }
-    catch (e) { showToast('❌ ' + e.message, 'error'); }
-  }
-
-  async function handleGenerate() {
-    const { weeks } = weeksHook;
-    const last = weeks[weeks.length - 1];
-    if (!last) return;
-    if (!window.confirm(`Generare la settimana dopo il ${fmt(last.end)}?`)) return;
-    try {
-      await weeksHook.generateWeek(houseId);
-      showToast('✅ Settimana aggiunta!', 'success');
-    } catch (e) { showToast('❌ ' + e.message, 'error'); }
+    catch (e) { showToast(e.message, 'error'); }
   }
 
   async function handleAddAbsence(uid, from, to) {
     try {
       await absencesHook.addAbsence(houseId, uid, from, to);
       const name = houseHook.house?.users?.find(u => u.id === uid)?.name ?? 'Utente';
-      showToast(`✅ Assenza di ${name} aggiunta`, 'success');
-    } catch (e) { showToast('❌ ' + e.message, 'error'); }
+      showToast(`Assenza di ${name} aggiunta`, 'success');
+    } catch (e) { showToast(e.message, 'error'); }
   }
 
   async function handleRemoveAbsence(id) {
     try { await absencesHook.removeAbsence(houseId, id); }
-    catch (e) { showToast('❌ ' + e.message, 'error'); }
+    catch (e) { showToast(e.message, 'error'); }
   }
 
   async function handleProposeSwap(weekId, fromUserId, fromRoomId, toUserId, toRoomId) {
     try {
       await swapsHook.proposeSwap(houseId, weekId, fromUserId, fromRoomId, toUserId, toRoomId);
-      showToast('✅ Richiesta di scambio inviata', 'success');
-    } catch (e) { showToast('❌ ' + e.message, 'error'); }
+      showToast('Richiesta di scambio inviata', 'success');
+    } catch (e) { showToast(e.message, 'error'); }
   }
 
   async function handleAcceptSwap(swapId) {
     try {
       await swapsHook.acceptSwap(houseId, swapId);
       await weeksHook.load(houseId);
-      showToast('✅ Scambio accettato', 'success');
-    } catch (e) { showToast('❌ ' + e.message, 'error'); }
+      showToast('Scambio accettato', 'success');
+    } catch (e) { showToast(e.message, 'error'); }
   }
 
   async function handleDeclineSwap(swapId) {
     try { await swapsHook.declineSwap(houseId, swapId); }
-    catch (e) { showToast('❌ ' + e.message, 'error'); }
+    catch (e) { showToast(e.message, 'error'); }
   }
 
   function jumpToDay(dateStr) {
@@ -319,8 +309,9 @@ export default function App() {
             week={currentWeek}
             currentIdx={currentIdx}
             totalWeeks={weeks.length}
-            onPrev={() => weeksHook.goTo(-1)}
-            onNext={() => weeksHook.goTo(1)}
+            navLoading={weeksHook.navLoading}
+            onPrev={() => weeksHook.goTo(-1, houseId)}
+            onNext={() => weeksHook.goTo(1, houseId)}
             onThisWeek={weeksHook.goToCurrent}
           />
 
@@ -382,12 +373,12 @@ export default function App() {
         </>
       ) : loading ? (
         <div className="mx-4 mt-6 bg-card rounded-2xl border border-border p-10 text-center text-ink-2">
-          <div className="text-[2.6rem] mb-3">⏳</div>
+          <div className="flex justify-center mb-3"><Loader2 size={40} className="animate-spin" /></div>
           <p className="text-[.88rem]">Caricamento…</p>
         </div>
       ) : (
         <div className="mx-4 mt-6 bg-card rounded-2xl border border-border p-10 text-center text-ink-2">
-          <div className="text-[2.6rem] mb-3">📋</div>
+          <div className="flex justify-center mb-3"><ClipboardList size={40} /></div>
           <p className="text-[.88rem]">Nessuna settimana disponibile.</p>
         </div>
       )}
@@ -415,6 +406,10 @@ export default function App() {
             await houseHook.addRule(houseId, type, config);
             await weeksHook.load(houseId);
           }}
+          onEditRule={async (ruleId, type, config) => {
+            await houseHook.editRule(houseId, ruleId, type, config);
+            await weeksHook.load(houseId);
+          }}
           onRemoveRule={async (ruleId) => {
             await houseHook.removeRule(houseId, ruleId);
             await weeksHook.load(houseId);
@@ -434,7 +429,6 @@ export default function App() {
         onOpenCoinquilini={() => setShowCoinquilini(true)}
         onOpenRotation={() => setShowRotation(true)}
         onOpenSettings={() => setShowSettings(true)}
-        onGenerateWeek={handleGenerate}
       />
 
       {showAbsences && house && (
@@ -467,7 +461,12 @@ export default function App() {
           onAddRoom={async (data) => {
             await houseHook.addRoom(houseId, data);
             await weeksHook.load(houseId);
-            showToast('✅ Stanza aggiunta');
+            showToast('Stanza aggiunta', 'success');
+          }}
+          onEditRoom={async (roomId, data) => {
+            await houseHook.editRoom(houseId, roomId, data);
+            await weeksHook.load(houseId);
+            showToast('Stanza aggiornata', 'success');
           }}
           onRemoveRoom={async (roomId) => {
             await houseHook.removeRoom(houseId, roomId);
@@ -483,7 +482,7 @@ export default function App() {
           onAddUser={async (name) => {
             await houseHook.addUser(houseId, name, '');
             await weeksHook.load(houseId);
-            showToast(`✅ ${name} aggiunto`, 'success');
+            showToast(`${name} aggiunto`, 'success');
           }}
           onRemoveUser={async (uid) => {
             await houseHook.removeUser(houseId, uid);

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { TriangleAlert, X, Home, PartyPopper, Settings, Check, ArrowRight, ArrowLeft } from 'lucide-react';
 import { api } from '../api.js';
 
 const inputCls =
@@ -113,8 +114,9 @@ export function CreateHouseScreen({ onSuccess, onBack }) {
         <div>
           <label className={labelCls}>Nome della casa</label>
           <input type="text" value={houseName} onChange={e => setHouseName(e.target.value)} placeholder="es. Il Cencio" className={inputCls} />
-          <p className="text-[.73rem] text-ink-2 mt-1">
-            ⚠️ Evita di usare il tuo indirizzo reale (via, numero civico): scegli un nome di fantasia. Questo nome può finire nell'URL e nel codice condiviso con altri.
+          <p className="text-[.73rem] text-ink-2 mt-1 flex items-start gap-1">
+            <TriangleAlert size={14} className="flex-shrink-0 mt-0.5" />
+            Evita di usare il tuo indirizzo reale (via, numero civico): scegli un nome di fantasia. Questo nome può finire nell'URL e nel codice condiviso con altri.
           </p>
         </div>
         <div>
@@ -146,13 +148,13 @@ export function CreateHouseScreen({ onSuccess, onBack }) {
       <button
         onClick={handleCreate}
         disabled={loading || !canSubmitStep1}
-        className="w-full max-w-[360px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full max-w-[360px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
       >
-        {loading ? 'Creazione…' : 'Continua →'}
+        {loading ? 'Creazione…' : <>Continua <ArrowRight size={18} /></>}
       </button>
 
-      <button onClick={onBack} className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-brown transition-colors py-1">
-        ← Torna indietro
+      <button onClick={onBack} className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-brown transition-colors py-1 flex items-center gap-1">
+        <ArrowLeft size={14} /> Torna indietro
       </button>
     </div>
   );
@@ -193,7 +195,7 @@ export function CreateHouseScreen({ onSuccess, onBack }) {
                   onClick={() => removePendingName(i)}
                   className="border-0 bg-transparent cursor-pointer text-ink-2 hover:text-red transition-colors"
                 >
-                  ✕
+                  <X size={14} strokeWidth={1.8} />
                 </button>
               </div>
             ))}
@@ -206,16 +208,16 @@ export function CreateHouseScreen({ onSuccess, onBack }) {
       <button
         onClick={handleCoinquiliniContinue}
         disabled={loading}
-        className="w-full max-w-[360px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full max-w-[360px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
       >
-        {loading ? 'Salvataggio…' : 'Continua →'}
+        {loading ? 'Salvataggio…' : <>Continua <ArrowRight size={18} /></>}
       </button>
 
       <button
         onClick={() => setStep(3)}
-        className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-brown transition-colors py-1"
+        className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-brown transition-colors py-1 flex items-center gap-1"
       >
-        Salta, li aggiungo dopo →
+        Salta, li aggiungo dopo <ArrowRight size={14} />
       </button>
     </div>
   );
@@ -260,9 +262,9 @@ export function CreateHouseScreen({ onSuccess, onBack }) {
       <button
         onClick={handleFinish}
         disabled={loading}
-        className="w-full max-w-[360px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full max-w-[360px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
       >
-        {loading ? 'Creazione…' : 'Crea casa 🏠'}
+        {loading ? 'Creazione…' : <>Crea casa <Home size={18} /></>}
       </button>
     </div>
   );
@@ -277,12 +279,12 @@ export function CreateHouseScreen({ onSuccess, onBack }) {
   return (
     <div className="min-h-screen bg-cream flex flex-col items-center justify-center p-6 gap-4">
       <div className="text-center mb-2">
-        <div className="text-[2.4rem]">🎉</div>
+        <div className="flex justify-center text-brown"><PartyPopper size={40} /></div>
         <div className="font-serif text-[1.8rem] text-brown">Casa creata!</div>
         <p className="text-[.85rem] text-ink-2 mt-1 max-w-[340px]">
           Questo è il <strong>codice invito</strong> della tua casa: condividilo con i coinquilini
           che vuoi far entrare, così potranno registrarsi da soli scegliendo nome e PIN.
-          Lo trovi anche in seguito da ⚙️ Impostazioni.
+          Lo trovi anche in seguito da <Settings size={13} className="inline align-[-2px]" /> Impostazioni.
         </p>
       </div>
 
@@ -292,17 +294,17 @@ export function CreateHouseScreen({ onSuccess, onBack }) {
         </code>
         <button
           onClick={copyHouseCode}
-          className="px-4 py-3 bg-brown text-ink font-bold text-[.85rem] rounded-[12px] border-0 cursor-pointer hover:bg-brown-mid transition-colors flex-shrink-0"
+          className="px-4 py-3 bg-brown text-ink font-bold text-[.85rem] rounded-[12px] border-0 cursor-pointer hover:bg-brown-mid transition-colors flex-shrink-0 flex items-center gap-1.5"
         >
-          {codeCopied ? '✅ Copiato' : 'Copia'}
+          {codeCopied ? <><Check size={16} /> Copiato</> : 'Copia'}
         </button>
       </div>
 
       <button
         onClick={() => onSuccess(session)}
-        className="w-full max-w-[360px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors mt-2"
+        className="w-full max-w-[360px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors mt-2 flex items-center justify-center gap-1.5"
       >
-        Vai all'app →
+        Vai all'app <ArrowRight size={18} />
       </button>
     </div>
   );

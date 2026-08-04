@@ -54,6 +54,11 @@ export function useHouse() {
     return rule;
   }
 
+  async function editRule(houseId, ruleId, type, config) {
+    await api.updateRule(houseId, ruleId, type, config);
+    setHouse(h => h ? { ...h, rules: h.rules.map(r => r.id === ruleId ? { ...r, type, config } : r) } : h);
+  }
+
   async function removeRule(houseId, ruleId) {
     await api.deleteRule(houseId, ruleId);
     setHouse(h => h ? { ...h, rules: h.rules.filter(r => r.id !== ruleId) } : h);
@@ -68,7 +73,7 @@ export function useHouse() {
     house, loading, error, load,
     addUser, removeUser,
     addRoom, editRoom, removeRoom,
-    addRule, removeRule,
+    addRule, editRule, removeRule,
     updateRotation,
   };
 }

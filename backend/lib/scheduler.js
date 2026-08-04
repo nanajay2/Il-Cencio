@@ -10,6 +10,15 @@ function addDays(s, n) {
   return d.toISOString().split('T')[0];
 }
 
+// Numero di giorni nell'intervallo [a, b] inclusi entrambi gli estremi.
+function daysBetween(a, b) {
+  return Math.round((new Date(b + 'T12:00:00Z') - new Date(a + 'T12:00:00Z')) / 86400000) + 1;
+}
+
+// Una persona viene esclusa dal turno se la sua assenza copre più di questa
+// frazione della durata del turno (es. 0.75 = più di 3/4 del periodo).
+const ABSENCE_EXCLUSION_THRESHOLD = 0.75;
+
 export const today = () => new Date().toISOString().split('T')[0];
 
 function getMondayOfCurrentWeek() {
@@ -69,10 +78,19 @@ export function computeNextWeek(weeks, users, rooms, rules, rotation = { type: '
   const [ns, ne] = nextPeriod(last.start, rotation);
   if (weeks.find(w => w.start === ns)) return null;
 
-  // Vero solo se l'assenza copre il turno per intero: un'assenza parziale
-  // non esclude, la persona fa comunque il turno (resta solo il badge in UI).
-  function isFullyAbsent(userId) {
-    return absences.some(a => a.userId === userId && a.from <= ns && a.to >= ne);
+  // Vero se l'assenza copre più di ABSENCE_EXCLUSION_THRESHOLD della durata
+  // del turno: in quel caso la persona viene esclusa e il turno va a
+  // qualcun altro. Un'assenza più breve non esclude, la persona fa comunque
+  // il turno (resta solo il badge in UI).
+  const periodDays = daysBetween(ns, ne);
+  function isAbsentEnoughToExclude(userId) {
+    return absences.some(a => {
+      if (a.userId !== userId) return false;
+      const overlapStart = a.from > ns ? a.from : ns;
+      const overlapEnd   = a.to   < ne ? a.to   : ne;
+      if (overlapStart > overlapEnd) return false;
+      return daysBetween(overlapStart, overlapEnd) / periodDays > ABSENCE_EXCLUSION_THRESHOLD;
+    });
   }
 
   // Indice in sorted per "l'ultima volta che userId ha fatto roomId"
