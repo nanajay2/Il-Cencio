@@ -37,6 +37,21 @@ router.post('/', async (req, res) => {
   }
 });
 
+router.put('/:absenceId', async (req, res) => {
+  const { userId, from, to } = req.body;
+  if (!userId || !from || !to) return res.status(400).json({ error: 'userId, from, to richiesti' });
+  if (from > to) return res.status(400).json({ error: 'from deve essere ≤ to' });
+  try {
+    const absence = await db.updateAbsence(req.params.houseId, Number(req.params.absenceId), {
+      userId: Number(userId), from, to,
+    });
+    await invalidateUpcomingWeeks(db, req.params.houseId);
+    res.json(absence);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 router.delete('/:absenceId', async (req, res) => {
   try {
     await db.deleteAbsence(req.params.houseId, Number(req.params.absenceId));

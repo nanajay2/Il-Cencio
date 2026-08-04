@@ -1,17 +1,8 @@
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { MONTHS } from '../constants.js';
 import { useAggregateView } from '../hooks/useAggregateView.js';
-import { findTurnoForDate } from '../lib/calendarBuckets.js';
+import { findTurnoForDate, dayBackground } from '../lib/calendarBuckets.js';
 import { AggregateSummaryList } from './AggregateSummaryList.jsx';
-
-// Sfondo del giorno: pieno se ho una sola stanza quel turno, "torta" a spicchi
-// uguali (uno per stanza) se ne ho più di una.
-function dayBackground(colors) {
-  if (colors.length === 0) return undefined;
-  if (colors.length === 1) return colors[0];
-  const step = 100 / colors.length;
-  return `conic-gradient(${colors.map((c, i) => `${c} ${i * step}% ${(i + 1) * step}%`).join(', ')})`;
-}
 
 export function MonthAggregateView({ weeks, users, userId, houseId, ensureThrough, navLoading, onJumpToDay }) {
   const { range, perUser, days, goPrev, goNext, goToday } = useAggregateView(weeks, users, 'month', houseId, ensureThrough);

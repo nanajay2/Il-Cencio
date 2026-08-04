@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, CalendarDays, ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
 import { MONTHS, DAYS, fmt, todayStr } from '../constants.js';
 import { firstOfMonth, monthRangeOf, daysInRange } from '../lib/calendarBuckets.js';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock.js';
@@ -23,13 +23,14 @@ function nextMonth(dateStr) {
   return new Date(Date.UTC(y, m, 1)).toISOString().split('T')[0];
 }
 
-export function AbsencesScreen({ house, currentUserId, absences, onAdd, onRemove, onClose }) {
+export function AbsencesScreen({ house, currentUserId, absences, onAdd, onUpdate, onRemove, onClose }) {
   useBodyScrollLock();
   const [anchor, setAnchor] = useState(firstOfMonth(todayStr()));
   const [rangeStart, setRangeStart] = useState(null);
   const [rangeEnd,   setRangeEnd]   = useState(null);
   const [userId, setUserId] = useState(currentUserId);
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState(null);
 
   const { start: monthStart, end: monthEnd } = monthRangeOf(anchor);
   const days = daysInRange(monthStart, monthEnd);
@@ -47,11 +48,31 @@ export function AbsencesScreen({ house, currentUserId, absences, onAdd, onRemove
     }
   }
 
+  function startEdit(a) {
+    setEditingId(a.id);
+    setUserId(String(a.userId));
+    setRangeStart(a.from);
+    setRangeEnd(a.to);
+    setAnchor(firstOfMonth(a.from));
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setRangeStart(null);
+    setRangeEnd(null);
+    setUserId(currentUserId);
+  }
+
   async function handleAdd() {
     if (!rangeStart || !rangeEnd || !userId) return;
     setSaving(true);
     try {
-      await onAdd(Number(userId), rangeStart, rangeEnd);
+      if (editingId) {
+        await onUpdate(editingId, Number(userId), rangeStart, rangeEnd);
+        setEditingId(null);
+      } else {
+        await onAdd(Number(userId), rangeStart, rangeEnd);
+      }
       setRangeStart(null);
       setRangeEnd(null);
     } finally {
@@ -82,7 +103,7 @@ export function AbsencesScreen({ house, currentUserId, absences, onAdd, onRemove
         </div>
 
         <section className={sectionCls}>
-          <div className={titleCls}>Nuova assenza</div>
+          <div className={titleCls}>{editingId ? 'Modifica assenza' : 'Nuova assenza'}</div>
           <p className="text-[.77rem] text-ink-2 -mt-1">Tocca il primo e l'ultimo giorno dell'assenza.</p>
 
           <div className="flex items-center gap-3">
@@ -140,8 +161,16 @@ export function AbsencesScreen({ house, currentUserId, absences, onAdd, onRemove
                 {house.users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
               </select>
             </div>
+            {editingId && (
+              <button
+                onClick={cancelEdit}
+                className="h-[38px] px-4 bg-transparent text-ink-2 border-[1.5px] border-border rounded-[10px] font-sans text-[.8rem] font-bold cursor-pointer hover:bg-cream-2 transition-colors whitespace-nowrap flex-shrink-0"
+              >
+                Annulla
+              </button>
+            )}
             <button onClick={handleAdd} disabled={!canAdd} className={btnCls + ' disabled:opacity-50 disabled:cursor-not-allowed'}>
-              {saving ? 'Salvataggio…' : 'Aggiungi'}
+              {saving ? 'Salvataggio…' : editingId ? 'Salva modifiche' : 'Aggiungi'}
             </button>
           </div>
         </section>
@@ -154,12 +183,20 @@ export function AbsencesScreen({ house, currentUserId, absences, onAdd, onRemove
             ) : absences.map(a => (
               <div key={a.id} className="flex items-center justify-between px-3 py-[9px] bg-cream rounded-[10px] text-[.83rem] border border-border">
                 <span><strong>{a.userName}</strong> — dal {fmt(a.from)} al {fmt(a.to)}</span>
-                <button
-                  onClick={() => onRemove(a.id)}
-                  className="border-0 bg-transparent cursor-pointer text-ink-2 text-[.9rem] px-[7px] py-[3px] rounded-md transition-all hover:text-red hover:bg-red-pale"
-                >
-                  <X size={14} strokeWidth={1.8} />
-                </button>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <button
+                    onClick={() => startEdit(a)}
+                    className="border-0 bg-transparent cursor-pointer text-ink-2 text-[.9rem] px-[7px] py-[3px] rounded-md transition-all hover:text-ink hover:bg-cream-2"
+                  >
+                    <Pencil size={14} strokeWidth={1.8} />
+                  </button>
+                  <button
+                    onClick={() => onRemove(a.id)}
+                    className="border-0 bg-transparent cursor-pointer text-ink-2 text-[.9rem] px-[7px] py-[3px] rounded-md transition-all hover:text-red hover:bg-red-pale"
+                  >
+                    <X size={14} strokeWidth={1.8} />
+                  </button>
+                </div>
               </div>
             ))}
           </div>

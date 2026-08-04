@@ -5,8 +5,8 @@ import { weekRangeOf, monthRangeOf, turnosInRange, aggregateByUser, daysInRange 
 // mode: 'week' | 'month'
 // houseId + ensureThrough (da useWeeks): se il range mostrato arriva oltre le
 // settimane già generate, le genera al volo scorrendo il calendario.
-export function useAggregateView(weeks, users, mode, houseId, ensureThrough) {
-  const [anchor, setAnchor] = useState(todayStr());
+export function useAggregateView(weeks, users, mode, houseId, ensureThrough, initialAnchor) {
+  const [anchor, setAnchor] = useState(initialAnchor ?? todayStr());
 
   const range   = mode === 'week' ? weekRangeOf(anchor) : monthRangeOf(anchor);
   const turnos  = turnosInRange(weeks, range.start, range.end);

@@ -54,6 +54,8 @@ export const api = {
   getAbsences: (houseId)               => req(`${h(houseId)}/absences`),
   addAbsence:  (houseId, userId, from, to) =>
     req(`${h(houseId)}/absences`, { method: 'POST', body: JSON.stringify({ userId, from, to }) }),
+  updateAbsence:(houseId, absenceId, userId, from, to) =>
+    req(`${h(houseId)}/absences/${absenceId}`, { method: 'PUT', body: JSON.stringify({ userId, from, to }) }),
   deleteAbsence:(houseId, absenceId)   => req(`${h(houseId)}/absences/${absenceId}`, { method: 'DELETE' }),
 
   // Notifiche push
