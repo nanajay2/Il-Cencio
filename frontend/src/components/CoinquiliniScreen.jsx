@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { X, Users, KeyRound, Check } from 'lucide-react';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock.js';
 
 const btnCls =
@@ -14,15 +15,6 @@ const labelCls   = 'block text-[.7rem] font-bold text-ink-2 mb-1.5 uppercase tra
 
 const dangerCls =
   'border-0 bg-transparent cursor-pointer text-ink-2 text-[.9rem] px-[7px] py-[3px] rounded-md transition-all hover:text-red hover:bg-red-pale';
-
-function CloseIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="18" y1="6" x2="6" y2="18" />
-      <line x1="6" y1="6" x2="18" y2="18" />
-    </svg>
-  );
-}
 
 export function CoinquiliniScreen({ house, onAddUser, onRemoveUser, onClose }) {
   useBodyScrollLock();
@@ -52,20 +44,22 @@ export function CoinquiliniScreen({ house, onAddUser, onRemoveUser, onClose }) {
       <div className="max-w-[480px] mx-auto flex flex-col gap-4 pb-8" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)' }}>
 
         <div className="flex items-center justify-between gap-3">
-          <h2 className="font-serif text-[1.6rem] text-ink truncate">👥 Coinquilini</h2>
+          <h2 className="font-serif text-[1.6rem] text-ink truncate flex items-center gap-2">
+            <Users size={22} className="flex-shrink-0" /> Coinquilini
+          </h2>
           <button
             onClick={onClose}
             aria-label="Chiudi"
             className="w-8 h-8 rounded-full border-0 cursor-pointer flex items-center justify-center transition-colors flex-shrink-0"
             style={{ background: 'rgba(78,34,15,.1)', color: '#7A5038' }}
           >
-            <CloseIcon />
+            <X size={14} strokeWidth={1.8} />
           </button>
         </div>
 
         {house.houseInviteCode && (
           <section className={sectionCls}>
-            <div className={titleCls}>🔑 Fai entrare qualcuno da solo</div>
+            <div className={titleCls + ' flex items-center gap-1.5'}><KeyRound size={16} /> Fai entrare qualcuno da solo</div>
             <p className="text-[.77rem] text-ink-2 -mt-1">
               Condividi questo codice: potrà registrarsi scegliendo il proprio nome e PIN.
             </p>
@@ -73,8 +67,8 @@ export function CoinquiliniScreen({ house, onAddUser, onRemoveUser, onClose }) {
               <code className="flex-1 text-center text-[1.3rem] font-mono font-bold tracking-[.15em] bg-cream-2 border border-border rounded-[10px] py-2 text-brown">
                 {house.houseInviteCode}
               </code>
-              <button onClick={copyCode} className={btnCls}>
-                {copied ? '✅ Copiato' : 'Copia'}
+              <button onClick={copyCode} className={btnCls + ' flex items-center gap-1.5'}>
+                {copied ? <><Check size={16} /> Copiato</> : 'Copia'}
               </button>
             </div>
           </section>
@@ -109,7 +103,7 @@ export function CoinquiliniScreen({ house, onAddUser, onRemoveUser, onClose }) {
                     {!u.claimed && <span className="text-[.62rem] font-bold bg-cream-2 text-ink-2 px-[7px] py-[2px] rounded-full">non attivato</span>}
                   </span>
                   {!u.isAdmin && (
-                    <button onClick={() => onRemoveUser(u.id)} className={dangerCls}>✕</button>
+                    <button onClick={() => onRemoveUser(u.id)} className={dangerCls}><X size={14} strokeWidth={1.8} /></button>
                   )}
                 </div>
                 {u.inviteCode && (

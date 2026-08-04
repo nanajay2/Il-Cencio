@@ -1,3 +1,4 @@
+import { Check, Undo2, Lock } from 'lucide-react';
 import { isEditable } from '../constants.js';
 
 // assignment: { userId, userName, roomId, roomName, roomIcon, roomColor, done }
@@ -64,27 +65,27 @@ export function ChoreCard({ assignment, absent, isMe, compact, week, onToggle, r
             <div className={`font-serif text-[1.55rem] leading-tight ${done ? 'text-ink-2 line-through' : 'text-ink'}`}>
               {roomName}
             </div>
-            {done && <div className="text-[.75rem] text-ink-2 mt-0.5">Completato ✓</div>}
+            {done && <div className="text-[.75rem] text-ink-2 mt-0.5 flex items-center gap-1"><Check size={13} /> Completato</div>}
           </div>
         </div>
 
         {editable ? (
           <button
-            className="w-full py-3 rounded-xl font-bold text-[.88rem] border-0 cursor-pointer transition-all"
+            className="w-full py-3 rounded-xl font-bold text-[.88rem] border-0 cursor-pointer transition-all flex items-center justify-center gap-1.5"
             style={done
               ? { background: '#F6F0F0', color: '#7A5038' }
               : { background: '#BDB395', color: '#4E220F', border: '1.5px solid #a89e83', boxShadow: '0 2px 8px rgba(168,158,131,.35)' }
             }
             onClick={() => onToggle(week.id, userId, roomId)}
           >
-            {done ? '↩ Segna come non fatto' : 'Segna come fatto ✓'}
+            {done ? <><Undo2 size={16} /> Segna come non fatto</> : <><Check size={16} /> Segna come fatto</>}
           </button>
         ) : (
           <div
-            className="w-full py-3 rounded-xl text-[.85rem] text-center font-semibold"
+            className="w-full py-3 rounded-xl text-[.85rem] text-center font-semibold flex items-center justify-center gap-1.5"
             style={{ background: '#F6F0F0', color: '#7A5038', opacity: .7 }}
           >
-            🔒 {done ? 'Fatto' : 'Non ancora fatto'}
+            <Lock size={14} /> {done ? 'Fatto' : 'Non ancora fatto'}
           </div>
         )}
       </div>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { X, Pencil, Settings, Bell, ClipboardList, ShowerHead, Workflow, Ban, Coffee, Sparkles, ArrowRight } from 'lucide-react';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock.js';
 import { usePush } from '../hooks/usePush.js';
 
@@ -18,18 +19,14 @@ const titleCls   = 'font-bold text-[.92rem] text-ink mb-1';
 const selectCls = inputCls + ' appearance-none';
 
 const RULE_TYPES = [
-  { value: 'pool_restriction', icon: '🚿', label: '🚿 Restrizione pool (es. Bagno)', hint: 'Solo le persone selezionate possono fare questa stanza.' },
-  { value: 'sequence',         icon: '🔄', label: '🔄 Sequenza (es. Cucina→Corridoio)', hint: 'Chi fa la prima stanza, la settimana dopo fa automaticamente la seconda.' },
-  { value: 'exclusion',        icon: '🚫', label: '🚫 Esclusione', hint: 'La persona selezionata non farà mai questa stanza.' },
+  { value: 'pool_restriction', icon: ShowerHead, label: 'Restrizione pool (es. Bagno)', hint: 'Solo le persone selezionate possono fare questa stanza.' },
+  { value: 'sequence',         icon: Workflow,   label: 'Sequenza (es. Cucina→Corridoio)', hint: 'Chi fa la prima stanza, la settimana dopo fa automaticamente la seconda.' },
+  { value: 'exclusion',        icon: Ban,        label: 'Esclusione', hint: 'La persona selezionata non farà mai questa stanza.' },
 ];
 
-function CloseIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="18" y1="6" x2="6" y2="18" />
-      <line x1="6" y1="6" x2="18" y2="18" />
-    </svg>
-  );
+function RuleTypeIcon({ type, ...props }) {
+  const Icon = RULE_TYPES.find(t => t.value === type)?.icon ?? ClipboardList;
+  return <Icon {...props} />;
 }
 
 function describeRule(rule, rooms, users) {
@@ -51,7 +48,7 @@ function describeRule(rule, rooms, users) {
 export function SettingsPanel({
   house, isAdmin, houseId, userId,
   onClose, onLogout, onLeaveHouse,
-  onAddRule, onRemoveRule,
+  onAddRule, onEditRule, onRemoveRule,
 }) {
   useBodyScrollLock();
   const push = usePush();
@@ -64,24 +61,54 @@ export function SettingsPanel({
   const [seqTo,      setSeqTo]      = useState('');
   const [exclUser,   setExclUser]   = useState('');
   const [exclRoom,   setExclRoom]   = useState('');
+  const [editingRuleId, setEditingRuleId] = useState(null);
 
   function toggleAllowedUser(id) {
     setPoolUsers(ids => ids.includes(id) ? ids.filter(u => u !== id) : [...ids, id]);
   }
 
+  function resetRuleForm() {
+    setEditingRuleId(null);
+    setPoolRoom(''); setPoolUsers([]);
+    setSeqFrom(''); setSeqTo('');
+    setExclUser(''); setExclRoom('');
+  }
+
+  function startEditRule(rule) {
+    setEditingRuleId(rule.id);
+    setRuleType(rule.type);
+    const { config } = rule;
+    if (rule.type === 'pool_restriction') {
+      setPoolRoom(config.room_id);
+      setPoolUsers(config.user_ids ?? []);
+    } else if (rule.type === 'sequence') {
+      setSeqFrom(config.from_room_id);
+      setSeqTo(config.to_room_id);
+    } else if (rule.type === 'exclusion') {
+      setExclUser(config.user_id);
+      setExclRoom(config.room_id);
+    }
+  }
+
   async function addRule() {
     if (ruleType === 'pool_restriction') {
       if (!poolRoom || poolUsers.length === 0) return;
-      await onAddRule('pool_restriction', { room_id: Number(poolRoom), user_ids: poolUsers.map(Number) });
-      setPoolRoom(''); setPoolUsers([]);
+      const config = { room_id: Number(poolRoom), user_ids: poolUsers.map(Number) };
+      if (editingRuleId) await onEditRule(editingRuleId, 'pool_restriction', config);
+      else await onAddRule('pool_restriction', config);
+      resetRuleForm();
     } else if (ruleType === 'sequence') {
       if (!seqFrom || !seqTo || seqFrom === seqTo) return;
-      await onAddRule('sequence', { from_room_id: Number(seqFrom), to_room_id: Number(seqTo) });
-      setSeqFrom(''); setSeqTo('');
+      const config = { from_room_id: Number(seqFrom), to_room_id: Number(seqTo) };
+      if (editingRuleId) await onEditRule(editingRuleId, 'sequence', config);
+      else await onAddRule('sequence', config);
+      resetRuleForm();
     } else if (ruleType === 'exclusion') {
       if (!exclUser || !exclRoom) return;
-      await onAddRule('exclusion', { user_id: Number(exclUser), room_id: Number(exclRoom) });
-      setExclUser(''); setExclRoom('');
+      const config = { user_id: Number(exclUser), room_id: Number(exclRoom) };
+      if (editingRuleId) await onEditRule(editingRuleId, 'exclusion', config);
+      else await onAddRule('exclusion', config);
+      resetRuleForm();
     }
   }
 
@@ -92,7 +119,9 @@ export function SettingsPanel({
       <div className="max-w-[480px] mx-auto flex flex-col gap-4 pb-8" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)' }}>
 
         <div className="flex items-center justify-between gap-3">
-          <h2 className="font-serif text-[1.6rem] text-ink truncate">⚙️ Impostazioni</h2>
+          <h2 className="font-serif text-[1.6rem] text-ink truncate flex items-center gap-2">
+            <Settings size={22} className="flex-shrink-0" /> Impostazioni
+          </h2>
           <button
             onClick={onClose}
             aria-label="Chiudi"
@@ -101,13 +130,13 @@ export function SettingsPanel({
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(78,34,15,.18)'; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'rgba(78,34,15,.1)'; }}
           >
-            <CloseIcon />
+            <X size={14} strokeWidth={1.8} />
           </button>
         </div>
 
         {/* Notifiche push */}
         <section className={sectionCls}>
-          <div className={titleCls}>🔔 Notifiche push</div>
+          <div className={titleCls + ' flex items-center gap-1.5'}><Bell size={16} /> Notifiche push</div>
           {push.status === 'unsupported' && (
             <p className="text-[.77rem] text-ink-2 -mt-1">
               Non supportate su questo browser. Su iOS servono Safari 16.4+ e l'app installata da schermata Home.
@@ -148,7 +177,7 @@ export function SettingsPanel({
         {/* Regole — admin: sempre visibile (per poterle aggiungere); utente normale: solo se ce ne sono, in lettura */}
         {showRulesSection && (
           <section className={sectionCls}>
-            <div className={titleCls}>📋 Regole</div>
+            <div className={titleCls + ' flex items-center gap-1.5'}><ClipboardList size={16} /> Regole</div>
 
             {isAdmin ? (
               <>
@@ -161,11 +190,14 @@ export function SettingsPanel({
                     <p className="text-[.82rem] text-ink-2">Nessuna regola configurata.</p>
                   ) : house.rules.map(r => (
                     <div key={r.id} className="flex items-center justify-between px-3 py-[9px] bg-cream rounded-[10px] border border-border text-[.83rem]">
-                      <span>
-                        <span className="font-bold">{RULE_TYPES.find(t => t.value === r.type)?.icon ?? '📋'}</span>
+                      <span className="flex items-center">
+                        <RuleTypeIcon type={r.type} size={15} className="flex-shrink-0" />
                         <span className="ml-1.5">{describeRule(r, house.rooms, house.users)}</span>
                       </span>
-                      <button onClick={() => onRemoveRule(r.id)} className={dangerCls}>✕</button>
+                      <span className="flex items-center gap-1 flex-shrink-0">
+                        <button onClick={() => startEditRule(r)} aria-label="Modifica" className={dangerCls + ' hover:text-brown hover:bg-cream-2'}><Pencil size={14} strokeWidth={1.8} /></button>
+                        <button onClick={() => onRemoveRule(r.id)} aria-label="Elimina" className={dangerCls}><X size={14} strokeWidth={1.8} /></button>
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -211,7 +243,7 @@ export function SettingsPanel({
                           <option value="">Stanza di partenza…</option>
                           {house.rooms.map(r => <option key={r.id} value={r.id}>{r.icon} {r.name}</option>)}
                         </select>
-                        <span className="text-ink-2">→</span>
+                        <ArrowRight size={16} className="text-ink-2 flex-shrink-0" />
                         <select value={seqTo} onChange={e => setSeqTo(e.target.value)} className={selectCls}>
                           <option value="">Stanza successiva…</option>
                           {house.rooms.map(r => <option key={r.id} value={r.id}>{r.icon} {r.name}</option>)}
@@ -233,15 +265,24 @@ export function SettingsPanel({
                       </div>
                     )}
 
-                    <button onClick={addRule} className={btnCls + ' self-start'}>+ Aggiungi regola</button>
+                    <div className="flex gap-2">
+                      <button onClick={addRule} className={btnCls + ' self-start'}>
+                        {editingRuleId ? 'Salva modifiche' : '+ Aggiungi regola'}
+                      </button>
+                      {editingRuleId && (
+                        <button onClick={resetRuleForm} type="button" className={btnCls + ' self-start bg-transparent border-[1.5px] border-border text-ink-2 hover:bg-cream'}>
+                          Annulla
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
               </>
             ) : (
               <div className="flex flex-col gap-1.5 mt-1">
                 {house.rules.map(r => (
-                  <div key={r.id} className="px-3 py-[9px] bg-cream rounded-[10px] border border-border text-[.83rem]">
-                    <span className="font-bold">{RULE_TYPES.find(t => t.value === r.type)?.icon ?? '📋'}</span>
+                  <div key={r.id} className="px-3 py-[9px] bg-cream rounded-[10px] border border-border text-[.83rem] flex items-center">
+                    <RuleTypeIcon type={r.type} size={15} className="flex-shrink-0" />
                     <span className="ml-1.5">{describeRule(r, house.rooms, house.users)}</span>
                   </div>
                 ))}
@@ -257,8 +298,10 @@ export function SettingsPanel({
           rel="noopener noreferrer"
           className={sectionCls + ' text-center no-underline hover:opacity-90 transition-opacity'}
         >
-          <div className={titleCls + ' mb-0'}>☕ Ti piace l'app?</div>
-          <p className="text-[.8rem] text-ink-2">Offrimi un caffè e aiutami a tenerla sempre viva ✨</p>
+          <div className={titleCls + ' mb-0 flex items-center justify-center gap-1.5'}><Coffee size={16} /> Ti piace Il Cencio?</div>
+          <p className="text-[.8rem] text-ink-2 flex items-center justify-center gap-1">
+            Clicca qui per offrirmi un caffè e aiutarmi a tenerla sempre viva <Sparkles size={13} className="flex-shrink-0" />
+          </p>
         </a>
 
         {/* Logout / abbandona */}

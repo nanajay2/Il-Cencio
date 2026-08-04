@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ArrowRight, ArrowLeft } from 'lucide-react';
 import { api } from '../api.js';
 
 export function InviteScreen({ onSuccess, onBack }) {
@@ -45,13 +46,13 @@ export function InviteScreen({ onSuccess, onBack }) {
       <button
         onClick={handleJoin}
         disabled={loading || !code.trim()}
-        className="w-full max-w-[320px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full max-w-[320px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
       >
-        {loading ? 'Accesso…' : 'Entra →'}
+        {loading ? 'Accesso…' : <>Entra <ArrowRight size={18} /></>}
       </button>
 
-      <button onClick={onBack} className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-brown transition-colors py-1">
-        ← Torna indietro
+      <button onClick={onBack} className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-brown transition-colors py-1 flex items-center gap-1">
+        <ArrowLeft size={14} /> Torna indietro
       </button>
     </div>
   );

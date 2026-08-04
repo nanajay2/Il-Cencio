@@ -41,6 +41,7 @@ export const api = {
 
   // Regole
   createRule:  (houseId, type, config) => req(`${h(houseId)}/rules`, { method: 'POST', body: JSON.stringify({ type, config }) }),
+  updateRule:  (houseId, ruleId, type, config) => req(`${h(houseId)}/rules/${ruleId}`, { method: 'PUT', body: JSON.stringify({ type, config }) }),
   deleteRule:  (houseId, ruleId)       => req(`${h(houseId)}/rules/${ruleId}`, { method: 'DELETE' }),
 
   // Settimane

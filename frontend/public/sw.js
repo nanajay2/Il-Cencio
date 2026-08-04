@@ -12,7 +12,7 @@ self.addEventListener('push', (event) => {
   const options = {
     body: data.body || '',
     icon: '/icon-192.png',
-    badge: '/icon-192.png',
+    badge: '/badge-192.png',
     data: {
       url: data.url || '/',
       houseId: data.houseId,
@@ -48,12 +48,12 @@ self.addEventListener('notificationclick', (event) => {
           if (!res.ok) throw new Error('Richiesta fallita');
           return self.registration.showNotification(
             action === 'accept' ? 'Scambio accettato ✅' : 'Scambio rifiutato',
-            { icon: '/icon-192.png', badge: '/icon-192.png' }
+            { icon: '/icon-192.png', badge: '/badge-192.png' }
           );
         })
         .then(() => notifyClients({ type: 'swaps-updated' }))
         .catch(() => self.registration.showNotification('Non riuscito, riprova dall\'app', {
-          icon: '/icon-192.png', badge: '/icon-192.png',
+          icon: '/icon-192.png', badge: '/badge-192.png',
         }))
     );
     return;

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { X, ArrowLeftRight, Check } from 'lucide-react';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock.js';
 
 const btnCls =
@@ -10,15 +11,6 @@ const inputCls =
 
 const sectionCls = 'bg-card rounded-2xl border border-border p-5 flex flex-col gap-3';
 const titleCls   = 'font-bold text-[.92rem] text-ink mb-1';
-
-function CloseIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="18" y1="6" x2="6" y2="18" />
-      <line x1="6" y1="6" x2="18" y2="18" />
-    </svg>
-  );
-}
 
 export function SwapsScreen({ house, userId, currentWeek, swaps, onPropose, onAccept, onDecline, onClose }) {
   useBodyScrollLock();
@@ -59,7 +51,9 @@ export function SwapsScreen({ house, userId, currentWeek, swaps, onPropose, onAc
       <div className="max-w-[480px] mx-auto flex flex-col gap-4 pb-8" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)' }}>
 
         <div className="flex items-center justify-between gap-3">
-          <h2 className="font-serif text-[1.6rem] text-ink truncate">🔁 Scambio turni</h2>
+          <h2 className="font-serif text-[1.6rem] text-ink truncate flex items-center gap-2">
+            <ArrowLeftRight size={22} className="flex-shrink-0" /> Scambio turni
+          </h2>
           <button
             onClick={onClose}
             aria-label="Chiudi"
@@ -68,7 +62,7 @@ export function SwapsScreen({ house, userId, currentWeek, swaps, onPropose, onAc
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(78,34,15,.18)'; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'rgba(78,34,15,.1)'; }}
           >
-            <CloseIcon />
+            <X size={14} strokeWidth={1.8} />
           </button>
         </div>
 
@@ -86,12 +80,12 @@ export function SwapsScreen({ house, userId, currentWeek, swaps, onPropose, onAc
                     )}
                   </span>
                   <div className="flex gap-1.5 flex-shrink-0">
-                    <button onClick={() => onAccept(s.id)} className={btnCls}>✓ Accetta</button>
+                    <button onClick={() => onAccept(s.id)} className={btnCls + ' flex items-center gap-1'}><Check size={15} /> Accetta</button>
                     <button
                       onClick={() => onDecline(s.id)}
-                      className="h-[38px] px-3 bg-cream-2 text-ink-2 border border-border rounded-[10px] font-sans text-[.8rem] font-bold cursor-pointer hover:bg-cream transition-colors"
+                      className="h-[38px] px-3 bg-cream-2 text-ink-2 border border-border rounded-[10px] font-sans text-[.8rem] font-bold cursor-pointer hover:bg-cream transition-colors flex items-center justify-center"
                     >
-                      ✕
+                      <X size={15} strokeWidth={1.8} />
                     </button>
                   </div>
                 </div>

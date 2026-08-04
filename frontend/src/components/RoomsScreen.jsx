@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { X, Pencil, Home } from 'lucide-react';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock.js';
 
 const btnCls =
@@ -18,30 +19,48 @@ const dangerCls =
 const EMOJI_CHOICES = ['🛁', '🚿', '🛏️', '🍳', '🛋️', '📺', '🧺', '🚪', '🗑️', '🌿', '🚗', '📚'];
 const COLOR_CHOICES = ['#c97b4b', '#6a96c4', '#BDB395', '#7fae7a', '#c47a9e', '#d9b64e', '#8a85c0', '#a3a3a3'];
 
-function CloseIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="18" y1="6" x2="6" y2="18" />
-      <line x1="6" y1="6" x2="18" y2="18" />
-    </svg>
-  );
-}
-
-export function RoomsScreen({ house, onAddRoom, onRemoveRoom, onClose }) {
+export function RoomsScreen({ house, onAddRoom, onEditRoom, onRemoveRoom, onClose }) {
   useBodyScrollLock();
   const [rName,  setRName]  = useState('');
   const [rIcon,  setRIcon]  = useState(EMOJI_CHOICES[0]);
   const [rColor, setRColor] = useState(COLOR_CHOICES[0]);
   const [customIcon, setCustomIcon] = useState('');
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+
+  function startEdit(room) {
+    setEditingId(room.id);
+    setRName(room.name);
+    setRColor(room.color);
+    if (EMOJI_CHOICES.includes(room.icon)) {
+      setRIcon(room.icon);
+      setCustomIcon('');
+    } else {
+      setRIcon(room.icon);
+      setCustomIcon(room.icon);
+    }
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setRName('');
+    setCustomIcon('');
+    setRIcon(EMOJI_CHOICES[0]);
+    setRColor(COLOR_CHOICES[0]);
+  }
 
   async function addRoom() {
     if (!rName.trim()) return;
     setSaving(true);
     try {
-      await onAddRoom({ name: rName.trim(), icon: rIcon, color: rColor, sortOrder: house.rooms.length });
-      setRName('');
-      setCustomIcon('');
+      if (editingId) {
+        await onEditRoom(editingId, { name: rName.trim(), icon: rIcon, color: rColor });
+        cancelEdit();
+      } else {
+        await onAddRoom({ name: rName.trim(), icon: rIcon, color: rColor, sortOrder: house.rooms.length });
+        setRName('');
+        setCustomIcon('');
+      }
     } finally {
       setSaving(false);
     }
@@ -52,19 +71,21 @@ export function RoomsScreen({ house, onAddRoom, onRemoveRoom, onClose }) {
       <div className="max-w-[480px] mx-auto flex flex-col gap-4 pb-8" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)' }}>
 
         <div className="flex items-center justify-between gap-3">
-          <h2 className="font-serif text-[1.6rem] text-ink truncate">🏠 Stanze</h2>
+          <h2 className="font-serif text-[1.6rem] text-ink truncate flex items-center gap-2">
+            <Home size={22} className="flex-shrink-0" /> Stanze
+          </h2>
           <button
             onClick={onClose}
             aria-label="Chiudi"
             className="w-8 h-8 rounded-full border-0 cursor-pointer flex items-center justify-center transition-colors flex-shrink-0"
             style={{ background: 'rgba(78,34,15,.1)', color: '#7A5038' }}
           >
-            <CloseIcon />
+            <X size={14} strokeWidth={1.8} />
           </button>
         </div>
 
         <section className={sectionCls}>
-          <div className={titleCls}>Nuova stanza</div>
+          <div className={titleCls}>{editingId ? 'Modifica stanza' : 'Nuova stanza'}</div>
 
           <div>
             <label className={labelCls}>Nome</label>
@@ -120,9 +141,16 @@ export function RoomsScreen({ house, onAddRoom, onRemoveRoom, onClose }) {
             </div>
           </div>
 
-          <button onClick={addRoom} disabled={saving || !rName.trim()} className={btnCls + ' self-start disabled:opacity-50 disabled:cursor-not-allowed'}>
-            {saving ? 'Aggiunta…' : '+ Aggiungi stanza'}
-          </button>
+          <div className="flex gap-2">
+            <button onClick={addRoom} disabled={saving || !rName.trim()} className={btnCls + ' self-start disabled:opacity-50 disabled:cursor-not-allowed'}>
+              {saving ? 'Salvataggio…' : editingId ? 'Salva modifiche' : '+ Aggiungi stanza'}
+            </button>
+            {editingId && (
+              <button onClick={cancelEdit} type="button" className={btnCls + ' self-start bg-transparent border-[1.5px] border-border text-ink-2 hover:bg-cream'}>
+                Annulla
+              </button>
+            )}
+          </div>
         </section>
 
         <section className={sectionCls}>
@@ -138,7 +166,10 @@ export function RoomsScreen({ house, onAddRoom, onRemoveRoom, onClose }) {
                     <strong>{r.name}</strong>
                     <span className="w-3.5 h-3.5 rounded-full inline-block" style={{ background: r.color }} />
                   </span>
-                  <button onClick={() => onRemoveRoom(r.id)} className={dangerCls}>✕</button>
+                  <span className="flex items-center gap-1 flex-shrink-0">
+                    <button onClick={() => startEdit(r)} aria-label="Modifica" className={dangerCls + ' hover:text-brown hover:bg-cream-2'}><Pencil size={14} strokeWidth={1.8} /></button>
+                    <button onClick={() => onRemoveRoom(r.id)} aria-label="Elimina" className={dangerCls}><X size={14} strokeWidth={1.8} /></button>
+                  </span>
                 </div>
               ))}
             </div>

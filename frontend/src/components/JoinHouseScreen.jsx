@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ArrowRight, ArrowLeft, Home } from 'lucide-react';
 import { api } from '../api.js';
 
 const inputCls =
@@ -73,13 +74,13 @@ export function JoinHouseScreen({ onSuccess, onBack }) {
       <button
         onClick={handleLookup}
         disabled={loading || !houseCode.trim()}
-        className="w-full max-w-[320px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full max-w-[320px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
       >
-        {loading ? 'Cerco…' : 'Continua →'}
+        {loading ? 'Cerco…' : <>Continua <ArrowRight size={18} /></>}
       </button>
 
-      <button onClick={onBack} className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-brown transition-colors py-1">
-        ← Torna indietro
+      <button onClick={onBack} className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-brown transition-colors py-1 flex items-center gap-1">
+        <ArrowLeft size={14} /> Torna indietro
       </button>
     </div>
   );
@@ -121,13 +122,13 @@ export function JoinHouseScreen({ onSuccess, onBack }) {
       <button
         onClick={handleRegister}
         disabled={loading || !name.trim() || pin.length !== 4 || pinConf.length !== 4}
-        className="w-full max-w-[360px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full max-w-[360px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
       >
-        {loading ? 'Registrazione…' : 'Entra 🏠'}
+        {loading ? 'Registrazione…' : <>Entra <Home size={18} /></>}
       </button>
 
-      <button onClick={() => { setStep(1); setError(null); }} className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-brown transition-colors py-1">
-        ← Cambia codice
+      <button onClick={() => { setStep(1); setError(null); }} className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-brown transition-colors py-1 flex items-center gap-1">
+        <ArrowLeft size={14} /> Cambia codice
       </button>
     </div>
   );

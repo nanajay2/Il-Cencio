@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { ArrowRight, ArrowLeft } from 'lucide-react';
 import { api } from '../api.js';
 
 const inputCls =
@@ -124,13 +125,13 @@ export function LoginScreen({ onSuccess, onBack, savedHouseId }) {
       <button
         onClick={handleLookup}
         disabled={loading || !houseCode.trim()}
-        className="w-full max-w-[320px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full max-w-[320px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
       >
-        {loading ? 'Cerco…' : 'Continua →'}
+        {loading ? 'Cerco…' : <>Continua <ArrowRight size={18} /></>}
       </button>
 
-      <button onClick={onBack} className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-brown transition-colors py-1">
-        ← Torna indietro
+      <button onClick={onBack} className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-brown transition-colors py-1 flex items-center gap-1">
+        <ArrowLeft size={14} /> Torna indietro
       </button>
     </div>
   );
@@ -167,8 +168,8 @@ export function LoginScreen({ onSuccess, onBack, savedHouseId }) {
       </div>
 
       {!savedHouseId && (
-        <button onClick={() => { setStep('code'); setError(null); }} className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-brown transition-colors py-1">
-          ← Cambia codice
+        <button onClick={() => { setStep('code'); setError(null); }} className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-brown transition-colors py-1 flex items-center gap-1">
+          <ArrowLeft size={14} /> Cambia codice
         </button>
       )}
     </div>
@@ -195,13 +196,13 @@ export function LoginScreen({ onSuccess, onBack, savedHouseId }) {
       <button
         onClick={handleLogin}
         disabled={loading || pin.length !== 4}
-        className="w-full max-w-[320px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full max-w-[320px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
       >
-        {loading ? 'Accesso…' : 'Entra →'}
+        {loading ? 'Accesso…' : <>Entra <ArrowRight size={18} /></>}
       </button>
 
-      <button onClick={() => { setStep('select'); reset(); }} className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-brown transition-colors py-1">
-        ← Non sono io
+      <button onClick={() => { setStep('select'); reset(); }} className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-brown transition-colors py-1 flex items-center gap-1">
+        <ArrowLeft size={14} /> Non sono io
       </button>
     </div>
   );
@@ -240,13 +241,13 @@ export function LoginScreen({ onSuccess, onBack, savedHouseId }) {
       <button
         onClick={handleSetPin}
         disabled={loading || pin.length !== 4 || pinConf.length !== 4}
-        className="w-full max-w-[320px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full max-w-[320px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
       >
-        {loading ? 'Salvataggio…' : 'Salva PIN →'}
+        {loading ? 'Salvataggio…' : <>Salva PIN <ArrowRight size={18} /></>}
       </button>
 
-      <button onClick={() => { setStep('select'); reset(); }} className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-brown transition-colors py-1">
-        ← Non sono io
+      <button onClick={() => { setStep('select'); reset(); }} className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-brown transition-colors py-1 flex items-center gap-1">
+        <ArrowLeft size={14} /> Non sono io
       </button>
     </div>
   );
@@ -294,13 +295,13 @@ export function LoginScreen({ onSuccess, onBack, savedHouseId }) {
       <button
         onClick={handleRegisterNew}
         disabled={loading || !newUserName.trim() || pin.length !== 4 || pinConf.length !== 4}
-        className="w-full max-w-[320px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full max-w-[320px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
       >
-        {loading ? 'Registrazione…' : 'Registrati →'}
+        {loading ? 'Registrazione…' : <>Registrati <ArrowRight size={18} /></>}
       </button>
 
-      <button onClick={() => { setStep('select'); reset(); }} className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-brown transition-colors py-1">
-        ← Torna alla lista
+      <button onClick={() => { setStep('select'); reset(); }} className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-brown transition-colors py-1 flex items-center gap-1">
+        <ArrowLeft size={14} /> Torna alla lista
       </button>
     </div>
   );

@@ -5,6 +5,7 @@ import { todayStr } from '../constants.js';
 export function useWeeks() {
   const [weeks,      setWeeks]      = useState([]);
   const [loading,    setLoading]    = useState(true);
+  const [navLoading, setNavLoading] = useState(false);
   const [error,      setError]      = useState(null);
   const [currentIdx, setCurrentIdx] = useState(null);
 
@@ -68,8 +69,26 @@ export function useWeeks() {
     return nw;
   }
 
-  function goTo(delta) {
-    setCurrentIdx(i => Math.max(0, Math.min(sorted.length - 1, i + delta)));
+  async function goTo(delta, houseId) {
+    const base = currentIdx ?? 0;
+    const nextIdx = base + delta;
+
+    // Se si va avanti oltre l'ultima settimana già caricata, generala al volo.
+    if (delta > 0 && nextIdx > sorted.length - 1) {
+      if (navLoading) return;
+      setNavLoading(true);
+      try {
+        await generateWeek(houseId);
+        setCurrentIdx(nextIdx);
+      } catch (e) {
+        setError(e.message);
+      } finally {
+        setNavLoading(false);
+      }
+      return;
+    }
+
+    setCurrentIdx(Math.max(0, Math.min(sorted.length - 1, nextIdx)));
   }
   function goToCurrent() { setCurrentIdx(findCurrentIdx(sorted)); }
   function goToId(weekId) {
@@ -83,7 +102,7 @@ export function useWeeks() {
     weeks: sorted,
     currentWeek: sorted[resolvedIdx] ?? null,
     currentIdx:  resolvedIdx,
-    loading, error, load,
+    loading, navLoading, error, load,
     toggleDone, generateWeek, goTo, goToCurrent, goToId,
   };
 }
