@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Loader2, ClipboardList } from 'lucide-react';
 import { Header }             from './components/Header.jsx';
+import { HouseSwitcherModal } from './components/HouseSwitcherModal.jsx';
 import { ChoreCard }          from './components/ChoreCard.jsx';
 import { RevealModal }        from './components/RevealModal.jsx';
 import { CatMascot }          from './components/CatMascot.jsx';
@@ -54,6 +55,26 @@ function clearSession() {
   ['userId','userName','isAdmin'].forEach(k => localStorage.removeItem(k));
 }
 
+// Elenco di tutte le case a cui si è fatto accesso su questo dispositivo,
+// per poter passare dall'una all'altra senza rifare il login ogni volta.
+function loadAccounts() {
+  try {
+    const arr = JSON.parse(localStorage.getItem('accounts') || '[]');
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+function saveAccounts(list) {
+  localStorage.setItem('accounts', JSON.stringify(list));
+}
+function upsertAccount(list, account) {
+  const idx = list.findIndex(a => a.houseId === account.houseId && a.userId === account.userId);
+  const next = [...list];
+  if (idx >= 0) next[idx] = account; else next.push(account);
+  return next;
+}
+
 export default function App() {
   const initial = loadSession();
 
@@ -64,6 +85,13 @@ export default function App() {
                                         'welcome'
   );
   const [session,  setSession]  = useState(initial);
+  const [accounts, setAccounts] = useState(() => {
+    const stored = loadAccounts();
+    if (stored.length) return stored;
+    return initial.houseId && initial.userId ? [initial] : [];
+  });
+  const [showSwitcher, setShowSwitcher] = useState(false);
+  const [addingHouse,  setAddingHouse]  = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showAbsences, setShowAbsences] = useState(false);
   const [showSwaps, setShowSwaps] = useState(false);
@@ -166,6 +194,13 @@ export default function App() {
   function applySession(s) {
     setSession(s);
     saveSession(s);
+    if (s.houseId && s.userId) {
+      setAccounts(prev => {
+        const next = upsertAccount(prev, s);
+        saveAccounts(next);
+        return next;
+      });
+    }
   }
 
   function handleJoinSuccess(apiSession) {
@@ -178,6 +213,7 @@ export default function App() {
       isAdmin:   apiSession.isAdmin,
     };
     applySession(s);
+    setAddingHouse(false);
     setView('app');
   }
 
@@ -191,6 +227,7 @@ export default function App() {
       isAdmin:   apiSession.isAdmin,
     };
     applySession(s);
+    setAddingHouse(false);
     setView('app');
   }
 
@@ -200,10 +237,36 @@ export default function App() {
     setView('app');
   }
 
+  function switchAccount(account) {
+    applySession(account);
+    setShowSwitcher(false);
+    setView('app');
+  }
+
+  function startAddHouse(target) {
+    setShowSwitcher(false);
+    setAddingHouse(true);
+    setView(target); // 'login' | 'create-house'
+  }
+
+  function cancelAddHouse() {
+    setAddingHouse(false);
+    setView('app');
+  }
+
+  // Esce solo dalla casa attiva: le altre case salvate restano accessibili.
   function logout() {
     clearSession();
-    setSession({ houseId: null, houseName: null, userId: null, userName: null, isAdmin: false });
-    setView('welcome');
+    const remaining = accounts.filter(a => !(a.houseId === session.houseId && a.userId === session.userId));
+    setAccounts(remaining);
+    saveAccounts(remaining);
+    if (remaining.length) {
+      applySession(remaining[0]);
+      setView('app');
+    } else {
+      setSession({ houseId: null, houseName: null, userId: null, userName: null, isAdmin: false });
+      setView('welcome');
+    }
   }
 
   async function handleLeaveHouse() {
@@ -275,8 +338,14 @@ export default function App() {
   // ---- Routing ----
   if (!BYPASS_INSTALL_GATE && !isStandalone()) return <InstallGate />;
   if (view === 'welcome')      return <WelcomeScreen onLogin={() => setView('login')} onCreate={() => setView('create-house')} />;
-  if (view === 'login')        return <LoginScreen onSuccess={handleJoinSuccess} onBack={() => setView('welcome')} savedHouseId={initial.houseId || null} />;
-  if (view === 'create-house') return <CreateHouseScreen onSuccess={handleCreateSuccess} onBack={() => setView('welcome')} />;
+  if (view === 'login')        return (
+    <LoginScreen
+      onSuccess={handleJoinSuccess}
+      onBack={addingHouse ? cancelAddHouse : () => setView('welcome')}
+      savedHouseId={!addingHouse && initial.houseId ? initial.houseId : null}
+    />
+  );
+  if (view === 'create-house') return <CreateHouseScreen onSuccess={handleCreateSuccess} onBack={addingHouse ? cancelAddHouse : () => setView('welcome')} />;
 
   // ---- Main app ----
   const { currentWeek, weeks, currentIdx, loading } = weeksHook;
@@ -294,7 +363,20 @@ export default function App() {
       <Header
         houseName={session.houseName}
         currentUser={session.userName}
+        onOpenSwitcher={() => setShowSwitcher(true)}
       />
+
+      {showSwitcher && (
+        <HouseSwitcherModal
+          accounts={accounts}
+          activeHouseId={session.houseId}
+          activeUserId={session.userId}
+          onSelect={switchAccount}
+          onAddExisting={() => startAddHouse('login')}
+          onAddNew={() => startAddHouse('create-house')}
+          onClose={() => setShowSwitcher(false)}
+        />
+      )}
 
       <ViewModeSwitcher mode={viewMode} onChange={setViewMode} />
 
