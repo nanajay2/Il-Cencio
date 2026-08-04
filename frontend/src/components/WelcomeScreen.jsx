@@ -3,7 +3,7 @@ export function WelcomeScreen({ onLogin, onCreate }) {
     <div className="min-h-screen bg-cream flex flex-col items-center justify-center p-6 gap-4">
       <div className="text-center mb-4">
         <div className="font-serif text-[2.4rem] text-ink leading-tight">Il Cencio</div>
-        <p className="text-[.88rem] text-ink-2 mt-2">Turni di pulizia · Via Risorgimento</p>
+        <p className="text-[.88rem] text-ink-2 mt-2">Turni di pulizia tra coinquilini</p>
       </div>
 
       <button

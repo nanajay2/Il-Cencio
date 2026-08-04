@@ -13,7 +13,7 @@ drop table if exists houses      cascade;
 
 -- ── Case ─────────────────────────────────────────────────────────
 create table houses (
-  id   text primary key,  -- slug leggibile, es. 'via-risorgimento'
+  id   text primary key,  -- slug leggibile, es. 'il-cencio'
   name text not null
 );
 
