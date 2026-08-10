@@ -1,4 +1,7 @@
-export function WelcomeScreen({ onLogin, onCreate }) {
+// La scelta "entra in una casa esistente" vs "creane una nuova" avviene
+// DOPO l'autenticazione (vedi ChooseHouseScreen): serve comunque
+// un'identità Supabase prima di poter fare entrambe le cose.
+export function WelcomeScreen({ onStart }) {
   return (
     <div className="min-h-screen bg-cream flex flex-col items-center justify-center p-6 gap-4">
       <div className="text-center mb-4">
@@ -7,17 +10,10 @@ export function WelcomeScreen({ onLogin, onCreate }) {
       </div>
 
       <button
-        onClick={onLogin}
+        onClick={onStart}
         className="w-full max-w-[320px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors shadow-[0_4px_16px_rgba(46,26,14,.25)]"
       >
-        Entra
-      </button>
-
-      <button
-        onClick={onCreate}
-        className="w-full max-w-[320px] bg-transparent text-ink-2 font-semibold text-[.9rem] rounded-2xl py-3 border-0 cursor-pointer hover:text-brown transition-colors"
-      >
-        + Crea una nuova casa
+        Inizia
       </button>
 
       <span className="text-[.7rem] text-ink-2/60 mt-2">v{__APP_VERSION__}</span>

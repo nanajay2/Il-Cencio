@@ -124,14 +124,14 @@ export function computeNextWeek(weeks, users, rooms, rules, rotation = { type: '
   }
 
   // ── Costruzione vincoli ──────────────────────────────────────────
-  const poolFor    = {};          // roomId → Set<userId>
+  const poolFor    = new Map();   // roomId → Set<userId> (Map: chiave non stringificata, indipendente dal tipo id)
   const exclusions = new Set();   // 'userId:roomId'
   const forced     = new Map();   // userId → roomId  (regole sequence)
 
   for (const rule of rules) {
     const { type, config } = rule;
     if (type === 'pool_restriction') {
-      poolFor[config.room_id] = new Set(config.user_ids);
+      poolFor.set(config.room_id, new Set(config.user_ids));
     } else if (type === 'exclusion') {
       exclusions.add(`${config.user_id}:${config.room_id}`);
     } else if (type === 'sequence') {
@@ -198,8 +198,7 @@ export function computeNextWeek(weeks, users, rooms, rules, rotation = { type: '
   //    "liberi" è idoneo (es. tutti assenti), non solo se il pool è vuoto —
   //    altrimenti la stanza resta scoperta anche quando qualcuno del pool,
   //    già occupato altrove, potrebbe comunque farla.
-  for (const [roomIdStr, allowedSet] of Object.entries(poolFor)) {
-    const roomId = parseInt(roomIdStr);
+  for (const [roomId, allowedSet] of poolFor) {
     if (usedRooms.has(roomId)) continue;
     const allowed  = [...allowedSet].filter(uid => allUserIds.includes(uid));
     const free     = allowed.filter(uid => !weekLoad.has(uid));
@@ -215,7 +214,7 @@ export function computeNextWeek(weeks, users, rooms, rules, rotation = { type: '
   //    idoneo nel pool consentito, la regola impone che restino scoperte,
   //    non che si aprano a chiunque altro in casa.
   for (const room of sortedRooms) {
-    if (usedRooms.has(room.id) || poolFor[room.id]) continue;
+    if (usedRooms.has(room.id) || poolFor.has(room.id)) continue;
     const free = allUserIds.filter(uid => !weekLoad.has(uid));
     const pick = pickLeast(free, room.id) ?? pickLeast(allUserIds, room.id);
     if (pick) assign(pick, room.id);

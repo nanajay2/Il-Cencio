@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { ArrowRight, ArrowLeft } from 'lucide-react';
-import { api } from '../api.js';
+import { useState } from 'react';
+import { ArrowRight, ArrowLeft, Mail } from 'lucide-react';
+import { supabase } from '../lib/supabase.js';
 
 const inputCls =
   'w-full border-[1.5px] border-border rounded-[12px] px-4 py-3 text-[.95rem] font-sans ' +
@@ -8,300 +8,151 @@ const inputCls =
 
 const labelCls = 'block text-[.7rem] font-bold text-ink-2 mb-1 uppercase tracking-[.06em]';
 
-// savedHouseId: houseId già noto dal device (salta il codice)
-export function LoginScreen({ onSuccess, onBack, savedHouseId }) {
-  // step: 'code' | 'loading' | 'select' | 'pin' | 'set-pin' | 'new-user'
-  const [step,        setStep]        = useState(savedHouseId ? 'loading' : 'code');
-  const [houseCode,   setHouseCode]   = useState('');
-  const [house,       setHouse]       = useState(null);   // { houseId, houseName, users }
-  const [selected,    setSelected]    = useState(null);   // { id, name, hasPin }
-  const [newUserName, setNewUserName] = useState('');
-  const [pin,         setPin]         = useState('');
-  const [pinConf,     setPinConf]     = useState('');
-  const [loading,     setLoading]     = useState(false);
-  const [error,       setError]       = useState(null);
+// Supabase restituisce messaggi in inglese: traduciamo solo i casi più
+// comuni, per il resto mostriamo il messaggio originale.
+const ERROR_MESSAGES = {
+  'Invalid login credentials': 'Email o password non corretti',
+  'User already registered': 'Esiste già un account con questa email',
+  'Password should be at least 6 characters': 'La password deve avere almeno 6 caratteri',
+  'Email not confirmed': 'Devi confermare la tua email prima di accedere (controlla la posta)',
+};
+function translateError(message) {
+  return ERROR_MESSAGES[message] ?? message;
+}
 
-  // Se il device conosce già la casa, carica i membri subito
-  useEffect(() => {
-    if (!savedHouseId) return;
-    api.getHouseMembers(savedHouseId)
-      .then(res => { setHouse(res); setStep('select'); })
-      .catch(() => { setStep('code'); }); // fallback al codice se la casa non si trova
-  }, [savedHouseId]);
-
-  function reset() { setPin(''); setPinConf(''); setError(null); }
-
-  async function handleLookup() {
-    const code = houseCode.trim().toUpperCase();
-    if (!code) return;
-    setLoading(true); setError(null);
-    try {
-      const res = await api.lookupHouse(code);
-      setHouse(res);
-      setStep('select');
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function handleSelectUser(user) {
-    setSelected(user);
-    reset();
-    setStep(user.hasPin ? 'pin' : 'set-pin');
-  }
-
-  async function handleLogin() {
-    if (pin.length !== 4) return;
-    setLoading(true); setError(null);
-    try {
-      const session = await api.login(selected.id, pin);
-      onSuccess(session);
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleSetPin() {
-    if (!/^\d{4}$/.test(pin))  { setError('Il PIN deve essere di 4 cifre'); return; }
-    if (pin !== pinConf)        { setError('I PIN non coincidono'); return; }
-    setLoading(true); setError(null);
-    try {
-      const opts = houseCode ? { houseCode: houseCode.trim().toUpperCase() } : { houseId: house.houseId };
-      await api.setPin(selected.id, pin, opts);
-      const session = await api.login(selected.id, pin);
-      onSuccess(session);
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleRegisterNew() {
-    if (!newUserName.trim())    { setError('Inserisci il tuo nome'); return; }
-    if (!/^\d{4}$/.test(pin))  { setError('Il PIN deve essere di 4 cifre'); return; }
-    if (pin !== pinConf)        { setError('I PIN non coincidono'); return; }
-    setLoading(true); setError(null);
-    try {
-      const session = await api.register(houseCode.trim().toUpperCase(), newUserName.trim(), pin);
-      onSuccess(session);
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // ── Loading (auto-fetch per device noto) ──────────────────────────
-  if (step === 'loading') return (
-    <div className="min-h-screen bg-cream flex items-center justify-center">
-      <p className="text-ink-2 text-[.9rem]">Caricamento…</p>
-    </div>
+function GoogleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+      <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.56 2.7-3.87 2.7-6.62z"/>
+      <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.9v2.33A9 9 0 0 0 9 18z"/>
+      <path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 0 1 3.67 9c0-.59.1-1.17.28-1.7V4.97H.9A9 9 0 0 0 0 9c0 1.45.35 2.83.9 4.03l3.05-2.33z"/>
+      <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .9 4.97l3.05 2.33C4.66 5.17 6.65 3.58 9 3.58z"/>
+    </svg>
   );
+}
 
-  // ── Step: codice casa ─────────────────────────────────────────────
-  if (step === 'code') return (
+// Autenticazione tramite Supabase Auth (email+password o Google). Non
+// sa nulla di case/coinquilini: una volta stabilita la sessione, è
+// App.jsx (via supabase.auth.onAuthStateChange) a decidere il passo
+// successivo — creare/entrare in una casa, o andare dritti all'app se
+// l'identità è già collegata a una o più case.
+export function LoginScreen({ onBack }) {
+  const [mode,     setMode]     = useState('signin'); // 'signin' | 'signup'
+  const [email,    setEmail]    = useState('');
+  const [password, setPassword] = useState('');
+  const [loading,  setLoading]  = useState(false);
+  const [error,    setError]    = useState(null);
+  const [signupDone, setSignupDone] = useState(false);
+
+  async function handleSubmit() {
+    if (!email.trim() || password.length < 6) return;
+    setLoading(true); setError(null);
+    try {
+      if (mode === 'signin') {
+        const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase.auth.signUp({ email: email.trim(), password });
+        if (error) throw error;
+        // Se la conferma email è richiesta dal progetto Supabase, non c'è
+        // ancora una sessione: lo diciamo invece di sembrare bloccati.
+        if (!data.session) { setSignupDone(true); return; }
+      }
+    } catch (e) {
+      setError(translateError(e.message));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleGoogle() {
+    setError(null);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin },
+    });
+    if (error) setError(translateError(error.message));
+  }
+
+  if (signupDone) return (
     <div className="min-h-screen bg-cream flex flex-col items-center justify-center p-6 gap-4">
-      <div className="text-center mb-2">
-        <div className="font-serif text-[1.8rem] text-brown">Entra</div>
-        <p className="text-[.85rem] text-ink-2 mt-1">Inserisci il codice della tua casa</p>
+      <div className="text-center mb-2 max-w-[340px]">
+        <div className="flex justify-center text-brown mb-2"><Mail size={40} /></div>
+        <div className="font-serif text-[1.6rem] text-brown">Controlla la tua email</div>
+        <p className="text-[.85rem] text-ink-2 mt-2">
+          Ti abbiamo mandato un link di conferma a <strong>{email}</strong>. Aprilo per attivare il tuo account, poi torna qui per accedere.
+        </p>
       </div>
-
-      <input
-        type="text" value={houseCode}
-        onChange={e => setHouseCode(e.target.value.toUpperCase())}
-        onKeyDown={e => e.key === 'Enter' && handleLookup()}
-        placeholder="es. CENCIO"
-        maxLength={12}
-        className="w-full max-w-[320px] border-[1.5px] border-border rounded-[14px] px-4 py-3.5 text-center text-[1.4rem] font-bold font-mono tracking-[.15em] bg-card text-brown outline-none focus:border-brown transition-colors"
-      />
-
-      {error && <p className="text-[.82rem] text-red text-center max-w-[280px]">{error}</p>}
-
       <button
-        onClick={handleLookup}
-        disabled={loading || !houseCode.trim()}
-        className="w-full max-w-[320px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+        onClick={() => { setSignupDone(false); setMode('signin'); }}
+        className="w-full max-w-[320px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors flex items-center justify-center gap-1.5"
       >
-        {loading ? 'Cerco…' : <>Continua <ArrowRight size={18} /></>}
-      </button>
-
-      <button onClick={onBack} className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-brown transition-colors py-1 flex items-center gap-1">
-        <ArrowLeft size={14} /> Torna indietro
+        Ho confermato, accedi <ArrowRight size={18} />
       </button>
     </div>
   );
 
-  // ── Step: seleziona utente ────────────────────────────────────────
-  if (step === 'select') return (
-    <div className="min-h-screen bg-cream flex flex-col items-center justify-center p-6 gap-4">
-      <div className="text-center mb-2">
-        <div className="text-[.8rem] text-ink-2 uppercase tracking-[.08em]">{house.houseName}</div>
-        <div className="font-serif text-[1.8rem] text-brown">Chi sei?</div>
-      </div>
-
-      <div className="w-full max-w-[320px] flex flex-col gap-2">
-        {house.users.map(u => (
-          <button
-            key={u.id}
-            onClick={() => handleSelectUser(u)}
-            className="w-full bg-card border border-border rounded-2xl py-3.5 px-4 text-left font-bold text-ink cursor-pointer hover:border-brown hover:bg-cream-2 transition-colors flex items-center justify-between"
-          >
-            <span>{u.name}</span>
-            {!u.hasPin && <span className="text-[.65rem] font-normal text-ink-2 bg-cream-2 border border-border px-2 py-0.5 rounded-full">primo accesso</span>}
-          </button>
-        ))}
-
-        {/* "Sono nuovo" solo se siamo arrivati col codice invito */}
-        {houseCode && (
-          <button
-            onClick={() => { reset(); setNewUserName(''); setStep('new-user'); }}
-            className="w-full border border-dashed border-border rounded-2xl py-3.5 px-4 text-center text-[.9rem] text-ink-2 cursor-pointer hover:border-brown hover:text-brown transition-colors bg-transparent"
-          >
-            + Sono un nuovo inquilino
-          </button>
-        )}
-      </div>
-
-      {!savedHouseId && (
-        <button onClick={() => { setStep('code'); setError(null); }} className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-brown transition-colors py-1 flex items-center gap-1">
-          <ArrowLeft size={14} /> Cambia codice
-        </button>
-      )}
-    </div>
-  );
-
-  // ── Step: inserisci PIN ───────────────────────────────────────────
-  if (step === 'pin') return (
-    <div className="min-h-screen bg-cream flex flex-col items-center justify-center p-6 gap-4">
-      <div className="text-center mb-2">
-        <div className="font-serif text-[1.8rem] text-brown">Ciao, {selected.name}!</div>
-        <p className="text-[.85rem] text-ink-2 mt-1">Inserisci il tuo PIN</p>
-      </div>
-
-      <input
-        type="password" inputMode="numeric" maxLength={4} autoFocus
-        value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, ''))}
-        onKeyDown={e => e.key === 'Enter' && handleLogin()}
-        placeholder="• • • •"
-        className="w-full max-w-[200px] border-[1.5px] border-border rounded-[14px] px-4 py-3.5 text-center text-[2rem] font-bold tracking-[.4em] bg-card text-brown outline-none focus:border-brown transition-colors"
-      />
-
-      {error && <p className="text-[.82rem] text-red text-center max-w-[280px]">{error}</p>}
-
-      <button
-        onClick={handleLogin}
-        disabled={loading || pin.length !== 4}
-        className="w-full max-w-[320px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
-      >
-        {loading ? 'Accesso…' : <>Entra <ArrowRight size={18} /></>}
-      </button>
-
-      <button onClick={() => { setStep('select'); reset(); }} className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-brown transition-colors py-1 flex items-center gap-1">
-        <ArrowLeft size={14} /> Non sono io
-      </button>
-    </div>
-  );
-
-  // ── Step: imposta PIN (utente esistente senza PIN) ────────────────
-  if (step === 'set-pin') return (
-    <div className="min-h-screen bg-cream flex flex-col items-center justify-center p-6 gap-4">
-      <div className="text-center mb-2">
-        <div className="font-serif text-[1.8rem] text-brown">Benvenuta, {selected.name}!</div>
-        <p className="text-[.85rem] text-ink-2 mt-1">Scegli il tuo PIN per accedere</p>
-      </div>
-
-      <div className="w-full max-w-[320px] flex flex-col gap-3">
-        <div>
-          <label className={labelCls}>PIN (4 cifre)</label>
-          <input
-            type="password" inputMode="numeric" maxLength={4} autoFocus
-            value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, ''))}
-            placeholder="• • • •"
-            className={`${inputCls} text-center text-[1.4rem] tracking-[.3em]`}
-          />
-        </div>
-        <div>
-          <label className={labelCls}>Conferma PIN</label>
-          <input
-            type="password" inputMode="numeric" maxLength={4}
-            value={pinConf} onChange={e => setPinConf(e.target.value.replace(/\D/g, ''))}
-            placeholder="• • • •"
-            className={`${inputCls} text-center text-[1.4rem] tracking-[.3em]`}
-          />
-        </div>
-      </div>
-
-      {error && <p className="text-[.82rem] text-red text-center max-w-[280px]">{error}</p>}
-
-      <button
-        onClick={handleSetPin}
-        disabled={loading || pin.length !== 4 || pinConf.length !== 4}
-        className="w-full max-w-[320px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
-      >
-        {loading ? 'Salvataggio…' : <>Salva PIN <ArrowRight size={18} /></>}
-      </button>
-
-      <button onClick={() => { setStep('select'); reset(); }} className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-brown transition-colors py-1 flex items-center gap-1">
-        <ArrowLeft size={14} /> Non sono io
-      </button>
-    </div>
-  );
-
-  // ── Step: nuovo inquilino (nome + PIN) ────────────────────────────
   return (
     <div className="min-h-screen bg-cream flex flex-col items-center justify-center p-6 gap-4">
       <div className="text-center mb-2">
-        <div className="font-serif text-[1.8rem] text-brown">Nuovo inquilino</div>
-        <p className="text-[.85rem] text-ink-2 mt-1">Come ti chiami? Scegli anche un PIN.</p>
+        <div className="font-serif text-[1.8rem] text-brown">{mode === 'signin' ? 'Bentornati' : 'Crea il tuo account'}</div>
+        <p className="text-[.85rem] text-ink-2 mt-1">
+          {mode === 'signin' ? 'Accedi con email e password' : 'Ti servirà per entrare o creare una casa'}
+        </p>
       </div>
 
       <div className="w-full max-w-[320px] flex flex-col gap-3">
         <div>
-          <label className={labelCls}>Il tuo nome</label>
+          <label className={labelCls}>Email</label>
           <input
-            type="text" autoFocus value={newUserName}
-            onChange={e => setNewUserName(e.target.value)}
-            placeholder="es. Marco"
+            type="email" autoFocus value={email}
+            onChange={e => setEmail(e.target.value)}
+            placeholder="tu@esempio.it"
             className={inputCls}
           />
         </div>
         <div>
-          <label className={labelCls}>PIN (4 cifre)</label>
+          <label className={labelCls}>Password</label>
           <input
-            type="password" inputMode="numeric" maxLength={4}
-            value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, ''))}
-            placeholder="• • • •"
-            className={`${inputCls} text-center text-[1.4rem] tracking-[.3em]`}
-          />
-        </div>
-        <div>
-          <label className={labelCls}>Conferma PIN</label>
-          <input
-            type="password" inputMode="numeric" maxLength={4}
-            value={pinConf} onChange={e => setPinConf(e.target.value.replace(/\D/g, ''))}
-            placeholder="• • • •"
-            className={`${inputCls} text-center text-[1.4rem] tracking-[.3em]`}
+            type="password" value={password}
+            onChange={e => setPassword(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+            placeholder="Almeno 6 caratteri"
+            className={inputCls}
           />
         </div>
       </div>
 
-      {error && <p className="text-[.82rem] text-red text-center max-w-[280px]">{error}</p>}
+      {error && <p className="text-[.82rem] text-red text-center max-w-[320px]">{error}</p>}
 
       <button
-        onClick={handleRegisterNew}
-        disabled={loading || !newUserName.trim() || pin.length !== 4 || pinConf.length !== 4}
+        onClick={handleSubmit}
+        disabled={loading || !email.trim() || password.length < 6}
         className="w-full max-w-[320px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
       >
-        {loading ? 'Registrazione…' : <>Registrati <ArrowRight size={18} /></>}
+        {loading ? 'Un attimo…' : <>{mode === 'signin' ? 'Accedi' : 'Registrati'} <ArrowRight size={18} /></>}
       </button>
 
-      <button onClick={() => { setStep('select'); reset(); }} className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-brown transition-colors py-1 flex items-center gap-1">
-        <ArrowLeft size={14} /> Torna alla lista
+      <div className="w-full max-w-[320px] flex items-center gap-3 text-ink-2 text-[.75rem]">
+        <div className="flex-1 h-px bg-border" /> oppure <div className="flex-1 h-px bg-border" />
+      </div>
+
+      <button
+        onClick={handleGoogle}
+        className="w-full max-w-[320px] bg-card border-[1.5px] border-border text-ink font-bold text-[.9rem] rounded-2xl py-3.5 cursor-pointer hover:border-brown transition-colors flex items-center justify-center gap-2"
+      >
+        <GoogleIcon /> Continua con Google
+      </button>
+
+      <button
+        onClick={() => { setMode(m => m === 'signin' ? 'signup' : 'signin'); setError(null); }}
+        className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-brown transition-colors py-1"
+      >
+        {mode === 'signin' ? 'Non hai un account? Registrati' : 'Hai già un account? Accedi'}
+      </button>
+
+      <button onClick={onBack} className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-brown transition-colors py-1 flex items-center gap-1">
+        <ArrowLeft size={14} /> Torna indietro
       </button>
     </div>
   );
