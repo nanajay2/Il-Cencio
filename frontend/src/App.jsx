@@ -7,6 +7,7 @@ import { RevealModal }        from './components/RevealModal.jsx';
 import { CatMascot }          from './components/CatMascot.jsx';
 import { Toast, useToast }    from './components/Toast.jsx';
 import { WelcomeScreen }      from './components/WelcomeScreen.jsx';
+import { UpgradeNoticeScreen } from './components/UpgradeNoticeScreen.jsx';
 import { LoginScreen }        from './components/LoginScreen.jsx';
 import { ChooseHouseScreen }  from './components/ChooseHouseScreen.jsx';
 import { JoinHouseScreen }    from './components/JoinHouseScreen.jsx';
@@ -48,6 +49,19 @@ function loadActiveHouseId() {
 function saveActiveHouseId(id) {
   if (id) localStorage.setItem('activeHouseId', id);
   else localStorage.removeItem('activeHouseId');
+}
+
+// US-05.2 — chi ha usato l'app prima di FEAT-01/02 ha ancora in
+// localStorage la vecchia sessione PIN-based (userId numerico, mai
+// più scritta da questo codice). La sua presenza, senza sessione
+// Supabase attiva, e' il segnale per mostrare l'avviso di rollout
+// invece della welcome normale.
+const LEGACY_KEYS = ['houseId', 'houseName', 'userId', 'userName', 'isAdmin', 'accounts'];
+function hasLegacySession() {
+  return !!localStorage.getItem('userId');
+}
+function clearLegacySession() {
+  LEGACY_KEYS.forEach(k => localStorage.removeItem(k));
 }
 
 export default function App() {
@@ -341,7 +355,9 @@ export default function App() {
     </div>
   );
 
-  if (view === 'welcome')      return <WelcomeScreen onStart={() => setView('auth')} />;
+  if (view === 'welcome')      return hasLegacySession()
+    ? <UpgradeNoticeScreen onContinue={() => { clearLegacySession(); setView('auth'); }} />
+    : <WelcomeScreen onStart={() => setView('auth')} />;
   if (view === 'auth')         return <LoginScreen onBack={() => setView('welcome')} />;
   if (view === 'choose-house') return (
     <ChooseHouseScreen
