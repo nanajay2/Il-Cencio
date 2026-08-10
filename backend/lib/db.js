@@ -153,6 +153,46 @@ export async function registerUserWithAuth(houseId, name, authId, email) {
   };
 }
 
+// ── Inviti (link + QR, FEAT-06) ──────────────────────────────────────
+
+const INVITE_TTL_DAYS = 30;
+
+// userId nullo = invito casa (multi-uso finché non scade); valorizzato =
+// invito personale per quel coinquilino (uso singolo, si consuma al claim).
+export async function createInvite(houseId, userId, createdByUserId) {
+  const token = randomBytes(16).toString('base64url');
+  const expiresAt = new Date(Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const { error } = await supabase
+    .from('invites')
+    .insert({ token, house_id: houseId, user_id: userId ?? null, expires_at: expiresAt, created_by: createdByUserId });
+  if (error) throw error;
+  return { token, expiresAt };
+}
+
+// Risolve un token in (houseId, houseName, userId?, userName?) senza
+// esporre altro. Fallisce in modo pulito su token scaduto/consumato/
+// inesistente — messaggio identico nei tre casi per non far trapelare
+// quale sia il motivo a chi indovina token a caso.
+export async function resolveInvite(token) {
+  const { data, error } = await supabase
+    .from('invites')
+    .select('house_id, user_id, expires_at, used_at, houses(name), users!invites_user_id_fkey(name)')
+    .eq('token', token)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data || new Date(data.expires_at) < new Date() || (data.user_id && data.used_at))
+    throw new Error('Invito non valido o scaduto');
+  return {
+    houseId: data.house_id, houseName: data.houses.name,
+    userId: data.user_id, userName: data.users?.name ?? null,
+  };
+}
+
+export async function consumeInvite(token) {
+  const { error } = await supabase.from('invites').update({ used_at: new Date().toISOString() }).eq('token', token);
+  if (error) throw error;
+}
+
 // Risolve l'appartenenza dell'identità autenticata a UNA casa
 // specifica (auth_id non è più unique: la stessa identità può avere
 // una riga per ogni casa di cui fa parte — vedi migrazione 009).
@@ -574,6 +614,7 @@ export const db = {
   getHouse, createHouse, getAllHouseIds, getRotationConfig, updateRotation,
   getHouseMembers, lookupHouseByCode,
   claimUserSlotByAuth, registerUserWithAuth,
+  createInvite, resolveInvite, consumeInvite,
   getMembership, hasAnyMembership, getHousesForAuth,
   getUsers, createUserSlot, deleteUser, leaveHouse,
   getRooms, createRoom, updateRoom, deleteRoom,
