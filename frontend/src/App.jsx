@@ -7,7 +7,10 @@ import { RevealModal }        from './components/RevealModal.jsx';
 import { CatMascot }          from './components/CatMascot.jsx';
 import { Toast, useToast }    from './components/Toast.jsx';
 import { WelcomeScreen }      from './components/WelcomeScreen.jsx';
+import { UpgradeNoticeScreen } from './components/UpgradeNoticeScreen.jsx';
 import { LoginScreen }        from './components/LoginScreen.jsx';
+import { ChooseHouseScreen }  from './components/ChooseHouseScreen.jsx';
+import { JoinHouseScreen }    from './components/JoinHouseScreen.jsx';
 import { CreateHouseScreen }  from './components/CreateHouseScreen.jsx';
 import { SettingsPanel }      from './components/SettingsPanel.jsx';
 import { ViewModeSwitcher }   from './components/ViewModeSwitcher.jsx';
@@ -26,6 +29,7 @@ import { useHouse }           from './hooks/useHouse.js';
 import { useSwaps }           from './hooks/useSwaps.js';
 import { usePush }            from './hooks/usePush.js';
 import { api }                from './api.js';
+import { supabase }           from './lib/supabase.js';
 import { isCurW, todayStr }   from './constants.js';
 import { findTurnoForDate }   from './lib/calendarBuckets.js';
 import { isStandalone }       from './lib/platform.js';
@@ -34,64 +38,58 @@ import { isStandalone }       from './lib/platform.js';
 // comodita'; in produzione (build) e' obbligatorio averla installata.
 const BYPASS_INSTALL_GATE = import.meta.env.DEV;
 
-function loadSession() {
-  return {
-    houseId:   localStorage.getItem('houseId'),
-    houseName: localStorage.getItem('houseName'),
-    userId:    localStorage.getItem('userId')   ? Number(localStorage.getItem('userId'))   : null,
-    userName:  localStorage.getItem('userName'),
-    isAdmin:   localStorage.getItem('isAdmin')  === 'true',
-  };
+// Unico dato persistito lato client: quale casa era attiva l'ultima
+// volta. Tutto il resto (identità, elenco case) viene dalla sessione
+// Supabase + da GET /houses/mine, mai da una cache locale non
+// verificata — un'identità, N case, nessun re-login per passare da
+// una all'altra (US-02.5).
+function loadActiveHouseId() {
+  return localStorage.getItem('activeHouseId') || null;
 }
-function saveSession(s) {
-  localStorage.setItem('houseId',   s.houseId   ?? '');
-  localStorage.setItem('houseName', s.houseName  ?? '');
-  localStorage.setItem('userId',    s.userId     ?? '');
-  localStorage.setItem('userName',  s.userName   ?? '');
-  localStorage.setItem('isAdmin',   s.isAdmin    ? 'true' : 'false');
-}
-function clearSession() {
-  // Tiene houseId/houseName: al prossimo accesso salta il codice casa
-  ['userId','userName','isAdmin'].forEach(k => localStorage.removeItem(k));
+function saveActiveHouseId(id) {
+  if (id) localStorage.setItem('activeHouseId', id);
+  else localStorage.removeItem('activeHouseId');
 }
 
-// Elenco di tutte le case a cui si è fatto accesso su questo dispositivo,
-// per poter passare dall'una all'altra senza rifare il login ogni volta.
-function loadAccounts() {
-  try {
-    const arr = JSON.parse(localStorage.getItem('accounts') || '[]');
-    return Array.isArray(arr) ? arr : [];
-  } catch {
-    return [];
+// US-05.2 — chi ha usato l'app prima di FEAT-01/02 ha ancora in
+// localStorage la vecchia sessione PIN-based (userId numerico, mai
+// più scritta da questo codice). La sua presenza, senza sessione
+// Supabase attiva, e' il segnale per mostrare l'avviso di rollout
+// invece della welcome normale.
+const LEGACY_KEYS = ['houseId', 'houseName', 'userId', 'userName', 'isAdmin', 'accounts'];
+function hasLegacySession() {
+  return !!localStorage.getItem('userId');
+}
+function clearLegacySession() {
+  LEGACY_KEYS.forEach(k => localStorage.removeItem(k));
+}
+
+// US-06.4 — un link d'invito (/join/:token) può arrivare mentre l'app
+// non è ancora installata: InstallGate blocca lo schermo prima che si
+// possa fare qualunque altra cosa. Il token va salvato PRIMA di quel
+// blocco (qui, sincrono, nell'initializer di useState — gira nello
+// stesso render, prima di qualunque return condizionale) così dopo
+// installazione e riapertura da home screen il flusso di join riprende.
+function capturePendingInviteToken() {
+  const m = window.location.pathname.match(/^\/join\/([^/]+)$/);
+  if (m) {
+    localStorage.setItem('pendingInviteToken', m[1]);
+    window.history.replaceState({}, '', '/');
+    return m[1];
   }
-}
-function saveAccounts(list) {
-  localStorage.setItem('accounts', JSON.stringify(list));
-}
-function upsertAccount(list, account) {
-  const idx = list.findIndex(a => a.houseId === account.houseId && a.userId === account.userId);
-  const next = [...list];
-  if (idx >= 0) next[idx] = account; else next.push(account);
-  return next;
+  return localStorage.getItem('pendingInviteToken');
 }
 
 export default function App() {
-  const initial = loadSession();
+  // view: 'welcome' | 'auth' | 'choose-house' | 'join-house' | 'create-house' | 'app'
+  const [view, setView] = useState('welcome');
+  const [authSession, setAuthSession] = useState(undefined); // undefined = non ancora controllata
+  const [houses,        setHouses]        = useState([]); // da GET /houses/mine
+  const [activeHouseId, setActiveHouseId] = useState(loadActiveHouseId());
+  const [addingHouse,   setAddingHouse]   = useState(false); // true quando si aggiunge una casa dallo switcher (non primo accesso)
+  const [pendingInviteToken, setPendingInviteToken] = useState(() => capturePendingInviteToken());
 
-  // view: 'welcome' | 'login' | 'create-house' | 'app'
-  const [view,     setView]     = useState(
-    initial.houseId && initial.userId ? 'app' :
-    initial.houseId                   ? 'login' :
-                                        'welcome'
-  );
-  const [session,  setSession]  = useState(initial);
-  const [accounts, setAccounts] = useState(() => {
-    const stored = loadAccounts();
-    if (stored.length) return stored;
-    return initial.houseId && initial.userId ? [initial] : [];
-  });
   const [showSwitcher, setShowSwitcher] = useState(false);
-  const [addingHouse,  setAddingHouse]  = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showAbsences, setShowAbsences] = useState(false);
   const [showSwaps, setShowSwaps] = useState(false);
@@ -109,8 +107,49 @@ export default function App() {
   const swapsHook    = useSwaps();
   const pushHook     = usePush();
 
-  const houseId = session.houseId;
-  const userId  = session.userId;
+  const session = houses.find(h => h.houseId === activeHouseId) ?? null;
+  const houseId = session?.houseId ?? null;
+  const userId  = session?.userId ?? null;
+
+  // Ascolta lo stato di autenticazione Supabase: parte con la sessione
+  // corrente (se c'e' gia', da localStorage gestito dall'SDK) e reagisce
+  // a login/logout/refresh token per tutta la vita dell'app.
+  useEffect(() => {
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => {
+      setAuthSession(sess);
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  // Quando cambia la sessione (login/logout), ricarica l'elenco case di
+  // questa identità e decide dove atterrare.
+  useEffect(() => {
+    if (authSession === undefined) return; // ancora in controllo
+    if (!authSession) {
+      setHouses([]);
+      setView('welcome');
+      return;
+    }
+    api.myHouses()
+      .then(list => {
+        setHouses(list);
+        if (pendingInviteToken) {
+          setAddingHouse(list.length > 0);
+          setView('join-house');
+          return;
+        }
+        if (list.length === 0) {
+          setView('choose-house');
+          return;
+        }
+        const stillValid = list.some(h => h.houseId === activeHouseId);
+        const next = stillValid ? activeHouseId : list[0].houseId;
+        if (next !== activeHouseId) { setActiveHouseId(next); saveActiveHouseId(next); }
+        setView('app');
+      })
+      .catch(e => showToast(e.message, 'error'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authSession]);
 
   // When houseId is known, load house data
   useEffect(() => {
@@ -132,7 +171,7 @@ export default function App() {
     const key = `push_auto_prompted_${userId}`;
     if (localStorage.getItem(key)) return;
     localStorage.setItem(key, '1');
-    pushHook.subscribe(houseId, userId).catch(() => {});
+    pushHook.subscribe(houseId).catch(() => {});
   }, [houseId, userId]);
 
   // Trigger reveal when current week changes and user is chosen
@@ -192,54 +231,38 @@ export default function App() {
     };
   }, [houseId]);
 
-  function applySession(s) {
-    setSession(s);
-    saveSession(s);
-    if (s.houseId && s.userId) {
-      setAccounts(prev => {
-        const next = upsertAccount(prev, s);
-        saveAccounts(next);
-        return next;
-      });
-    }
+  // Rilegge le case dal server e attiva quella indicata (o la prima
+  // disponibile). Usata dopo /claim o dopo la creazione di una casa.
+  async function refreshHouses(preferHouseId) {
+    const list = await api.myHouses();
+    setHouses(list);
+    const target = preferHouseId && list.some(h => h.houseId === preferHouseId)
+      ? preferHouseId
+      : (list.find(h => h.houseId === activeHouseId)?.houseId ?? list[0]?.houseId ?? null);
+    setActiveHouseId(target);
+    saveActiveHouseId(target);
+    return list;
   }
 
-  function handleJoinSuccess(apiSession) {
-    // apiSession: { userId, userName, isAdmin, houseId, houseName }
-    const s = {
-      houseId:   apiSession.houseId,
-      houseName: apiSession.houseName,
-      userId:    apiSession.userId,
-      userName:  apiSession.userName,
-      isAdmin:   apiSession.isAdmin,
-    };
-    applySession(s);
-    setAddingHouse(false);
-    setView('app');
+  function handleJoinSuccess(membership) {
+    localStorage.removeItem('pendingInviteToken');
+    setPendingInviteToken(null);
+    refreshHouses(membership.houseId).then(() => {
+      setAddingHouse(false);
+      setView('app');
+    });
   }
 
-  function handleCreateSuccess(apiSession) {
-    // apiSession: { houseId, houseName, userId, userName, isAdmin, inviteCode }
-    const s = {
-      houseId:   apiSession.houseId,
-      houseName: apiSession.houseName,
-      userId:    apiSession.userId,
-      userName:  apiSession.userName,
-      isAdmin:   apiSession.isAdmin,
-    };
-    applySession(s);
-    setAddingHouse(false);
-    setView('app');
+  function handleCreateSuccess(created) {
+    refreshHouses(created.houseId).then(() => {
+      setAddingHouse(false);
+      setView('app');
+    });
   }
 
-  function handleSelectUser(user) {
-    const s = { ...session, userId: user.id, userName: user.name, isAdmin: user.isAdmin };
-    applySession(s);
-    setView('app');
-  }
-
-  function switchAccount(account) {
-    applySession(account);
+  function switchAccount(house) {
+    setActiveHouseId(house.houseId);
+    saveActiveHouseId(house.houseId);
     setShowSwitcher(false);
     setView('app');
   }
@@ -247,7 +270,7 @@ export default function App() {
   function startAddHouse(target) {
     setShowSwitcher(false);
     setAddingHouse(true);
-    setView(target); // 'login' | 'create-house'
+    setView(target); // 'join-house' | 'create-house'
   }
 
   function cancelAddHouse() {
@@ -255,27 +278,26 @@ export default function App() {
     setView('app');
   }
 
-  // Esce solo dalla casa attiva: le altre case salvate restano accessibili.
+  // Esce dall'identità Supabase (unica sessione, condivisa da tutte le
+  // case): non esiste più un "logout di una sola casa" separato dalle
+  // altre, perché non c'è più nulla da cachare per-casa lato client.
   function logout() {
-    clearSession();
-    const remaining = accounts.filter(a => !(a.houseId === session.houseId && a.userId === session.userId));
-    setAccounts(remaining);
-    saveAccounts(remaining);
-    if (remaining.length) {
-      applySession(remaining[0]);
-      setView('app');
-    } else {
-      setSession({ houseId: null, houseName: null, userId: null, userName: null, isAdmin: false });
-      setView('welcome');
-    }
+    saveActiveHouseId(null);
+    setShowSettings(false);
+    supabase.auth.signOut();
   }
 
   async function handleLeaveHouse() {
     if (!window.confirm('Sei sicuro di voler abbandonare questa casa? Non potrai più accedere senza un nuovo invito.')) return;
     try {
-      await api.leaveHouse(houseId, userId);
+      await api.leaveHouse(houseId);
       setShowSettings(false);
-      logout();
+      const list = await api.myHouses();
+      setHouses(list);
+      const next = list[0]?.houseId ?? null;
+      setActiveHouseId(next);
+      saveActiveHouseId(next);
+      setView(next ? 'app' : 'choose-house');
     } catch (e) { showToast(e.message, 'error'); }
   }
 
@@ -350,17 +372,50 @@ export default function App() {
 
   // ---- Routing ----
   if (!BYPASS_INSTALL_GATE && !isStandalone()) return <InstallGate />;
-  if (view === 'welcome')      return <WelcomeScreen onLogin={() => setView('login')} onCreate={() => setView('create-house')} />;
-  if (view === 'login')        return (
-    <LoginScreen
-      onSuccess={handleJoinSuccess}
-      onBack={addingHouse ? cancelAddHouse : () => setView('welcome')}
-      savedHouseId={!addingHouse && initial.houseId ? initial.houseId : null}
+
+  if (authSession === undefined) return (
+    <div className="min-h-screen bg-cream flex items-center justify-center">
+      <Loader2 size={32} className="animate-spin text-brown" />
+    </div>
+  );
+
+  if (view === 'welcome')      return hasLegacySession()
+    ? <UpgradeNoticeScreen onContinue={() => { clearLegacySession(); setView('auth'); }} />
+    : <WelcomeScreen onStart={() => setView('auth')} />;
+  if (view === 'auth')         return <LoginScreen onBack={() => setView('welcome')} />;
+  if (view === 'choose-house') return (
+    <ChooseHouseScreen
+      onJoin={() => setView('join-house')}
+      onCreate={() => setView('create-house')}
+      onBack={addingHouse ? cancelAddHouse : undefined}
+      onLogout={addingHouse ? undefined : () => supabase.auth.signOut()}
     />
   );
-  if (view === 'create-house') return <CreateHouseScreen onSuccess={handleCreateSuccess} onBack={addingHouse ? cancelAddHouse : () => setView('welcome')} />;
+  if (view === 'join-house')   return (
+    <JoinHouseScreen
+      onSuccess={handleJoinSuccess}
+      initialToken={pendingInviteToken}
+      onBack={() => {
+        localStorage.removeItem('pendingInviteToken');
+        setPendingInviteToken(null);
+        addingHouse ? cancelAddHouse() : setView('choose-house');
+      }}
+    />
+  );
+  if (view === 'create-house') return (
+    <CreateHouseScreen
+      onSuccess={handleCreateSuccess}
+      onBack={addingHouse ? cancelAddHouse : () => setView('choose-house')}
+    />
+  );
 
   // ---- Main app ----
+  if (!session) return (
+    <div className="min-h-screen bg-cream flex items-center justify-center">
+      <Loader2 size={32} className="animate-spin text-brown" />
+    </div>
+  );
+
   const { currentWeek, weeks, loading } = weeksHook;
   const house = houseHook.house;
 
@@ -381,11 +436,10 @@ export default function App() {
 
       {showSwitcher && (
         <HouseSwitcherModal
-          accounts={accounts}
-          activeHouseId={session.houseId}
-          activeUserId={session.userId}
+          houses={houses}
+          activeHouseId={activeHouseId}
           onSelect={switchAccount}
-          onAddExisting={() => startAddHouse('login')}
+          onAddExisting={() => startAddHouse('join-house')}
           onAddNew={() => startAddHouse('create-house')}
           onClose={() => setShowSwitcher(false)}
         />

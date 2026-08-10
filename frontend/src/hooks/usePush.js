@@ -32,7 +32,7 @@ export function usePush() {
 
   useEffect(() => { refreshStatus(); }, [refreshStatus]);
 
-  async function subscribe(houseId, userId) {
+  async function subscribe(houseId) {
     setLoading(true);
     try {
       const permission = await Notification.requestPermission();
@@ -42,7 +42,7 @@ export function usePush() {
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
       });
-      await api.pushSubscribe(houseId, userId, sub.toJSON());
+      await api.pushSubscribe(houseId, sub.toJSON());
       setStatus('active');
     } finally {
       setLoading(false);

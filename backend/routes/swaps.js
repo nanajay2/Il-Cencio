@@ -1,8 +1,10 @@
 import { Router } from 'express';
 import { db } from '../lib/db.js';
 import { sendNotification } from '../lib/push.js';
+import { requireAuth, requireMembership } from '../lib/auth.js';
 
 const router = Router({ mergeParams: true });
+router.use(requireAuth, requireMembership);
 
 // URL assoluto del backend, necessario al service worker per chiamare
 // l'API accetta/rifiuta direttamente dalla notifica push (in dev, vuoto:
@@ -23,10 +25,11 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
   const { houseId } = req.params;
-  const { weekId, fromUserId, fromRoomId, toUserId, toRoomId } = req.body;
-  if (!weekId || !fromUserId || !fromRoomId || !toUserId)
-    return res.status(400).json({ error: 'weekId, fromUserId, fromRoomId, toUserId richiesti' });
-  if (Number(fromUserId) === Number(toUserId))
+  const { weekId, fromRoomId, toUserId, toRoomId } = req.body;
+  const fromUserId = req.userId; // solo il proprietario del turno può proporlo in scambio
+  if (!weekId || !fromRoomId || !toUserId)
+    return res.status(400).json({ error: 'weekId, fromRoomId, toUserId richiesti' });
+  if (fromUserId === toUserId)
     return res.status(400).json({ error: 'Non puoi proporre uno scambio con te stesso' });
 
   try {
@@ -37,15 +40,15 @@ router.post('/', async (req, res) => {
 
     // toRoomId assente = trasferimento a senso unico verso un coinquilino
     // senza turni questa settimana: nessuna assegnazione da verificare per lui.
-    const checks = [db.getAssignment(houseId, weekId, Number(fromUserId), Number(fromRoomId))];
-    if (toRoomId) checks.push(db.getAssignment(houseId, weekId, Number(toUserId), Number(toRoomId)));
+    const checks = [db.getAssignment(houseId, weekId, fromUserId, fromRoomId)];
+    if (toRoomId) checks.push(db.getAssignment(houseId, weekId, toUserId, toRoomId));
     const [fromAsg, toAsg] = await Promise.all(checks);
     if (!fromAsg || (toRoomId && !toAsg))
       return res.status(400).json({ error: 'Una delle due assegnazioni indicate non esiste in questa settimana' });
 
     const swap = await db.createSwapRequest(houseId, {
-      weekId, fromUserId: Number(fromUserId), fromRoomId: Number(fromRoomId),
-      toUserId: Number(toUserId), toRoomId: toRoomId ? Number(toRoomId) : null,
+      weekId, fromUserId, fromRoomId,
+      toUserId, toRoomId: toRoomId || null,
     });
 
     sendNotification(houseId, {
@@ -67,7 +70,9 @@ router.post('/', async (req, res) => {
 router.post('/:swapId/accept', async (req, res) => {
   const { houseId, swapId } = req.params;
   try {
-    const swap = await db.getSwapById(houseId, Number(swapId));
+    const swap = await db.getSwapById(houseId, swapId);
+    if (swap.toUserId !== req.userId)
+      return res.status(403).json({ error: 'Solo il destinatario può rispondere a questa richiesta' });
     if (swap.status !== 'pending') return res.status(409).json({ error: 'Richiesta gia\' evasa' });
 
     const checks = [db.getAssignment(houseId, swap.weekId, swap.fromUserId, swap.fromRoomId)];
@@ -98,7 +103,9 @@ router.post('/:swapId/accept', async (req, res) => {
 router.post('/:swapId/decline', async (req, res) => {
   const { houseId, swapId } = req.params;
   try {
-    const swap = await db.getSwapById(houseId, Number(swapId));
+    const swap = await db.getSwapById(houseId, swapId);
+    if (swap.toUserId !== req.userId)
+      return res.status(403).json({ error: 'Solo il destinatario può rispondere a questa richiesta' });
     if (swap.status !== 'pending') return res.status(409).json({ error: 'Richiesta gia\' evasa' });
 
     await db.updateSwapStatus(houseId, swap.id, 'declined');

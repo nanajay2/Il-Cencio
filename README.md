@@ -29,7 +29,7 @@ Web app per gestire i turni di pulizia settimanali in una casa condivisa. Ogni c
 - **Ricalcolo automatico** — ogni modifica alle stanze (creazione/rimozione) invalida le settimane non ancora concluse, che vengono rigenerate da capo alla generazione successiva, evitando calendari con assegnazioni mancanti o orfane
 - **Done check** — ogni coinquilino può segnare un task come completato; lo stato è condiviso in tempo reale
 - **Assenze** — segna un periodo di assenza per una persona; la sua card viene mostrata come assente per quelle settimane
-- **Accesso** — registrazione tramite codice invito della casa + PIN a 4 cifre, nessuna email richiesta
+- **Accesso** — Supabase Auth (email+password o Google), sessione JWT verificata a ogni richiesta; entra in una casa esistente via codice invito + claim, o creane una nuova. Un'identità può appartenere a più case, switch senza re-login
 - **Versione app** — mostrata in basso nella schermata di benvenuto (letta da `frontend/package.json`)
 - **PWA installabile e obbligatoria** — manifest + service worker (`frontend/public/sw.js`); in produzione l'app non è utilizzabile da browser normale, un gate (`InstallGate.jsx`) blocca l'accesso finché non è installata sulla schermata Home (bottone diretto su Chrome/Edge Android e desktop, istruzioni guidate su iOS Safari). In sviluppo (`npm run dev`) il gate è disattivato per comodità
 - **Notifiche push** — il permesso viene richiesto automaticamente al primo accesso di ogni utente (solo se non è mai stato deciso prima; in seguito si riattiva/disattiva a mano da ⚙️ Impostazioni). Avvisano di: settimana con i propri turni generata, reminder giornaliero (9:00) per i task non ancora segnati come fatti, turno non completato il giorno dopo la fine settimana, nuova assenza registrata da un coinquilino. Su iOS richiede Safari 16.4+ e l'app installata da schermata Home (le Web Push non funzionano da Safari diretto)
@@ -39,9 +39,23 @@ Web app per gestire i turni di pulizia settimanali in una casa condivisa. Ogni c
 
 ## Setup
 
+### Ambiente di sviluppo locale (consigliato)
+
+Sviluppo/test vanno fatti contro uno stack Supabase locale, mai contro produzione.
+
+1. Docker Desktop + [Supabase CLI](https://supabase.com/docs/guides/cli), poi dalla root del repo:
+   ```
+   supabase init      # una tantum
+   supabase start     # stampa URL/chiavi locali (Studio su http://127.0.0.1:54323)
+   ```
+2. Clona schema+dati da produzione (dump + restore, o `supabase link` + `supabase db pull`)
+3. `backend/.env.local` / `frontend/.env.local` puntati allo stack locale (`SUPABASE_URL=http://127.0.0.1:54321`, chiave `anon` locale) — `npm run dev` li usa in automatico (Vite carica `.env.local` di default; lo script `dev` del backend passa `--env-file=.env.local`)
+4. Nuove migrazioni SQL vanno in `supabase/migrations/`, applicate solo in locale con `supabase db reset` — mai a mano su Supabase produzione
+5. Deploy verso produzione (push migrazioni + merge) è un passo separato, manuale, a fine lavoro
+
 ### Backend
 
-1. Crea un progetto su [Supabase](https://supabase.com)
+1. Crea un progetto su [Supabase](https://supabase.com) (o usa lo stack locale sopra)
 2. Esegui nell'SQL Editor di Supabase, in ordine:
    - `backend/supabase_schema_v2.sql` (schema multi-casa corrente)
    - `backend/supabase_migration_003_rotation.sql` (rotazione turni configurabile)
@@ -49,11 +63,13 @@ Web app per gestire i turni di pulizia settimanali in una casa condivisa. Ogni c
    - `backend/supabase_migration_005_shift_swaps.sql` (scambio turni)
    - `backend/supabase_migration_006_app_meta.sql` (metadati app, es. notifica nuova versione)
    - `backend/supabase_migration_007_swap_gift.sql` (scambio turni verso chi non ha turni)
+   - `backend/supabase_migration_008_auth_id.sql` (collega `users` a Supabase Auth)
+   - `backend/supabase_migration_009_multi_house_auth.sql` (un'identità può appartenere a più case)
 3. Genera una coppia di chiavi VAPID per le notifiche push:
    ```
    cd backend && npx web-push generate-vapid-keys
    ```
-4. Copia `backend/.env` da un template con:
+4. `backend/.env` (produzione) o `backend/.env.local` (sviluppo):
    ```
    SUPABASE_URL=...
    SUPABASE_KEY=...
@@ -61,53 +77,65 @@ Web app per gestire i turni di pulizia settimanali in una casa condivisa. Ogni c
    VAPID_PUBLIC_KEY=...
    VAPID_PRIVATE_KEY=...
    VAPID_SUBJECT=mailto:tuo@indirizzo.it
-   PUBLIC_API_URL=...   # solo in produzione: URL pubblico del backend (es. Railway),
+   PUBLIC_API_URL=...   # solo in produzione: URL pubblico del backend,
                         # usato dal service worker per chiamare accetta/rifiuta scambio
                         # direttamente dai bottoni sulla notifica push. Vuoto in sviluppo.
    ```
-5. `cd backend && npm install && npm run dev`
+5. `cd backend && npm install && npm run dev` (usa `.env.local`; `npm run dev:prod-env` per puntare a `.env`)
 
-In produzione (es. Railway), imposta le stesse variabili d'ambiente (`SUPABASE_URL`, `SUPABASE_KEY`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`) nel pannello del servizio.
+In produzione (es. Railway), imposta le stesse variabili d'ambiente nel pannello del servizio.
 
 ### Frontend
 
-1. Copia `frontend/.env` con:
+1. `frontend/.env` (produzione) o `frontend/.env.local` (sviluppo, priorità automatica in Vite):
    ```
-   VITE_VAPID_PUBLIC_KEY=...   # stessa VAPID_PUBLIC_KEY del backend
+   VITE_VAPID_PUBLIC_KEY=...        # stessa VAPID_PUBLIC_KEY del backend
+   VITE_SUPABASE_URL=...
+   VITE_SUPABASE_ANON_KEY=...       # chiave anon, pubblica, sicura da esporre lato client
    ```
 2. `cd frontend && npm install && npm run dev`
 3. In sviluppo Vite fa da proxy verso `http://localhost:3001` per le chiamate `/api` (vedi `vite.config.js`)
-4. In produzione, il frontend è pensato per essere buildato con `npm run build` e servito staticamente (Netlify, vedi `netlify.toml` — imposta `VITE_VAPID_PUBLIC_KEY` tra le env var di build); il backend va hostato separatamente (es. Railway) e la sua URL configurata come base per le chiamate API
+4. In produzione, il frontend è pensato per essere buildato con `npm run build` e servito staticamente (Netlify, vedi `netlify.toml`); il backend va hostato separatamente e la sua URL configurata come base per le chiamate API
+5. Per "Accedi con Google" va abilitato il provider in Supabase Dashboard → Authentication → Providers (Client ID/Secret Google Cloud Console)
 
 ### Prima casa
 
-1. Dalla schermata di benvenuto → **+ Crea una nuova casa** → inserisci nome casa, il tuo nome e un PIN a 4 cifre
-2. Da ⚙️ Admin, aggiungi le stanze e configura eventuali regole di assegnazione
-3. Condividi il **codice invito casa** (visibile nel pannello Admin) con gli altri coinquilini
+1. Dalla schermata di benvenuto → **Inizia** → registrati (email+password o Google)
+2. Prima volta: scegli **Crea una nuova casa** → nome casa + il tuo nome
+3. Da ⚙️ Admin, aggiungi le stanze e configura eventuali regole di assegnazione
+4. Condividi il **codice invito casa** (visibile in 👥 Coinquilini) con gli altri coinquilini
 
 ### Altri coinquilini
 
-Dalla schermata di benvenuto → **Entra** → codice invito casa + registrazione con nome e PIN a 4 cifre.
+Dalla schermata di benvenuto → **Inizia** → registrati/accedi → **Entra in una casa** → codice invito casa → scegli il proprio nome dalla lista (o "sono nuovo").
 
 ## Struttura
 
 ```
 frontend/            React + Vite + Tailwind (UI)
   public/sw.js         Service worker (cache app shell, push, notificationclick)
-  src/components/      Schermate e pannelli (WelcomeScreen, AdminPanel, ChoreCard, ...)
+  src/lib/supabase.js  Client Supabase Auth (browser)
+  src/components/       Schermate e pannelli (WelcomeScreen, LoginScreen, ChooseHouseScreen,
+                        JoinHouseScreen, CreateHouseScreen, HouseSwitcherModal, ChoreCard, ...)
   src/hooks/            Stato applicativo (useHouse, useWeeks, useAbsences, usePush, useBodyScrollLock)
 backend/              API REST Express
-  routes/             houses (case, stanze, regole, utenti, push), weeks, absences, swaps
+  routes/             houses (case, stanze, regole, utenti, push, claim), weeks, absences, swaps
+  lib/auth.js         Middleware Supabase Auth: requireAuth, requireMembership, requireAdmin
   lib/scheduler.js    Algoritmo di calcolo turni
   lib/db.js           Accesso a Supabase
   lib/push.js         Invio notifiche push (web-push)
   lib/reminders.js    Cron giornaliero per i reminder push
   lib/versionNotifier.js Notifica push su nuova versione rilasciata
-  supabase_schema_v2.sql                       Schema DB corrente (multi-casa)
-  supabase_migration_003_rotation.sql          Rotazione turni configurabile
+  supabase_schema_v2.sql                        Schema DB corrente (multi-casa)
+  supabase_migration_003_rotation.sql           Rotazione turni configurabile
   supabase_migration_004_push_subscriptions.sql Notifiche push
-  supabase_migration_005_shift_swaps.sql       Scambio turni
-  supabase_migration_006_app_meta.sql          Metadati app (versione notificata)
+  supabase_migration_005_shift_swaps.sql        Scambio turni
+  supabase_migration_006_app_meta.sql           Metadati app (versione notificata)
+  supabase_migration_007_swap_gift.sql          Scambio turni verso chi non ha turni
+  supabase_migration_008_auth_id.sql            Collega users a Supabase Auth
+  supabase_migration_009_multi_house_auth.sql   Un'identità, N case
+  supabase_fix_disable_rls.sql                  RLS disattivata: decisione documentata nel file
+supabase/migrations/  Migrazioni non ancora applicate a produzione (solo `supabase db reset` locale)
 netlify.toml          Config deploy frontend
 README.md
 ```

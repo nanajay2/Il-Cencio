@@ -1,10 +1,13 @@
+import { supabase } from './lib/supabase.js';
+
 const BASE = (import.meta.env.VITE_API_URL ?? '') + '/api';
 
 async function req(path, opts = {}) {
-  const res = await fetch(BASE + path, {
-    headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
-    ...opts,
-  });
+  const { data: { session } } = await supabase.auth.getSession();
+  const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+  if (session) headers.Authorization = `Bearer ${session.access_token}`;
+
+  const res = await fetch(BASE + path, { ...opts, headers });
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(body.error || res.statusText);
@@ -15,14 +18,17 @@ async function req(path, opts = {}) {
 const h = (houseId) => `/houses/${houseId}`;
 
 export const api = {
-  // Auth / onboarding
-  lookupHouse:     (houseCode)                => req('/houses/lookup',   { method: 'POST', body: JSON.stringify({ houseCode }) }),
-  getHouseMembers: (houseId)                  => req(`/houses/${houseId}/members`),
-  register:        (houseCode, name, pin)     => req('/houses/register', { method: 'POST', body: JSON.stringify({ houseCode, name, pin }) }),
-  login:           (userId, pin)              => req('/houses/auth',     { method: 'POST', body: JSON.stringify({ userId, pin }) }),
-  setPin:          (userId, pin, opts = {})   => req('/houses/set-pin',  { method: 'POST', body: JSON.stringify({ userId, pin, ...opts }) }),
-  createHouse: (name, adminName, adminPin) =>
-    req('/houses', { method: 'POST', body: JSON.stringify({ name, adminName, adminPin }) }),
+  // Onboarding — l'identità arriva dal JWT Supabase, non da PIN
+  lookupHouse:     (houseCode)          => req('/houses/lookup', { method: 'POST', body: JSON.stringify({ houseCode }) }),
+  getHouseMembers: (houseId)            => req(`/houses/${houseId}/members`),
+  claim:           ({ houseCode, token, userId, name } = {}) =>
+    req('/houses/claim', { method: 'POST', body: JSON.stringify({ houseCode, token, userId, name }) }),
+  myHouses:        ()                   => req('/houses/mine'),
+
+  // Inviti (FEAT-06: link + QR, sostituiscono il codice esadecimale)
+  resolveInvite:   (token)              => req(`/houses/invites/${token}`),
+  createInvite:    (houseId, userId)    => req(`${h(houseId)}/invites`, { method: 'POST', body: JSON.stringify({ userId }) }),
+  createHouse:     (name, adminName)    => req('/houses', { method: 'POST', body: JSON.stringify({ name, adminName }) }),
 
   // Casa
   getHouse:    (houseId)               => req(h(houseId)),
@@ -32,7 +38,7 @@ export const api = {
   // Utenti
   createUser:  (houseId, name, email)  => req(`${h(houseId)}/users`, { method: 'POST', body: JSON.stringify({ name, email }) }),
   deleteUser:  (houseId, userId)       => req(`${h(houseId)}/users/${userId}`, { method: 'DELETE' }),
-  leaveHouse:  (houseId, userId)       => req(`${h(houseId)}/leave`, { method: 'POST', body: JSON.stringify({ userId }) }),
+  leaveHouse:  (houseId)               => req(`${h(houseId)}/leave`, { method: 'POST' }),
 
   // Stanze
   createRoom:  (houseId, data)         => req(`${h(houseId)}/rooms`, { method: 'POST', body: JSON.stringify(data) }),
@@ -47,8 +53,8 @@ export const api = {
   // Settimane
   getWeeks:    (houseId)               => req(`${h(houseId)}/weeks`),
   generateWeek:(houseId)               => req(`${h(houseId)}/weeks`, { method: 'POST' }),
-  toggleDone:  (houseId, weekId, userId, roomId, done) =>
-    req(`${h(houseId)}/weeks/${weekId}/done`, { method: 'PATCH', body: JSON.stringify({ userId, roomId, done }) }),
+  toggleDone:  (houseId, weekId, roomId, done) =>
+    req(`${h(houseId)}/weeks/${weekId}/done`, { method: 'PATCH', body: JSON.stringify({ roomId, done }) }),
 
   // Assenze
   getAbsences: (houseId)               => req(`${h(houseId)}/absences`),
@@ -59,15 +65,15 @@ export const api = {
   deleteAbsence:(houseId, absenceId)   => req(`${h(houseId)}/absences/${absenceId}`, { method: 'DELETE' }),
 
   // Notifiche push
-  pushSubscribe:  (houseId, userId, subscription) =>
-    req(`${h(houseId)}/push/subscribe`, { method: 'POST', body: JSON.stringify({ userId, subscription }) }),
+  pushSubscribe:  (houseId, subscription) =>
+    req(`${h(houseId)}/push/subscribe`, { method: 'POST', body: JSON.stringify({ subscription }) }),
   pushUnsubscribe:(houseId, endpoint) =>
     req(`${h(houseId)}/push/subscribe`, { method: 'DELETE', body: JSON.stringify({ endpoint }) }),
 
-  // Scambio turni
+  // Scambio turni — fromUserId arriva dal JWT lato server, non dal body
   getSwaps:    (houseId)               => req(`${h(houseId)}/swaps`),
-  createSwap:  (houseId, weekId, fromUserId, fromRoomId, toUserId, toRoomId) =>
-    req(`${h(houseId)}/swaps`, { method: 'POST', body: JSON.stringify({ weekId, fromUserId, fromRoomId, toUserId, toRoomId }) }),
+  createSwap:  (houseId, weekId, fromRoomId, toUserId, toRoomId) =>
+    req(`${h(houseId)}/swaps`, { method: 'POST', body: JSON.stringify({ weekId, fromRoomId, toUserId, toRoomId }) }),
   acceptSwap:  (houseId, swapId)       => req(`${h(houseId)}/swaps/${swapId}/accept`, { method: 'POST' }),
   declineSwap: (houseId, swapId)       => req(`${h(houseId)}/swaps/${swapId}/decline`, { method: 'POST' }),
 };

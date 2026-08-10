@@ -93,19 +93,19 @@ export function SettingsPanel({
   async function addRule() {
     if (ruleType === 'pool_restriction') {
       if (!poolRoom || poolUsers.length === 0) return;
-      const config = { room_id: Number(poolRoom), user_ids: poolUsers.map(Number) };
+      const config = { room_id: poolRoom, user_ids: poolUsers };
       if (editingRuleId) await onEditRule(editingRuleId, 'pool_restriction', config);
       else await onAddRule('pool_restriction', config);
       resetRuleForm();
     } else if (ruleType === 'sequence') {
       if (!seqFrom || !seqTo || seqFrom === seqTo) return;
-      const config = { from_room_id: Number(seqFrom), to_room_id: Number(seqTo) };
+      const config = { from_room_id: seqFrom, to_room_id: seqTo };
       if (editingRuleId) await onEditRule(editingRuleId, 'sequence', config);
       else await onAddRule('sequence', config);
       resetRuleForm();
     } else if (ruleType === 'exclusion') {
       if (!exclUser || !exclRoom) return;
-      const config = { user_id: Number(exclUser), room_id: Number(exclRoom) };
+      const config = { user_id: exclUser, room_id: exclRoom };
       if (editingRuleId) await onEditRule(editingRuleId, 'exclusion', config);
       else await onAddRule('exclusion', config);
       resetRuleForm();
@@ -150,7 +150,7 @@ export function SettingsPanel({
                 poi tocca "Riprova" qui sotto.
               </p>
               <button
-                onClick={() => push.subscribe(houseId, userId)}
+                onClick={() => push.subscribe(houseId)}
                 disabled={push.loading}
                 className={btnCls}
               >
@@ -164,7 +164,7 @@ export function SettingsPanel({
                 Ricevi un promemoria quando e' il tuo turno.
               </p>
               <button
-                onClick={() => push.status === 'active' ? push.unsubscribe(houseId) : push.subscribe(houseId, userId)}
+                onClick={() => push.status === 'active' ? push.unsubscribe(houseId) : push.subscribe(houseId)}
                 disabled={push.loading}
                 className={btnCls}
               >
