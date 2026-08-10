@@ -2,8 +2,10 @@ import { Router } from 'express';
 import { db } from '../lib/db.js';
 import { sendNotificationExcluding } from '../lib/push.js';
 import { invalidateUpcomingWeeks } from '../lib/scheduler.js';
+import { requireAuth, requireMembership } from '../lib/auth.js';
 
 const router = Router({ mergeParams: true });
+router.use(requireAuth, requireMembership);
 
 const MONTHS = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
 function fmt(dateStr) {

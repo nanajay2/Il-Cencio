@@ -48,7 +48,7 @@ export function useWeeks() {
       }
     ));
     try {
-      await api.toggleDone(houseId, weekId, userId, roomId, !prev);
+      await api.toggleDone(houseId, weekId, roomId, !prev);
     } catch (e) {
       // Rollback
       setWeeks(ws => ws.map(w =>

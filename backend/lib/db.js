@@ -51,7 +51,7 @@ export async function updateRotation(houseId, rotationType, rotationDays) {
   if (error) throw error;
 }
 
-export async function createHouse(name, adminName, pinHash) {
+export async function createHouse(name, adminName, authId, email) {
   const id = slugify(name);
 
   const { error: he } = await supabase
@@ -61,7 +61,7 @@ export async function createHouse(name, adminName, pinHash) {
 
   const { data: user, error: ue } = await supabase
     .from('users')
-    .insert({ house_id: id, name: adminName, is_admin: true, claimed: true, pin_hash: pinHash })
+    .insert({ house_id: id, name: adminName, is_admin: true, claimed: true, auth_id: authId, email })
     .select().single();
   if (ue) throw ue;
 
@@ -83,14 +83,14 @@ export async function getHouseMembers(houseId) {
   if (he || !house) throw new Error('Casa non trovata');
 
   const { data: users, error: ue } = await supabase
-    .from('users').select('id, name, pin_hash')
+    .from('users').select('id, name, claimed')
     .eq('house_id', houseId).order('id');
   if (ue) throw ue;
 
   return {
     houseId:   house.id,
     houseName: house.name,
-    users: users.map(u => ({ id: u.id, name: u.name, hasPin: !!u.pin_hash })),
+    users: users.map(u => ({ id: u.id, name: u.name, claimed: u.claimed })),
   };
 }
 
@@ -104,7 +104,7 @@ export async function lookupHouseByCode(code) {
 
   const { data: users, error: ue } = await supabase
     .from('users')
-    .select('id, name, pin_hash')
+    .select('id, name, claimed')
     .eq('house_id', data.id)
     .order('id');
   if (ue) throw ue;
@@ -112,67 +112,98 @@ export async function lookupHouseByCode(code) {
   return {
     houseId:   data.id,
     houseName: data.name,
-    users: users.map(u => ({ id: u.id, name: u.name, hasPin: !!u.pin_hash })),
+    users: users.map(u => ({ id: u.id, name: u.name, claimed: u.claimed })),
   };
 }
 
-export async function registerUser(houseId, name, pinHash) {
+// Collega l'identità Supabase autenticata (authId/email) a una riga
+// `users` già creata da un admin (createUserSlot) ma non ancora
+// rivendicata. Fallisce in modo pulito se lo slot è già stato
+// collegato a un'altra identità.
+export async function claimUserSlotByAuth(houseId, userId, authId, email) {
+  const { data: existing, error: fe } = await supabase
+    .from('users').select('id, auth_id')
+    .eq('id', userId).eq('house_id', houseId).maybeSingle();
+  if (fe) throw fe;
+  if (!existing) throw new Error('Utente non trovato in questa casa');
+  if (existing.auth_id) throw new Error('Questo coinquilino ha già un account collegato');
+
   const { data, error } = await supabase
     .from('users')
-    .insert({ house_id: houseId, name: name.trim(), is_admin: false, claimed: true, pin_hash: pinHash })
+    .update({ auth_id: authId, email, claimed: true })
+    .eq('id', userId)
     .select('*, houses(id, name)').single();
   if (error) throw error;
 
   return {
-    userId: data.id, userName: data.name,
+    userId: data.id, userName: data.name, userEmail: data.email,
     isAdmin: data.is_admin, houseId: data.house_id, houseName: data.houses.name,
   };
 }
 
-export async function getUserById(userId) {
+// Crea un nuovo coinquilino già collegato all'identità Supabase
+// autenticata che lo sta registrando (self-serve join con codice casa).
+export async function registerUserWithAuth(houseId, name, authId, email) {
   const { data, error } = await supabase
     .from('users')
-    .select('id, name, is_admin, claimed, pin_hash, house_id, houses(id, name)')
-    .eq('id', userId)
-    .eq('claimed', true)
-    .single();
-  if (error || !data) throw new Error('Utente non trovato');
-  return {
-    userId: data.id, userName: data.name,
-    isAdmin: data.is_admin, houseId: data.house_id, houseName: data.houses.name,
-    pinHash: data.pin_hash,
-  };
-}
+    .insert({ house_id: houseId, name: name.trim(), is_admin: false, claimed: true, auth_id: authId, email })
+    .select('*, houses(id, name)').single();
+  if (error) throw error;
 
-export async function getUserByEmail(email) {
-  const { data, error } = await supabase
-    .from('users')
-    .select('*, houses(id, name)')
-    .eq('email', email.toLowerCase().trim())
-    .eq('claimed', true)
-    .maybeSingle();
-  if (error || !data) throw new Error('Utente non trovato');
   return {
     userId: data.id, userName: data.name, userEmail: data.email,
     isAdmin: data.is_admin, houseId: data.house_id, houseName: data.houses.name,
-    pinHash: data.pin_hash,
   };
 }
 
-export async function setPinHash(userId, pinHash) {
-  const { error } = await supabase.from('users').update({ pin_hash: pinHash, claimed: true }).eq('id', userId);
+// Risolve l'appartenenza dell'identità autenticata a UNA casa
+// specifica (auth_id non è più unique: la stessa identità può avere
+// una riga per ogni casa di cui fa parte — vedi migrazione 009).
+export async function getMembership(authId, houseId) {
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, name, is_admin')
+    .eq('auth_id', authId).eq('house_id', houseId)
+    .maybeSingle();
   if (error) throw error;
+  if (!data) return null;
+  return { userId: data.id, userName: data.name, isAdmin: data.is_admin };
+}
+
+// Esistenza pura: l'identità è collegata ad almeno una casa? Usata dal
+// middleware solo per distinguere "non ancora rivendicato in nessuna
+// casa" (409) da "non fa parte di QUESTA casa" (403).
+export async function hasAnyMembership(authId) {
+  const { data, error } = await supabase
+    .from('users').select('id').eq('auth_id', authId).limit(1);
+  if (error) throw error;
+  return data.length > 0;
+}
+
+// Tutte le case a cui l'identità autenticata appartiene — usata dallo
+// switcher del frontend (GET /houses/mine) per elencare le case senza
+// dover ri-autenticarsi per ognuna.
+export async function getHousesForAuth(authId) {
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, name, is_admin, house_id, houses(id, name)')
+    .eq('auth_id', authId);
+  if (error) throw error;
+  return data.map(u => ({
+    userId: u.id, userName: u.name, isAdmin: u.is_admin,
+    houseId: u.house_id, houseName: u.houses.name,
+  }));
 }
 
 // ── Users ─────────────────────────────────────────────────────────
 
 export async function getUsers(houseId) {
   const { data, error } = await supabase
-    .from('users').select('id, house_id, name, is_admin, claimed, pin_hash').eq('house_id', houseId).order('id');
+    .from('users').select('id, house_id, name, is_admin, claimed').eq('house_id', houseId).order('id');
   if (error) throw error;
   return data.map(u => ({
     id: u.id, houseId: u.house_id, name: u.name,
-    isAdmin: u.is_admin, claimed: u.claimed, hasPin: !!u.pin_hash,
+    isAdmin: u.is_admin, claimed: u.claimed,
   }));
 }
 
@@ -561,7 +592,9 @@ export async function setAppMeta(key, value) {
 
 export const db = {
   getHouse, createHouse, getAllHouseIds, getRotationConfig, updateRotation,
-  getHouseMembers, lookupHouseByCode, registerUser, getUserById, getUserByEmail, setPinHash,
+  getHouseMembers, lookupHouseByCode,
+  claimUserSlotByAuth, registerUserWithAuth,
+  getMembership, hasAnyMembership, getHousesForAuth,
   getUsers, createUserSlot, claimUserSlot, deleteUser, leaveHouse,
   getRooms, createRoom, updateRoom, deleteRoom,
   getRules, createRule, updateRule, deleteRule,
