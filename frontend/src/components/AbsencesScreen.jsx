@@ -68,10 +68,10 @@ export function AbsencesScreen({ house, currentUserId, absences, onAdd, onUpdate
     setSaving(true);
     try {
       if (editingId) {
-        await onUpdate(editingId, Number(userId), rangeStart, rangeEnd);
+        await onUpdate(editingId, userId, rangeStart, rangeEnd);
         setEditingId(null);
       } else {
-        await onAdd(Number(userId), rangeStart, rangeEnd);
+        await onAdd(userId, rangeStart, rangeEnd);
       }
       setRangeStart(null);
       setRangeEnd(null);
