@@ -32,23 +32,49 @@ router.get('/:houseId/members', async (req, res) => {
   }
 });
 
+// Risolve un token invito (FEAT-06, link+QR) in casa/eventuale slot
+// personale — pubblico: serve per mostrare "Ciao Marco, confermi?" o la
+// lista coinquilini PRIMA di essere autenticati.
+router.get('/invites/:token', async (req, res) => {
+  try {
+    res.json(await db.resolveInvite(req.params.token));
+  } catch (e) {
+    res.status(404).json({ error: e.message });
+  }
+});
+
 // Collega l'identità Supabase appena autenticata (login/signup fatto lato
 // client con l'SDK) a una riga `users` esistente (slot creato da un admin,
-// selezionato via userId) o nuova (self-serve join, con name). Un'identità
-// può fare /claim per più case diverse (vedi requireMembership); qui si
-// blocca solo il doppio-claim sulla STESSA casa.
+// selezionato via userId) o nuova (self-serve join, con name). Accetta un
+// token invito (FEAT-06) o, transitoriamente, il vecchio houseCode
+// (US-01.4/US-06.5: rimosso solo dopo il rollout del nuovo meccanismo).
+// Un'identità può fare /claim per più case diverse (vedi requireMembership);
+// qui si blocca solo il doppio-claim sulla STESSA casa.
 router.post('/claim', requireAuth, async (req, res) => {
-  const { houseCode, userId, name } = req.body;
-  if (!houseCode) return res.status(400).json({ error: 'houseCode richiesto' });
+  const { houseCode, token, userId, name } = req.body;
+  if (!houseCode && !token) return res.status(400).json({ error: 'houseCode o token richiesto' });
   try {
-    const { houseId } = await db.lookupHouseByCode(houseCode);
+    let houseId, invite = null;
+    if (token) {
+      invite = await db.resolveInvite(token);
+      houseId = invite.houseId;
+    } else {
+      ({ houseId } = await db.lookupHouseByCode(houseCode));
+    }
 
     const already = await db.getMembership(req.authId, houseId);
     if (already) return res.status(409).json({ error: 'Fai già parte di questa casa' });
 
-    const claimed = userId
-      ? await db.claimUserSlotByAuth(houseId, userId, req.authId, req.authEmail)
-      : await registerNew(houseId, name, req.authId, req.authEmail);
+    let claimed;
+    if (invite?.userId) {
+      // invito personale: lo slot è già determinato dal token, ignora userId/name nel body
+      claimed = await db.claimUserSlotByAuth(houseId, invite.userId, req.authId, req.authEmail);
+      await db.consumeInvite(token);
+    } else {
+      claimed = userId
+        ? await db.claimUserSlotByAuth(houseId, userId, req.authId, req.authEmail)
+        : await registerNew(houseId, name, req.authId, req.authEmail);
+    }
 
     res.status(201).json(claimed);
   } catch (e) {
@@ -111,6 +137,20 @@ router.put('/:houseId/rotation', ...protectAdmin, async (req, res) => {
     await db.updateRotation(req.params.houseId, rotationType, rotationType === 'daily' ? rotationDays : null);
     await invalidateUpcomingWeeks(db, req.params.houseId);
     res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── Inviti (FEAT-06: link + QR) ─────────────────────────────────────
+
+// Genera un invito: senza userId è un invito casa (multi-uso, chi lo apre
+// sceglie/crea il proprio slot); con userId è un invito personale per
+// quel coinquilino (uso singolo, si consuma al claim).
+router.post('/:houseId/invites', ...protectAdmin, async (req, res) => {
+  const { userId } = req.body;
+  try {
+    res.status(201).json(await db.createInvite(req.params.houseId, userId ?? null, req.userId));
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

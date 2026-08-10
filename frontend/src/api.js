@@ -21,9 +21,13 @@ export const api = {
   // Onboarding — l'identità arriva dal JWT Supabase, non da PIN
   lookupHouse:     (houseCode)          => req('/houses/lookup', { method: 'POST', body: JSON.stringify({ houseCode }) }),
   getHouseMembers: (houseId)            => req(`/houses/${houseId}/members`),
-  claim:           (houseCode, { userId, name } = {}) =>
-    req('/houses/claim', { method: 'POST', body: JSON.stringify({ houseCode, userId, name }) }),
+  claim:           ({ houseCode, token, userId, name } = {}) =>
+    req('/houses/claim', { method: 'POST', body: JSON.stringify({ houseCode, token, userId, name }) }),
   myHouses:        ()                   => req('/houses/mine'),
+
+  // Inviti (FEAT-06: link + QR, sostituiscono il codice esadecimale)
+  resolveInvite:   (token)              => req(`/houses/invites/${token}`),
+  createInvite:    (houseId, userId)    => req(`${h(houseId)}/invites`, { method: 'POST', body: JSON.stringify({ userId }) }),
   createHouse:     (name, adminName)    => req('/houses', { method: 'POST', body: JSON.stringify({ name, adminName }) }),
 
   // Casa

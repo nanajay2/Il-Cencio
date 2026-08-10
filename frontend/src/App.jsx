@@ -64,6 +64,22 @@ function clearLegacySession() {
   LEGACY_KEYS.forEach(k => localStorage.removeItem(k));
 }
 
+// US-06.4 — un link d'invito (/join/:token) può arrivare mentre l'app
+// non è ancora installata: InstallGate blocca lo schermo prima che si
+// possa fare qualunque altra cosa. Il token va salvato PRIMA di quel
+// blocco (qui, sincrono, nell'initializer di useState — gira nello
+// stesso render, prima di qualunque return condizionale) così dopo
+// installazione e riapertura da home screen il flusso di join riprende.
+function capturePendingInviteToken() {
+  const m = window.location.pathname.match(/^\/join\/([^/]+)$/);
+  if (m) {
+    localStorage.setItem('pendingInviteToken', m[1]);
+    window.history.replaceState({}, '', '/');
+    return m[1];
+  }
+  return localStorage.getItem('pendingInviteToken');
+}
+
 export default function App() {
   // view: 'welcome' | 'auth' | 'choose-house' | 'join-house' | 'create-house' | 'app'
   const [view, setView] = useState('welcome');
@@ -71,6 +87,7 @@ export default function App() {
   const [houses,        setHouses]        = useState([]); // da GET /houses/mine
   const [activeHouseId, setActiveHouseId] = useState(loadActiveHouseId());
   const [addingHouse,   setAddingHouse]   = useState(false); // true quando si aggiunge una casa dallo switcher (non primo accesso)
+  const [pendingInviteToken, setPendingInviteToken] = useState(() => capturePendingInviteToken());
 
   const [showSwitcher, setShowSwitcher] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -116,6 +133,11 @@ export default function App() {
     api.myHouses()
       .then(list => {
         setHouses(list);
+        if (pendingInviteToken) {
+          setAddingHouse(list.length > 0);
+          setView('join-house');
+          return;
+        }
         if (list.length === 0) {
           setView('choose-house');
           return;
@@ -223,6 +245,8 @@ export default function App() {
   }
 
   function handleJoinSuccess(membership) {
+    localStorage.removeItem('pendingInviteToken');
+    setPendingInviteToken(null);
     refreshHouses(membership.houseId).then(() => {
       setAddingHouse(false);
       setView('app');
@@ -370,7 +394,12 @@ export default function App() {
   if (view === 'join-house')   return (
     <JoinHouseScreen
       onSuccess={handleJoinSuccess}
-      onBack={addingHouse ? cancelAddHouse : () => setView('choose-house')}
+      initialToken={pendingInviteToken}
+      onBack={() => {
+        localStorage.removeItem('pendingInviteToken');
+        setPendingInviteToken(null);
+        addingHouse ? cancelAddHouse() : setView('choose-house');
+      }}
     />
   );
   if (view === 'create-house') return (
