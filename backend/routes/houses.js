@@ -47,7 +47,7 @@ router.post('/claim', requireAuth, async (req, res) => {
     if (already) return res.status(409).json({ error: 'Fai già parte di questa casa' });
 
     const claimed = userId
-      ? await db.claimUserSlotByAuth(houseId, Number(userId), req.authId, req.authEmail)
+      ? await db.claimUserSlotByAuth(houseId, userId, req.authId, req.authEmail)
       : await registerNew(houseId, name, req.authId, req.authEmail);
 
     res.status(201).json(claimed);
@@ -135,7 +135,7 @@ router.post('/:houseId/users', ...protectAdmin, async (req, res) => {
 // Rimuovi utente (admin)
 router.delete('/:houseId/users/:userId', ...protectAdmin, async (req, res) => {
   try {
-    await db.deleteUser(req.params.houseId, Number(req.params.userId));
+    await db.deleteUser(req.params.houseId, req.params.userId);
     await invalidateUpcomingWeeks(db, req.params.houseId);
     res.json({ ok: true });
   } catch (e) {
@@ -171,7 +171,7 @@ router.post('/:houseId/rooms', ...protectAdmin, async (req, res) => {
 
 router.put('/:houseId/rooms/:roomId', ...protectAdmin, async (req, res) => {
   try {
-    await db.updateRoom(req.params.houseId, Number(req.params.roomId), req.body);
+    await db.updateRoom(req.params.houseId, req.params.roomId, req.body);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -180,7 +180,7 @@ router.put('/:houseId/rooms/:roomId', ...protectAdmin, async (req, res) => {
 
 router.delete('/:houseId/rooms/:roomId', ...protectAdmin, async (req, res) => {
   try {
-    await db.deleteRoom(req.params.houseId, Number(req.params.roomId));
+    await db.deleteRoom(req.params.houseId, req.params.roomId);
     await invalidateUpcomingWeeks(db, req.params.houseId);
     res.json({ ok: true });
   } catch (e) {
@@ -206,7 +206,7 @@ router.put('/:houseId/rules/:ruleId', ...protectAdmin, async (req, res) => {
   const { type, config } = req.body;
   if (!type || !config) return res.status(400).json({ error: 'type e config richiesti' });
   try {
-    await db.updateRule(req.params.houseId, Number(req.params.ruleId), { type, config });
+    await db.updateRule(req.params.houseId, req.params.ruleId, { type, config });
     await invalidateUpcomingWeeks(db, req.params.houseId);
     res.json({ ok: true });
   } catch (e) {
@@ -216,7 +216,7 @@ router.put('/:houseId/rules/:ruleId', ...protectAdmin, async (req, res) => {
 
 router.delete('/:houseId/rules/:ruleId', ...protectAdmin, async (req, res) => {
   try {
-    await db.deleteRule(req.params.houseId, Number(req.params.ruleId));
+    await db.deleteRule(req.params.houseId, req.params.ruleId);
     await invalidateUpcomingWeeks(db, req.params.houseId);
     res.json({ ok: true });
   } catch (e) {

@@ -27,21 +27,21 @@ export function SwapsScreen({ house, userId, weeks, currentWeek, swaps, onPropos
   const [toUserId,   setToUserId]   = useState(otherUsers[0]?.id ?? '');
   const [saving,     setSaving]     = useState(false);
 
-  const toUserAssignments = (selectedWeek?.assignments ?? []).filter(a => a.userId === Number(toUserId));
+  const toUserAssignments = (selectedWeek?.assignments ?? []).filter(a => a.userId === toUserId);
   const [toRoomId, setToRoomId] = useState(toUserAssignments[0]?.roomId ?? '');
 
   // Cambiando turno, le stanze assegnate a me/al destinatario possono
   // differire: reimposto le selezioni sulla base del nuovo turno.
   useEffect(() => {
     setFromRoomId(myAssignments[0]?.roomId ?? '');
-    const asgns = (selectedWeek?.assignments ?? []).filter(a => a.userId === Number(toUserId));
+    const asgns = (selectedWeek?.assignments ?? []).filter(a => a.userId === toUserId);
     setToRoomId(asgns[0]?.roomId ?? '');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedWeekId]);
 
   function selectToUser(id) {
     setToUserId(id);
-    const asgns = (selectedWeek?.assignments ?? []).filter(a => a.userId === Number(id));
+    const asgns = (selectedWeek?.assignments ?? []).filter(a => a.userId === id);
     setToRoomId(asgns[0]?.roomId ?? '');
   }
 
@@ -51,7 +51,7 @@ export function SwapsScreen({ house, userId, weeks, currentWeek, swaps, onPropos
     if (!canPropose) return;
     setSaving(true);
     try {
-      await onPropose(selectedWeek.id, userId, Number(fromRoomId), Number(toUserId), toRoomId ? Number(toRoomId) : null);
+      await onPropose(selectedWeek.id, userId, fromRoomId, toUserId, toRoomId || null);
     } finally {
       setSaving(false);
     }

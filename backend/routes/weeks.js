@@ -63,7 +63,7 @@ router.patch('/:weekId/done', async (req, res) => {
   if (!roomId || done === undefined)
     return res.status(400).json({ error: 'roomId e done richiesti' });
   try {
-    await db.setDone(houseId, weekId, req.userId, Number(roomId), Boolean(done));
+    await db.setDone(houseId, weekId, req.userId, roomId, Boolean(done));
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });

@@ -26,7 +26,7 @@ router.post('/', async (req, res) => {
   if (!userId || !from || !to) return res.status(400).json({ error: 'userId, from, to richiesti' });
   if (from > to) return res.status(400).json({ error: 'from deve essere ≤ to' });
   try {
-    const absence = await db.insertAbsence(req.params.houseId, Number(userId), from, to);
+    const absence = await db.insertAbsence(req.params.houseId, userId, from, to);
     await invalidateUpcomingWeeks(db, req.params.houseId);
     sendNotificationExcluding(req.params.houseId, {
       title: 'Nuova assenza',
@@ -44,8 +44,8 @@ router.put('/:absenceId', async (req, res) => {
   if (!userId || !from || !to) return res.status(400).json({ error: 'userId, from, to richiesti' });
   if (from > to) return res.status(400).json({ error: 'from deve essere ≤ to' });
   try {
-    const absence = await db.updateAbsence(req.params.houseId, Number(req.params.absenceId), {
-      userId: Number(userId), from, to,
+    const absence = await db.updateAbsence(req.params.houseId, req.params.absenceId, {
+      userId, from, to,
     });
     await invalidateUpcomingWeeks(db, req.params.houseId);
     res.json(absence);
@@ -56,7 +56,7 @@ router.put('/:absenceId', async (req, res) => {
 
 router.delete('/:absenceId', async (req, res) => {
   try {
-    await db.deleteAbsence(req.params.houseId, Number(req.params.absenceId));
+    await db.deleteAbsence(req.params.houseId, req.params.absenceId);
     await invalidateUpcomingWeeks(db, req.params.houseId);
     res.json({ ok: true });
   } catch (e) {

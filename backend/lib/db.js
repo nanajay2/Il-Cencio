@@ -1,11 +1,5 @@
-import { randomBytes } from 'crypto';
+import { randomBytes, randomUUID } from 'crypto';
 import supabase from './supabase.js';
-
-function slugify(name) {
-  return name.toLowerCase()
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-}
 
 // ── House ─────────────────────────────────────────────────────────
 
@@ -52,7 +46,7 @@ export async function updateRotation(houseId, rotationType, rotationDays) {
 }
 
 export async function createHouse(name, adminName, authId, email) {
-  const id = slugify(name);
+  const id = randomUUID();
 
   const { error: he } = await supabase
     .from('houses')
@@ -83,14 +77,17 @@ export async function getHouseMembers(houseId) {
   if (he || !house) throw new Error('Casa non trovata');
 
   const { data: users, error: ue } = await supabase
-    .from('users').select('id, name, claimed')
+    .from('users').select('id, name, auth_id')
     .eq('house_id', houseId).order('id');
   if (ue) throw ue;
 
   return {
     houseId:   house.id,
     houseName: house.name,
-    users: users.map(u => ({ id: u.id, name: u.name, claimed: u.claimed })),
+    // "claimed" qui = collegato a un'identità Supabase (auth_id), non il
+    // vecchio flag DB `claimed` (che significava "ha impostato un PIN" e
+    // per gli utenti reali migrati da prima di FEAT-01 è già true).
+    users: users.map(u => ({ id: u.id, name: u.name, claimed: u.auth_id != null })),
   };
 }
 
@@ -104,7 +101,7 @@ export async function lookupHouseByCode(code) {
 
   const { data: users, error: ue } = await supabase
     .from('users')
-    .select('id, name, claimed')
+    .select('id, name, auth_id')
     .eq('house_id', data.id)
     .order('id');
   if (ue) throw ue;
@@ -112,7 +109,7 @@ export async function lookupHouseByCode(code) {
   return {
     houseId:   data.id,
     houseName: data.name,
-    users: users.map(u => ({ id: u.id, name: u.name, claimed: u.claimed })),
+    users: users.map(u => ({ id: u.id, name: u.name, claimed: u.auth_id != null })),
   };
 }
 
@@ -199,11 +196,11 @@ export async function getHousesForAuth(authId) {
 
 export async function getUsers(houseId) {
   const { data, error } = await supabase
-    .from('users').select('id, house_id, name, is_admin, claimed').eq('house_id', houseId).order('id');
+    .from('users').select('id, house_id, name, is_admin, auth_id').eq('house_id', houseId).order('id');
   if (error) throw error;
   return data.map(u => ({
     id: u.id, houseId: u.house_id, name: u.name,
-    isAdmin: u.is_admin, claimed: u.claimed,
+    isAdmin: u.is_admin, claimed: u.auth_id != null,
   }));
 }
 
@@ -214,23 +211,6 @@ export async function createUserSlot(houseId, name) {
     .select().single();
   if (error) throw error;
   return { id: data.id, name, claimed: false };
-}
-
-export async function claimUserSlot(code) {
-  const { data, error } = await supabase
-    .from('users')
-    .update({ claimed: true })
-    .eq('invite_code', code.toUpperCase())
-    .select('*, houses(id, name)').single();
-  if (error || !data) throw new Error('Codice invito non valido');
-  return {
-    userId:    data.id,
-    userName:  data.name,
-    userEmail: data.email,
-    isAdmin:   data.is_admin,
-    houseId:   data.house_id,
-    houseName: data.houses.name,
-  };
 }
 
 export async function deleteUser(houseId, userId) {
@@ -595,7 +575,7 @@ export const db = {
   getHouseMembers, lookupHouseByCode,
   claimUserSlotByAuth, registerUserWithAuth,
   getMembership, hasAnyMembership, getHousesForAuth,
-  getUsers, createUserSlot, claimUserSlot, deleteUser, leaveHouse,
+  getUsers, createUserSlot, deleteUser, leaveHouse,
   getRooms, createRoom, updateRoom, deleteRoom,
   getRules, createRule, updateRule, deleteRule,
   getWeeks, insertWeek, deleteWeeksBefore, deleteWeeksFrom, setDone,
