@@ -2,8 +2,10 @@ import { Router } from 'express';
 import { db } from '../lib/db.js';
 import { computeNextWeek, ensureFutureWeeks, purgeOldWeeks } from '../lib/scheduler.js';
 import { sendNotification } from '../lib/push.js';
+import { requireAuth, requireMembership } from '../lib/auth.js';
 
 const router = Router({ mergeParams: true });
+router.use(requireAuth, requireMembership);
 
 // Notifica ogni coinquilino delle stanze assegnategli nella settimana appena generata.
 async function notifyAssignedUsers(houseId, week) {
@@ -52,14 +54,16 @@ router.post('/', async (req, res) => {
   }
 });
 
-// PATCH /api/houses/:houseId/weeks/:weekId/done   body: { userId, roomId, done }
+// PATCH /api/houses/:houseId/weeks/:weekId/done   body: { roomId, done }
+// L'utente può segnare come fatto/non fatto solo il proprio turno: l'identità
+// arriva dal JWT (req.userId), non più dal body.
 router.patch('/:weekId/done', async (req, res) => {
   const { houseId, weekId } = req.params;
-  const { userId, roomId, done } = req.body;
-  if (!userId || !roomId || done === undefined)
-    return res.status(400).json({ error: 'userId, roomId e done richiesti' });
+  const { roomId, done } = req.body;
+  if (!roomId || done === undefined)
+    return res.status(400).json({ error: 'roomId e done richiesti' });
   try {
-    await db.setDone(houseId, weekId, Number(userId), Number(roomId), Boolean(done));
+    await db.setDone(houseId, weekId, req.userId, Number(roomId), Boolean(done));
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });

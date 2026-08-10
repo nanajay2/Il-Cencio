@@ -1,6 +1,11 @@
 import { Check, LogIn, Home } from 'lucide-react';
 
-export function HouseSwitcherModal({ accounts, activeHouseId, activeUserId, onSelect, onAddExisting, onAddNew, onClose }) {
+// `houses` arriva da GET /api/houses/mine: e' la lista (server-side, non
+// cache locale) delle case a cui l'identita' Supabase autenticata
+// appartiene. Passare da una casa all'altra e' solo un cambio di
+// puntatore lato client (stessa sessione, nessun re-login) — vedi
+// App.jsx:switchAccount.
+export function HouseSwitcherModal({ houses, activeHouseId, onSelect, onAddExisting, onAddNew, onClose }) {
   return (
     <div className="fixed inset-0 bg-[rgba(10,5,2,.72)] backdrop-blur-md z-[400] flex items-end justify-center" onClick={onClose}>
       <div
@@ -12,11 +17,11 @@ export function HouseSwitcherModal({ accounts, activeHouseId, activeUserId, onSe
         <p className="text-[.82rem] text-ink-2 mb-5">Passa da una casa all'altra o aggiungine una nuova</p>
 
         <div className="flex flex-col gap-2 mb-4">
-          {accounts.map(a => {
-            const active = a.houseId === activeHouseId && a.userId === activeUserId;
+          {houses.map(a => {
+            const active = a.houseId === activeHouseId;
             return (
               <button
-                key={`${a.houseId}:${a.userId}`}
+                key={a.houseId}
                 onClick={() => !active && onSelect(a)}
                 className={
                   'p-[14px_16px] border-[1.5px] rounded-2xl cursor-pointer font-sans text-left transition-all flex items-center justify-between gap-3 ' +

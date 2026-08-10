@@ -150,7 +150,7 @@ export function SettingsPanel({
                 poi tocca "Riprova" qui sotto.
               </p>
               <button
-                onClick={() => push.subscribe(houseId, userId)}
+                onClick={() => push.subscribe(houseId)}
                 disabled={push.loading}
                 className={btnCls}
               >
@@ -164,7 +164,7 @@ export function SettingsPanel({
                 Ricevi un promemoria quando e' il tuo turno.
               </p>
               <button
-                onClick={() => push.status === 'active' ? push.unsubscribe(houseId) : push.subscribe(houseId, userId)}
+                onClick={() => push.status === 'active' ? push.unsubscribe(houseId) : push.subscribe(houseId)}
                 disabled={push.loading}
                 className={btnCls}
               >

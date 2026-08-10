@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { TriangleAlert, X, Home, PartyPopper, Settings, Check, ArrowRight, ArrowLeft } from 'lucide-react';
+import { TriangleAlert, X, Home, PartyPopper, Users, Check, ArrowRight, ArrowLeft } from 'lucide-react';
 import { api } from '../api.js';
 
 const inputCls =
@@ -26,8 +26,6 @@ export function CreateHouseScreen({ onSuccess, onBack }) {
   // Step 1
   const [houseName, setHouseName] = useState('');
   const [adminName, setAdminName] = useState('');
-  const [pin,       setPin]       = useState('');
-  const [pinConf,   setPinConf]   = useState('');
 
   // Step 2
   const [pendingNames, setPendingNames] = useState([]);
@@ -41,13 +39,11 @@ export function CreateHouseScreen({ onSuccess, onBack }) {
   const [error,   setError]   = useState(null);
 
   async function handleCreate() {
-    if (!houseName.trim() || !adminName.trim() || !pin || !pinConf) return;
-    if (!/^\d{4}$/.test(pin)) { setError('Il PIN deve essere di 4 cifre'); return; }
-    if (pin !== pinConf)       { setError('I PIN non coincidono'); return; }
+    if (!houseName.trim() || !adminName.trim()) return;
     setLoading(true);
     setError(null);
     try {
-      const s = await api.createHouse(houseName.trim(), adminName.trim(), pin);
+      const s = await api.createHouse(houseName.trim(), adminName.trim());
       setSession(s);
       setStep(2);
     } catch (e) {
@@ -100,9 +96,9 @@ export function CreateHouseScreen({ onSuccess, onBack }) {
     }
   }
 
-  const canSubmitStep1 = houseName.trim() && adminName.trim() && pin.length === 4 && pinConf.length === 4;
+  const canSubmitStep1 = houseName.trim() && adminName.trim();
 
-  // ── Step 1: casa + admin + PIN ─────────────────────────────────────
+  // ── Step 1: casa + admin ─────────────────────────────────────────────
   if (step === 1) return (
     <div className="min-h-screen bg-cream flex flex-col items-center justify-center p-6 gap-4">
       <div className="text-center mb-2">
@@ -122,24 +118,6 @@ export function CreateHouseScreen({ onSuccess, onBack }) {
         <div>
           <label className={labelCls}>Il tuo nome</label>
           <input type="text" value={adminName} onChange={e => setAdminName(e.target.value)} placeholder="es. Giada" className={inputCls} />
-        </div>
-        <div>
-          <label className={labelCls}>Scegli un PIN (4 cifre)</label>
-          <input
-            type="password" inputMode="numeric" maxLength={4}
-            value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, ''))}
-            placeholder="• • • •"
-            className={`${inputCls} text-center text-[1.4rem] tracking-[.3em]`}
-          />
-        </div>
-        <div>
-          <label className={labelCls}>Conferma PIN</label>
-          <input
-            type="password" inputMode="numeric" maxLength={4}
-            value={pinConf} onChange={e => setPinConf(e.target.value.replace(/\D/g, ''))}
-            placeholder="• • • •"
-            className={`${inputCls} text-center text-[1.4rem] tracking-[.3em]`}
-          />
         </div>
       </div>
 
@@ -165,7 +143,7 @@ export function CreateHouseScreen({ onSuccess, onBack }) {
       <div className="text-center mb-2">
         <div className="font-serif text-[1.8rem] text-brown">Coinquilini</div>
         <p className="text-[.85rem] text-ink-2 mt-1">
-          Aggiungi chi vivrà in questa casa: potranno accedere scegliendo solo nome e PIN. Potrai farlo anche dopo.
+          Aggiungi chi vivrà in questa casa: potranno attivare il proprio accesso con la loro email. Potrai farlo anche dopo.
         </p>
       </div>
 
@@ -283,8 +261,8 @@ export function CreateHouseScreen({ onSuccess, onBack }) {
         <div className="font-serif text-[1.8rem] text-brown">Casa creata!</div>
         <p className="text-[.85rem] text-ink-2 mt-1 max-w-[340px]">
           Questo è il <strong>codice invito</strong> della tua casa: condividilo con i coinquilini
-          che vuoi far entrare, così potranno registrarsi da soli scegliendo nome e PIN.
-          Lo trovi anche in seguito da <Settings size={13} className="inline align-[-2px]" /> Impostazioni.
+          che vuoi far entrare, così potranno registrarsi da soli con la propria email.
+          Lo trovi anche in seguito da <Users size={13} className="inline align-[-2px]" /> Coinquilini.
         </p>
       </div>
 

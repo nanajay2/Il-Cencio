@@ -61,7 +61,7 @@ export function CoinquiliniScreen({ house, onAddUser, onRemoveUser, onClose }) {
           <section className={sectionCls}>
             <div className={titleCls + ' flex items-center gap-1.5'}><KeyRound size={16} /> Fai entrare qualcuno da solo</div>
             <p className="text-[.77rem] text-ink-2 -mt-1">
-              Condividi questo codice: potrà registrarsi scegliendo il proprio nome e PIN.
+              Condividi questo codice: potrà accedere con la propria email e scegliere il proprio nome.
             </p>
             <div className="flex items-center gap-2 mt-1">
               <code className="flex-1 text-center text-[1.3rem] font-mono font-bold tracking-[.15em] bg-cream-2 border border-border rounded-[10px] py-2 text-brown">
@@ -77,7 +77,7 @@ export function CoinquiliniScreen({ house, onAddUser, onRemoveUser, onClose }) {
         <section className={sectionCls}>
           <div className={titleCls}>Oppure crea uno slot col suo nome</div>
           <p className="text-[.77rem] text-ink-2 -mt-1">
-            Utile se vuoi che il turno sia già intestato a lei/lui: le darai il codice personale (mostrato nella lista qui sotto) per scegliere il PIN al primo accesso.
+            Utile se vuoi che il turno sia già intestato a lei/lui: al primo accesso userà lo stesso codice casa e sceglierà questo nome dalla lista.
           </p>
           <div className="flex gap-2">
             <input
@@ -106,12 +106,6 @@ export function CoinquiliniScreen({ house, onAddUser, onRemoveUser, onClose }) {
                     <button onClick={() => onRemoveUser(u.id)} className={dangerCls}><X size={14} strokeWidth={1.8} /></button>
                   )}
                 </div>
-                {u.inviteCode && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-[.7rem] text-ink-2">Codice personale:</span>
-                    <code className="text-[.72rem] bg-cream-2 px-2 py-0.5 rounded text-brown font-mono font-bold tracking-[.05em]">{u.inviteCode}</code>
-                  </div>
-                )}
               </div>
             ))}
           </div>
