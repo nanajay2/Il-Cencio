@@ -52,10 +52,22 @@ export function LoginScreen({ onBack }) {
         const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         if (error) throw error;
       } else {
-        const { data, error } = await supabase.auth.signUp({ email: email.trim(), password });
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim(), password,
+          // Senza questo, il link nell'email di conferma usa la Site URL
+          // configurata nel progetto Supabase (spesso non allineata
+          // all'origine reale) e "non porta da nessuna parte". Va comunque
+          // aggiunta anche l'origine corrente alla allow-list "Redirect
+          // URLs" nel dashboard Supabase (Authentication → URL
+          // Configuration), altrimenti il redirect viene comunque rifiutato.
+          options: { emailRedirectTo: window.location.origin },
+        });
         if (error) throw error;
         // Se la conferma email è richiesta dal progetto Supabase, non c'è
-        // ancora una sessione: lo diciamo invece di sembrare bloccati.
+        // ancora una sessione: lo diciamo, ma non serve un bottone "ho
+        // confermato" — cliccando il link nell'email si torna qui con la
+        // sessione già stabilita (supabase.auth.onAuthStateChange in
+        // App.jsx la rileva da solo e porta avanti l'utente).
         if (!data.session) { setSignupDone(true); return; }
       }
     } catch (e) {
@@ -74,20 +86,23 @@ export function LoginScreen({ onBack }) {
     if (error) setError(translateError(error.message));
   }
 
+  // Nessun bottone "ho confermato": aprire il link nell'email stabilisce
+  // la sessione da solo (redirect con token, rilevato automaticamente da
+  // supabase-js) e l'app prosegue da App.jsx senza altra azione qui.
   if (signupDone) return (
     <div className="min-h-screen bg-cream flex flex-col items-center justify-center p-6 gap-4">
       <div className="text-center mb-2 max-w-[340px]">
         <div className="flex justify-center text-brown mb-2"><Mail size={40} /></div>
         <div className="font-serif text-[1.6rem] text-brown">Controlla la tua email</div>
         <p className="text-[.85rem] text-ink-2 mt-2">
-          Ti abbiamo mandato un link di conferma a <strong>{email}</strong>. Aprilo per attivare il tuo account, poi torna qui per accedere.
+          Ti abbiamo mandato un link di conferma a <strong>{email}</strong>. Aprilo: tornerai automaticamente qui già connessa/o, senza fare altro.
         </p>
       </div>
       <button
         onClick={() => { setSignupDone(false); setMode('signin'); }}
-        className="w-full max-w-[320px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors flex items-center justify-center gap-1.5"
+        className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-brown transition-colors py-1 flex items-center gap-1"
       >
-        Ho confermato, accedi <ArrowRight size={18} />
+        <ArrowLeft size={14} /> Ho sbagliato email, torna indietro
       </button>
     </div>
   );

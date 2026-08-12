@@ -1,11 +1,15 @@
 {
+  "id": "/",
   "name": "Il Cencio",
   "short_name": "Il Cencio",
   "description": "Turni di pulizia condivisi tra coinquilini",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#8A8C5A",
   "theme_color": "#8A8C5A",
+  "lang": "it",
+  "categories": ["productivity", "lifestyle", "utilities"],
   "icons": [
     {
       "src": "/icon-192.png",
