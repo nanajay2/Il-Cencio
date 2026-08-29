@@ -5,8 +5,12 @@ import { weekRangeOf, monthRangeOf, turnosInRange, aggregateByUser, daysInRange 
 // mode: 'week' | 'month'
 // houseId + ensureThrough (da useWeeks): se il range mostrato arriva oltre le
 // settimane già generate, le genera al volo scorrendo il calendario.
-export function useAggregateView(weeks, users, mode, houseId, ensureThrough, initialAnchor) {
+export function useAggregateView(weeks, users, mode, houseId, ensureThrough, initialAnchor, onAnchorChange) {
   const [anchor, setAnchor] = useState(initialAnchor ?? todayStr());
+
+  useEffect(() => {
+    if (initialAnchor) setAnchor(initialAnchor);
+  }, [initialAnchor]);
 
   const range   = mode === 'week' ? weekRangeOf(anchor) : monthRangeOf(anchor);
   const turnos  = turnosInRange(weeks, range.start, range.end);
@@ -17,6 +21,10 @@ export function useAggregateView(weeks, users, mode, houseId, ensureThrough, ini
     if (!houseId || !ensureThrough) return;
     ensureThrough(houseId, range.end);
   }, [range.end, houseId]);
+
+  useEffect(() => {
+    if (mode === 'week') onAnchorChange?.(anchor);
+  }, [anchor, weeks]);
 
   function goPrev() {
     if (mode === 'week') { setAnchor(a => addDays(a, -7)); return; }

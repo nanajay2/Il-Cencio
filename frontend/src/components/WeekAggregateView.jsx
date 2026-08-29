@@ -3,8 +3,8 @@ import { fmt, DAYS, todayStr } from '../constants.js';
 import { useAggregateView } from '../hooks/useAggregateView.js';
 import { findTurnoForDate, dayBackground } from '../lib/calendarBuckets.js';
 
-export function WeekAggregateView({ weeks, users, userId, houseId, ensureThrough, navLoading, navError, onJumpToDay, onToday, anchorDay }) {
-  const { range, days, goPrev, goNext, goToday } = useAggregateView(weeks, users, 'week', houseId, ensureThrough, anchorDay);
+export function WeekAggregateView({ weeks, users, userId, houseId, ensureThrough, navLoading, navError, onJumpToDay, onToday, anchorDay, onAnchorChange, onScrollNavigate }) {
+  const { range, days, goPrev, goNext, goToday } = useAggregateView(weeks, users, 'week', houseId, ensureThrough, anchorDay, onAnchorChange);
   const today = todayStr();
   const isCurrentRange = today >= range.start && today <= range.end;
 
@@ -13,11 +13,15 @@ export function WeekAggregateView({ weeks, users, userId, houseId, ensureThrough
     onToday?.();
   }
 
+  // resta legittimo.
+  function handlePrev() { onScrollNavigate?.(); goPrev(); }
+  function handleNext() { onScrollNavigate?.(); goNext(); }
+
   return (
     <div className="px-4 pt-3 flex flex-col gap-3">
       <div className="flex items-center gap-3">
         <button
-          onClick={goPrev} disabled={navLoading}
+          onClick={handlePrev} disabled={navLoading}
           className="w-9 h-9 rounded-full border border-sage bg-card flex items-center justify-center text-ink cursor-pointer transition-all hover:bg-cream-2 disabled:opacity-30 disabled:cursor-default flex-shrink-0"
         >
           <ChevronLeft size={18} />
@@ -26,7 +30,7 @@ export function WeekAggregateView({ weeks, users, userId, houseId, ensureThrough
           {fmt(range.start)} – {fmt(range.end)}
         </div>
         <button
-          onClick={goNext} disabled={navLoading}
+          onClick={handleNext} disabled={navLoading}
           className="w-9 h-9 rounded-full border border-sage bg-card flex items-center justify-center text-ink cursor-pointer transition-all hover:bg-cream-2 disabled:opacity-30 disabled:cursor-default flex-shrink-0"
         >
           {navLoading ? <Loader2 size={18} className="animate-spin" /> : <ChevronRight size={18} />}
