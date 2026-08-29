@@ -3,7 +3,7 @@ import { fmt, DAYS, todayStr } from '../constants.js';
 import { useAggregateView } from '../hooks/useAggregateView.js';
 import { findTurnoForDate, dayBackground } from '../lib/calendarBuckets.js';
 
-export function WeekAggregateView({ weeks, users, userId, houseId, ensureThrough, navLoading, onJumpToDay, onToday, anchorDay }) {
+export function WeekAggregateView({ weeks, users, userId, houseId, ensureThrough, navLoading, navError, onJumpToDay, onToday, anchorDay }) {
   const { range, days, goPrev, goNext, goToday } = useAggregateView(weeks, users, 'week', houseId, ensureThrough, anchorDay);
   const today = todayStr();
   const isCurrentRange = today >= range.start && today <= range.end;
@@ -40,6 +40,18 @@ export function WeekAggregateView({ weeks, users, userId, houseId, ensureThrough
       >
         {isCurrentRange ? 'Settimana attuale' : 'Torna ad oggi'}
       </button>
+
+      {navError && !navLoading && (
+        <div className="flex items-center justify-between gap-3 px-3 py-2 bg-red-pale border border-red rounded-xl text-[.78rem] text-red">
+          <span className="flex-1">Impossibile caricare questa settimana: {navError}</span>
+          <button
+            onClick={() => ensureThrough(houseId, range.end)}
+            className="font-bold underline cursor-pointer flex-shrink-0"
+          >
+            Riprova
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-7 gap-1.5">
         {days.map(d => {

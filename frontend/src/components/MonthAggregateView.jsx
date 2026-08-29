@@ -4,7 +4,7 @@ import { useAggregateView } from '../hooks/useAggregateView.js';
 import { findTurnoForDate, dayBackground } from '../lib/calendarBuckets.js';
 import { AggregateSummaryList } from './AggregateSummaryList.jsx';
 
-export function MonthAggregateView({ weeks, users, userId, houseId, ensureThrough, navLoading, onJumpToDay }) {
+export function MonthAggregateView({ weeks, users, userId, houseId, ensureThrough, navLoading, navError, onJumpToDay }) {
   const { range, perUser, days, goPrev, goNext, goToday } = useAggregateView(weeks, users, 'month', houseId, ensureThrough);
   const [y, m] = range.start.split('-').map(Number);
 
@@ -34,6 +34,18 @@ export function MonthAggregateView({ weeks, users, userId, houseId, ensureThroug
       >
         Questo mese
       </button>
+
+      {navError && !navLoading && (
+        <div className="flex items-center justify-between gap-3 px-3 py-2 bg-red-pale border border-red rounded-xl text-[.78rem] text-red">
+          <span className="flex-1">Impossibile caricare questo mese: {navError}</span>
+          <button
+            onClick={() => ensureThrough(houseId, range.end)}
+            className="font-bold underline cursor-pointer flex-shrink-0"
+          >
+            Riprova
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-7 gap-1.5">
         {days.map(d => {
