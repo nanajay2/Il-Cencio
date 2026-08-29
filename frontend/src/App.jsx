@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Loader2, ClipboardList } from 'lucide-react';
 import { Header }             from './components/Header.jsx';
 import { HouseSwitcherModal } from './components/HouseSwitcherModal.jsx';
@@ -97,6 +97,7 @@ export default function App() {
   const [showCoinquilini, setShowCoinquilini] = useState(false);
   const [showRotation, setShowRotation] = useState(false);
   const [showReveal, setShowReveal] = useState(false);
+  const suppressRevealRef = useRef(false);
   const [viewMode, setViewMode] = useState('settimana'); // 'settimana' | 'mese'
   const [weekAnchorDay, setWeekAnchorDay] = useState(todayStr());
 
@@ -177,6 +178,7 @@ export default function App() {
   // Trigger reveal when current week changes and user is chosen
   useEffect(() => {
     if (!weeksHook.currentWeek || !userId) return;
+    if (suppressRevealRef.current) { suppressRevealRef.current = false; return; }
     if (!isCurW(weeksHook.currentWeek)) return;
     const key = `revealed_${weeksHook.currentWeek.id}_${userId}`;
     if (!localStorage.getItem(key)) setShowReveal(true);
@@ -384,6 +386,11 @@ export default function App() {
     setViewMode('settimana');
   }
 
+  function syncCardToWeekAnchor(dateStr) {
+    const turno = findTurnoForDate(weeksHook.weeks, dateStr);
+    if (turno) weeksHook.goToId(turno.id);
+  }
+
   // ---- Routing ----
   if (!BYPASS_INSTALL_GATE && !isStandalone()) return <InstallGate />;
 
@@ -485,11 +492,13 @@ export default function App() {
             onJumpToDay={jumpToDay}
             onToday={() => { weeksHook.goToCurrent(); setWeekAnchorDay(todayStr()); }}
             anchorDay={weekAnchorDay}
+            onAnchorChange={syncCardToWeekAnchor}
+            onScrollNavigate={() => { suppressRevealRef.current = true; }}
           />
 
           <div className="px-4 pt-3 flex flex-col gap-3">
             {/* Hero: il mio turno (può essere più di una stanza) */}
-            {myAssignments.map((a, i) => (
+            {myAssignments.length > 0 ? myAssignments.map((a, i) => (
               <ChoreCard
                 key={a.roomId}
                 assignment={a}
@@ -500,7 +509,12 @@ export default function App() {
                 roomIndex={i + 1}
                 roomTotal={myAssignments.length}
               />
-            ))}
+            )) : (
+              <div className="bg-card rounded-2xl border-2 border-border p-6 text-center">
+                <p className="font-serif text-[1.15rem] text-ink">Nessun turno</p>
+                <p className="text-[.78rem] text-ink-2 mt-1">Non hai stanze assegnate in questo periodo.</p>
+              </div>
+            )}
 
             {/* Sezione compatta: gli altri */}
             {othersAssignments.length > 0 && (
