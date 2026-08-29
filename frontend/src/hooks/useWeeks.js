@@ -97,6 +97,7 @@ export function useWeeks() {
     if (lastEnd && lastEnd >= targetEndDate) return;
     if (navLoading) return;
     setNavLoading(true);
+    setError(null);
     try {
       let safety = 0;
       while ((!lastEnd || lastEnd < targetEndDate) && safety++ < 30) {
