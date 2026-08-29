@@ -318,28 +318,42 @@ export default function App() {
     catch (e) { showToast(e.message, 'error'); }
   }
 
+  // weeksHook.load va sempre eseguito, anche se addAbsence/updateAbsence/
+  // removeAbsence lancia: il backend può aver comunque salvato la scrittura
+  // primaria e fallito solo sull'invalidazione best-effort delle settimane
+  // (vedi backend/routes/absences.js), nel qual caso i turni vanno comunque
+  // ricaricati invece di restare bloccati sullo stato vecchio in UI.
   async function handleAddAbsence(uid, from, to) {
     try {
       await absencesHook.addAbsence(houseId, uid, from, to);
-      await weeksHook.load(houseId);
       const name = houseHook.house?.users?.find(u => u.id === uid)?.name ?? 'Utente';
       showToast(`Assenza di ${name} aggiunta`, 'success');
-    } catch (e) { showToast(e.message, 'error'); }
+    } catch (e) {
+      showToast(e.message, 'error');
+    } finally {
+      weeksHook.load(houseId).catch(() => {});
+    }
   }
 
   async function handleUpdateAbsence(id, uid, from, to) {
     try {
       await absencesHook.updateAbsence(houseId, id, uid, from, to);
-      await weeksHook.load(houseId);
       showToast('Assenza aggiornata', 'success');
-    } catch (e) { showToast(e.message, 'error'); }
+    } catch (e) {
+      showToast(e.message, 'error');
+    } finally {
+      weeksHook.load(houseId).catch(() => {});
+    }
   }
 
   async function handleRemoveAbsence(id) {
     try {
       await absencesHook.removeAbsence(houseId, id);
-      await weeksHook.load(houseId);
-    } catch (e) { showToast(e.message, 'error'); }
+    } catch (e) {
+      showToast(e.message, 'error');
+    } finally {
+      weeksHook.load(houseId).catch(() => {});
+    }
   }
 
   async function handleProposeSwap(weekId, fromUserId, fromRoomId, toUserId, toRoomId) {
@@ -455,6 +469,7 @@ export default function App() {
           houseId={houseId}
           ensureThrough={weeksHook.ensureThrough}
           navLoading={weeksHook.navLoading}
+          navError={weeksHook.error}
           onJumpToDay={jumpToDay}
         />
       ) : currentWeek ? (
@@ -466,6 +481,7 @@ export default function App() {
             houseId={houseId}
             ensureThrough={weeksHook.ensureThrough}
             navLoading={weeksHook.navLoading}
+            navError={weeksHook.error}
             onJumpToDay={jumpToDay}
             onToday={() => { weeksHook.goToCurrent(); setWeekAnchorDay(todayStr()); }}
             anchorDay={weekAnchorDay}

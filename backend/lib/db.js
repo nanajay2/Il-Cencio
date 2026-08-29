@@ -117,20 +117,36 @@ export async function lookupHouseByCode(code) {
 // `users` già creata da un admin (createUserSlot) ma non ancora
 // rivendicata. Fallisce in modo pulito se lo slot è già stato
 // collegato a un'altra identità.
+//
+// UPDATE atomico con .is('auth_id', null) invece del vecchio pattern
+// SELECT-poi-UPDATE: quel pattern aveva una race TOCTOU, due identità
+// che claimano lo stesso slot quasi insieme potevano superare entrambe
+// il controllo "non ancora collegato" prima che una scrivesse, e
+// l'ultima vinceva silenziosamente (nessun vincolo unique lo impedisce,
+// auth_id non è più unique dalla migrazione 009). Con l'UPDATE
+// condizionato, solo una delle due può effettivamente matchare la riga
+// (auth_id passa da null a valorizzato in un singolo statement
+// Postgres): l'altra trova 0 righe e riceve un errore pulito subito,
+// invece di perdere l'accesso senza saperlo.
 export async function claimUserSlotByAuth(houseId, userId, authId, email) {
-  const { data: existing, error: fe } = await supabase
-    .from('users').select('id, auth_id')
-    .eq('id', userId).eq('house_id', houseId).maybeSingle();
-  if (fe) throw fe;
-  if (!existing) throw new Error('Utente non trovato in questa casa');
-  if (existing.auth_id) throw new Error('Questo coinquilino ha già un account collegato');
-
   const { data, error } = await supabase
     .from('users')
     .update({ auth_id: authId, email, claimed: true })
-    .eq('id', userId)
-    .select('*, houses(id, name)').single();
+    .eq('id', userId).eq('house_id', houseId).is('auth_id', null)
+    .select('*, houses(id, name)').maybeSingle();
   if (error) throw error;
+
+  if (!data) {
+    // 0 righe: o lo slot non esiste in questa casa, o esiste ma è già
+    // stato claimato da qualcun altro. Query di sola lettura per capire
+    // quale dei due, solo per il messaggio d'errore — non decide nulla,
+    // la decisione è già stata presa atomicamente dall'UPDATE sopra.
+    const { data: existing, error: fe } = await supabase
+      .from('users').select('id').eq('id', userId).eq('house_id', houseId).maybeSingle();
+    if (fe) throw fe;
+    if (!existing) throw new Error('Utente non trovato in questa casa');
+    throw new Error('Questo coinquilino ha già un account collegato');
+  }
 
   return {
     userId: data.id, userName: data.name, userEmail: data.email,

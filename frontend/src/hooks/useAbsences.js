@@ -36,11 +36,28 @@ export function useAbsences() {
     setAbsences(a => a.filter(x => x.id !== absenceId));
   }
 
+  // Soglia duplicata da ABSENCE_EXCLUSION_THRESHOLD in backend/lib/scheduler.js
+  // (isAbsentEnoughToExclude): il badge deve comparire esattamente quando il
+  // backend esclude la persona dal turno, non prima/dopo. Prima di questo fix
+  // qui si richiedeva copertura 100% della settimana mentre il backend esclude
+  // già oltre il 75% — le due metà divergevano (assegnazioni "senza motivo"
+  // visibile). Duplicazione temporanea, intenzionale: la soglia sparisce del
+  // tutto quando arriva la decisione esplicita per-settimana (roadmap §12.1).
+  const ABSENCE_EXCLUSION_THRESHOLD = 0.75;
+
+  function daysBetween(a, b) {
+    return Math.round((new Date(b + 'T12:00:00Z') - new Date(a + 'T12:00:00Z')) / 86400000) + 1;
+  }
+
   function isAbsent(userId, weekStart, weekEnd) {
-    // Vero solo se l'assenza copre l'intera settimana, coerente con
-    // isFullyAbsent in backend/lib/scheduler.js: un'assenza parziale non
-    // esclude dal turno, quindi non deve mostrare il badge "assente".
-    return absences.some(a => a.userId === userId && a.from <= weekStart && a.to >= weekEnd);
+    const periodDays = daysBetween(weekStart, weekEnd);
+    return absences.some(a => {
+      if (a.userId !== userId) return false;
+      const overlapStart = a.from > weekStart ? a.from : weekStart;
+      const overlapEnd   = a.to   < weekEnd   ? a.to   : weekEnd;
+      if (overlapStart > overlapEnd) return false;
+      return daysBetween(overlapStart, overlapEnd) / periodDays > ABSENCE_EXCLUSION_THRESHOLD;
+    });
   }
 
   return { absences, loading, error, load, addAbsence, updateAbsence, removeAbsence, isAbsent };
