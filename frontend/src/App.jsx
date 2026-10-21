@@ -360,7 +360,7 @@ export default function App() {
 
   async function handleProposeSwap(weekId, fromUserId, fromRoomId, toUserId, toRoomId) {
     try {
-      await swapsHook.proposeSwap(houseId, weekId, fromUserId, fromRoomId, toUserId, toRoomId);
+      await swapsHook.proposeSwap(houseId, weekId, fromRoomId, toUserId, toRoomId);
       showToast('Richiesta di scambio inviata', 'success');
     } catch (e) { showToast(e.message, 'error'); }
   }
