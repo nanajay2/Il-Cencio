@@ -18,8 +18,8 @@ export function useSwaps() {
     }
   }, []);
 
-  async function proposeSwap(houseId, weekId, fromUserId, fromRoomId, toUserId, toRoomId) {
-    const swap = await api.createSwap(houseId, weekId, fromUserId, fromRoomId, toUserId, toRoomId);
+  async function proposeSwap(houseId, weekId, fromRoomId, toUserId, toRoomId) {
+    const swap = await api.createSwap(houseId, weekId, fromRoomId, toUserId, toRoomId);
     setSwaps(s => [swap, ...s]);
     return swap;
   }
