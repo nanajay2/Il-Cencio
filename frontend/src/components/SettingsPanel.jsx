@@ -37,7 +37,11 @@ function describeRule(rule, rooms, users) {
     return `${roomName(config.room_id)} → solo ${(config.user_ids ?? []).map(userName).join(', ') || '—'}`;
   }
   if (type === 'sequence') {
-    return `${roomName(config.from_room_id)} → ${roomName(config.to_room_id)} la settimana dopo`;
+    const exempt = (config.exempt_user_ids ?? [])
+      .filter(id => users.some(u => u.id === id))
+      .map(userName);
+    return `${roomName(config.from_room_id)} → ${roomName(config.to_room_id)} la settimana dopo` +
+      (exempt.length ? ` (tranne ${exempt.join(', ')})` : '');
   }
   if (type === 'exclusion') {
     return `${userName(config.user_id)} mai su ${roomName(config.room_id)}`;
@@ -59,6 +63,7 @@ export function SettingsPanel({
   const [poolUsers,  setPoolUsers]  = useState([]);
   const [seqFrom,    setSeqFrom]    = useState('');
   const [seqTo,      setSeqTo]      = useState('');
+  const [seqExempt,  setSeqExempt]  = useState([]);
   const [exclUser,   setExclUser]   = useState('');
   const [exclRoom,   setExclRoom]   = useState('');
   const [editingRuleId, setEditingRuleId] = useState(null);
@@ -67,10 +72,14 @@ export function SettingsPanel({
     setPoolUsers(ids => ids.includes(id) ? ids.filter(u => u !== id) : [...ids, id]);
   }
 
+  function toggleSeqExempt(id) {
+    setSeqExempt(ids => ids.includes(id) ? ids.filter(u => u !== id) : [...ids, id]);
+  }
+
   function resetRuleForm() {
     setEditingRuleId(null);
     setPoolRoom(''); setPoolUsers([]);
-    setSeqFrom(''); setSeqTo('');
+    setSeqFrom(''); setSeqTo(''); setSeqExempt([]);
     setExclUser(''); setExclRoom('');
   }
 
@@ -84,6 +93,7 @@ export function SettingsPanel({
     } else if (rule.type === 'sequence') {
       setSeqFrom(config.from_room_id);
       setSeqTo(config.to_room_id);
+      setSeqExempt((config.exempt_user_ids ?? []).filter(id => house.users.some(u => u.id === id)));
     } else if (rule.type === 'exclusion') {
       setExclUser(config.user_id);
       setExclRoom(config.room_id);
@@ -100,6 +110,7 @@ export function SettingsPanel({
     } else if (ruleType === 'sequence') {
       if (!seqFrom || !seqTo || seqFrom === seqTo) return;
       const config = { from_room_id: seqFrom, to_room_id: seqTo };
+      if (seqExempt.length) config.exempt_user_ids = seqExempt;
       if (editingRuleId) await onEditRule(editingRuleId, 'sequence', config);
       else await onAddRule('sequence', config);
       resetRuleForm();
@@ -213,31 +224,32 @@ export function SettingsPanel({
 
                     {ruleType === 'pool_restriction' && (
                       <>
-                        <select value={poolRoom} onChange={e => setPoolRoom(e.target.value)} className={selectCls}>
-                          <option value="">Scegli stanza…</option>
-                          {house.rooms.map(r => <option key={r.id} value={r.id}>{r.icon} {r.name}</option>)}
-                        </select>
-                        <div className="flex flex-wrap gap-1.5">
-                          {house.users.map(u => (
-                            <button
-                              key={u.id}
-                              type="button"
-                              onClick={() => toggleAllowedUser(u.id)}
-                              className={
-                                'px-3 py-1.5 rounded-full text-[.78rem] font-semibold border-[1.5px] transition-colors cursor-pointer ' +
-                                (poolUsers.includes(u.id)
-                                  ? 'bg-brown text-ink border-brown'
-                                  : 'bg-cream text-ink-2 border-border')
-                              }
-                            >
-                              {u.name}
-                            </button>
-                          ))}
-                        </div>
+                          <select value={poolRoom} onChange={e => setPoolRoom(e.target.value)} className={selectCls}>
+                            <option value="">Scegli stanza…</option>
+                            {house.rooms.map(r => <option key={r.id} value={r.id}>{r.icon} {r.name}</option>)}
+                          </select>
+                          <div className="flex flex-wrap gap-1.5">
+                            {house.users.map(u => (
+                              <button
+                                key={u.id}
+                                type="button"
+                                onClick={() => toggleAllowedUser(u.id)}
+                                className={
+                                  'px-3 py-1.5 rounded-full text-[.78rem] font-semibold border-[1.5px] transition-colors cursor-pointer ' +
+                                  (poolUsers.includes(u.id)
+                                    ? 'bg-brown text-ink border-brown'
+                                    : 'bg-cream text-ink-2 border-border')
+                                }
+                              >
+                                {u.name}
+                              </button>
+                            ))}
+                          </div>
                       </>
                     )}
 
                     {ruleType === 'sequence' && (
+                      <>
                       <div className="flex items-center gap-2">
                         <select value={seqFrom} onChange={e => setSeqFrom(e.target.value)} className={selectCls}>
                           <option value="">Stanza di partenza…</option>
@@ -249,6 +261,25 @@ export function SettingsPanel({
                           {house.rooms.map(r => <option key={r.id} value={r.id}>{r.icon} {r.name}</option>)}
                         </select>
                       </div>
+                      <p className="text-[.75rem] text-ink-2">Non si applica a (opzionale):</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {house.users.map(u => (
+                          <button
+                            key={u.id}
+                            type="button"
+                            onClick={() => toggleSeqExempt(u.id)}
+                            className={
+                              'px-3 py-1.5 rounded-full text-[.78rem] font-semibold border-[1.5px] transition-colors cursor-pointer ' +
+                              (seqExempt.includes(u.id)
+                                ? 'bg-brown text-ink border-brown'
+                                : 'bg-cream text-ink-2 border-border')
+                            }
+                          >
+                            {u.name}
+                          </button>
+                        ))}
+                      </div>
+                      </>
                     )}
 
                     {ruleType === 'exclusion' && (

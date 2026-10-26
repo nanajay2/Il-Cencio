@@ -11,7 +11,7 @@ export function UpgradeNoticeScreen({ onContinue }) {
         <div className="font-serif text-[1.7rem] text-brown">Abbiamo aggiornato l'accesso</div>
         <p className="text-[.85rem] text-ink-2 mt-2 max-w-[340px]">
           Il PIN non è più usato. Ora si accede con email e password (o Google).
-          Registrati di nuovo, poi rientra nella tua casa con il codice invito:
+          Registrati di nuovo, poi rientra nella tua casa con il link d'invito che ti manda un coinquilino:
           troverai già il tuo nome in lista, basterà selezionarlo.
         </p>
       </div>

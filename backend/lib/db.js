@@ -14,7 +14,6 @@ export async function getHouse(houseId) {
 
   return {
     ...house,
-    houseInviteCode: house.house_invite_code,
     rotationType: house.rotation_type,
     rotationDays: house.rotation_days,
     users, rooms, rules,
@@ -50,7 +49,7 @@ export async function createHouse(name, adminName, authId, email) {
 
   const { error: he } = await supabase
     .from('houses')
-    .insert({ id, name, house_invite_code: randomBytes(4).toString('hex').toUpperCase() });
+    .insert({ id, name });
   if (he) throw he;
 
   const { data: user, error: ue } = await supabase
@@ -59,15 +58,12 @@ export async function createHouse(name, adminName, authId, email) {
     .select().single();
   if (ue) throw ue;
 
-  const { data: house } = await supabase.from('houses').select('house_invite_code').eq('id', id).single();
-
   return {
     houseId:         id,
     houseName:       name,
     userId:          user.id,
     userName:        user.name,
     isAdmin:         true,
-    houseInviteCode: house?.house_invite_code ?? null,
   };
 }
 
@@ -87,28 +83,6 @@ export async function getHouseMembers(houseId) {
     // "claimed" qui = collegato a un'identità Supabase (auth_id), non il
     // vecchio flag DB `claimed` (che significava "ha impostato un PIN" e
     // per gli utenti reali migrati da prima di FEAT-01 è già true).
-    users: users.map(u => ({ id: u.id, name: u.name, claimed: u.auth_id != null })),
-  };
-}
-
-export async function lookupHouseByCode(code) {
-  const { data, error } = await supabase
-    .from('houses')
-    .select('id, name, house_invite_code')
-    .eq('house_invite_code', code.trim().toUpperCase())
-    .single();
-  if (error || !data) throw new Error('Codice casa non valido');
-
-  const { data: users, error: ue } = await supabase
-    .from('users')
-    .select('id, name, auth_id')
-    .eq('house_id', data.id)
-    .order('id');
-  if (ue) throw ue;
-
-  return {
-    houseId:   data.id,
-    houseName: data.name,
     users: users.map(u => ({ id: u.id, name: u.name, claimed: u.auth_id != null })),
   };
 }
@@ -155,7 +129,7 @@ export async function claimUserSlotByAuth(houseId, userId, authId, email) {
 }
 
 // Crea un nuovo coinquilino già collegato all'identità Supabase
-// autenticata che lo sta registrando (self-serve join con codice casa).
+// autenticata che lo sta registrando (self-serve join con link d'invito della casa).
 export async function registerUserWithAuth(houseId, name, authId, email) {
   const { data, error } = await supabase
     .from('users')
@@ -436,6 +410,14 @@ export async function deleteWeeksFrom(houseId, fromDate) {
   if (error) throw error;
 }
 
+// Cancella solo i turni che iniziano dopo `fromDate`: il turno in corso (e
+// quindi spunte e scambi) resta intatto.
+export async function deleteWeeksStartingAfter(houseId, fromDate) {
+  const { error } = await supabase
+    .from('weeks').delete().eq('house_id', houseId).gt('start_date', fromDate);
+  if (error) throw error;
+}
+
 export async function setDone(houseId, weekId, userId, roomId, done) {
   const { error } = await supabase
     .from('assignments').update({ done })
@@ -628,14 +610,14 @@ export async function setAppMeta(key, value) {
 
 export const db = {
   getHouse, createHouse, getAllHouseIds, getRotationConfig, updateRotation,
-  getHouseMembers, lookupHouseByCode,
+  getHouseMembers,
   claimUserSlotByAuth, registerUserWithAuth,
   createInvite, resolveInvite, consumeInvite,
   getMembership, hasAnyMembership, getHousesForAuth,
   getUsers, createUserSlot, deleteUser, leaveHouse,
   getRooms, createRoom, updateRoom, deleteRoom,
   getRules, createRule, updateRule, deleteRule,
-  getWeeks, insertWeek, deleteWeeksBefore, deleteWeeksFrom, setDone,
+  getWeeks, insertWeek, deleteWeeksBefore, deleteWeeksFrom, deleteWeeksStartingAfter, setDone,
   getAbsences, insertAbsence, updateAbsence, deleteAbsence, deleteExpiredAbsences,
   getPushSubscriptions, savePushSubscription, deletePushSubscription, deletePushSubscriptionByEndpoint,
   getSwapRequests, getSwapById, createSwapRequest, updateSwapStatus, getAssignment, swapAssignments,

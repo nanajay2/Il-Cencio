@@ -8,19 +8,12 @@ const router = Router();
 const protect      = [requireAuth, requireMembership];
 const protectAdmin = [...protect, requireAdmin];
 
+// ?recalculate=now: l'admin ha scelto di rigenerare anche il turno in corso.
+// Senza, le modifiche valgono dal turno successivo (vedi invalidateUpcomingWeeks).
+const recalcNow = (req) => ({ recalculateNow: req.query.recalculate === 'now' });
+
 // ── Onboarding ───────────────────────────────────────────────────
 // NOTA: queste route devono stare prima di /:houseId
-
-// Lookup casa dal codice — pubblico, serve prima ancora di autenticarsi
-router.post('/lookup', async (req, res) => {
-  const { houseCode } = req.body;
-  if (!houseCode) return res.status(400).json({ error: 'houseCode richiesto' });
-  try {
-    res.json(await db.lookupHouseByCode(houseCode));
-  } catch (e) {
-    res.status(404).json({ error: e.message });
-  }
-});
 
 // Lista membri per device già associato (senza codice invito) — pubblico,
 // non espone nulla di sensibile (solo nome e stato "collegato")
@@ -45,28 +38,22 @@ router.get('/invites/:token', async (req, res) => {
 
 // Collega l'identità Supabase appena autenticata (login/signup fatto lato
 // client con l'SDK) a una riga `users` esistente (slot creato da un admin,
-// selezionato via userId) o nuova (self-serve join, con name). Accetta un
-// token invito (FEAT-06) o, transitoriamente, il vecchio houseCode
-// (US-01.4/US-06.5: rimosso solo dopo il rollout del nuovo meccanismo).
+// selezionato via userId) o nuova (self-serve join, con name). Serve un
+// token invito (FEAT-06): il vecchio ingresso col codice casa è stato rimosso.
 // Un'identità può fare /claim per più case diverse (vedi requireMembership);
 // qui si blocca solo il doppio-claim sulla STESSA casa.
 router.post('/claim', requireAuth, async (req, res) => {
-  const { houseCode, token, userId, name } = req.body;
-  if (!houseCode && !token) return res.status(400).json({ error: 'houseCode o token richiesto' });
+  const { token, userId, name } = req.body;
+  if (!token) return res.status(400).json({ error: 'token invito richiesto' });
   try {
-    let houseId, invite = null;
-    if (token) {
-      invite = await db.resolveInvite(token);
-      houseId = invite.houseId;
-    } else {
-      ({ houseId } = await db.lookupHouseByCode(houseCode));
-    }
+    const invite = await db.resolveInvite(token);
+    const { houseId } = invite;
 
     const already = await db.getMembership(req.authId, houseId);
     if (already) return res.status(409).json({ error: 'Fai già parte di questa casa' });
 
     let claimed;
-    if (invite?.userId) {
+    if (invite.userId) {
       // invito personale: lo slot è già determinato dal token, ignora userId/name nel body
       claimed = await db.claimUserSlotByAuth(houseId, invite.userId, req.authId, req.authEmail);
       await db.consumeInvite(token);
@@ -125,8 +112,9 @@ router.get('/:houseId', ...protect, async (req, res) => {
 // ── Rotazione ────────────────────────────────────────────────────
 
 // Cambia la cadenza dei turni (settimanale/giornaliera personalizzata/mensile).
-// Si applica solo in avanti: invalidateUpcomingWeeks cancella i turni da oggi
-// in poi così vengono rigenerati con la nuova cadenza; il passato resta invariato.
+// Si applica dal turno successivo: invalidateUpcomingWeeks cancella i turni
+// futuri così vengono rigenerati con la nuova cadenza; con ?recalculate=now
+// anche il turno in corso. Il passato resta invariato.
 router.put('/:houseId/rotation', ...protectAdmin, async (req, res) => {
   const { rotationType, rotationDays } = req.body;
   if (!['weekly', 'daily', 'monthly'].includes(rotationType))
@@ -135,7 +123,7 @@ router.put('/:houseId/rotation', ...protectAdmin, async (req, res) => {
     return res.status(400).json({ error: 'rotationDays deve essere un intero tra 1 e 30' });
   try {
     await db.updateRotation(req.params.houseId, rotationType, rotationType === 'daily' ? rotationDays : null);
-    await invalidateUpcomingWeeks(db, req.params.houseId);
+    await invalidateUpcomingWeeks(db, req.params.houseId, recalcNow(req));
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -165,7 +153,7 @@ router.post('/:houseId/users', ...protectAdmin, async (req, res) => {
   if (!name || !name.trim()) return res.status(400).json({ error: 'name richiesto' });
   try {
     const user = await db.createUserSlot(req.params.houseId, name.trim());
-    await invalidateUpcomingWeeks(db, req.params.houseId);
+    await invalidateUpcomingWeeks(db, req.params.houseId, recalcNow(req));
     res.status(201).json(user);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -176,7 +164,7 @@ router.post('/:houseId/users', ...protectAdmin, async (req, res) => {
 router.delete('/:houseId/users/:userId', ...protectAdmin, async (req, res) => {
   try {
     await db.deleteUser(req.params.houseId, req.params.userId);
-    await invalidateUpcomingWeeks(db, req.params.houseId);
+    await invalidateUpcomingWeeks(db, req.params.houseId, { recalculateNow: true });
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -188,7 +176,7 @@ router.delete('/:houseId/users/:userId', ...protectAdmin, async (req, res) => {
 router.post('/:houseId/leave', ...protect, async (req, res) => {
   try {
     const result = await db.leaveHouse(req.params.houseId, req.userId);
-    if (!result.houseDeleted) await invalidateUpcomingWeeks(db, req.params.houseId);
+    if (!result.houseDeleted) await invalidateUpcomingWeeks(db, req.params.houseId, { recalculateNow: true });
     res.json(result);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -202,7 +190,7 @@ router.post('/:houseId/rooms', ...protectAdmin, async (req, res) => {
   if (!name) return res.status(400).json({ error: 'name richiesto' });
   try {
     const room = await db.createRoom(req.params.houseId, { name, icon, color, sortOrder });
-    await invalidateUpcomingWeeks(db, req.params.houseId);
+    await invalidateUpcomingWeeks(db, req.params.houseId, recalcNow(req));
     res.status(201).json(room);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -221,7 +209,7 @@ router.put('/:houseId/rooms/:roomId', ...protectAdmin, async (req, res) => {
 router.delete('/:houseId/rooms/:roomId', ...protectAdmin, async (req, res) => {
   try {
     await db.deleteRoom(req.params.houseId, req.params.roomId);
-    await invalidateUpcomingWeeks(db, req.params.houseId);
+    await invalidateUpcomingWeeks(db, req.params.houseId, { recalculateNow: true });
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -235,7 +223,7 @@ router.post('/:houseId/rules', ...protectAdmin, async (req, res) => {
   if (!type || !config) return res.status(400).json({ error: 'type e config richiesti' });
   try {
     const rule = await db.createRule(req.params.houseId, type, config);
-    await invalidateUpcomingWeeks(db, req.params.houseId);
+    await invalidateUpcomingWeeks(db, req.params.houseId, recalcNow(req));
     res.status(201).json(rule);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -247,7 +235,7 @@ router.put('/:houseId/rules/:ruleId', ...protectAdmin, async (req, res) => {
   if (!type || !config) return res.status(400).json({ error: 'type e config richiesti' });
   try {
     await db.updateRule(req.params.houseId, req.params.ruleId, { type, config });
-    await invalidateUpcomingWeeks(db, req.params.houseId);
+    await invalidateUpcomingWeeks(db, req.params.houseId, recalcNow(req));
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -257,7 +245,7 @@ router.put('/:houseId/rules/:ruleId', ...protectAdmin, async (req, res) => {
 router.delete('/:houseId/rules/:ruleId', ...protectAdmin, async (req, res) => {
   try {
     await db.deleteRule(req.params.houseId, req.params.ruleId);
-    await invalidateUpcomingWeeks(db, req.params.houseId);
+    await invalidateUpcomingWeeks(db, req.params.houseId, recalcNow(req));
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });

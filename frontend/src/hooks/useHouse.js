@@ -21,8 +21,8 @@ export function useHouse() {
     }
   }, []);
 
-  async function addUser(houseId, name, email) {
-    const user = await api.createUser(houseId, name, email);
+  async function addUser(houseId, name, email, scope) {
+    const user = await api.createUser(houseId, name, email, scope);
     setHouse(h => h ? { ...h, users: [...h.users, { ...user, claimed: false }] } : h);
     return user;
   }
@@ -32,8 +32,8 @@ export function useHouse() {
     setHouse(h => h ? { ...h, users: h.users.filter(u => u.id !== userId) } : h);
   }
 
-  async function addRoom(houseId, data) {
-    const room = await api.createRoom(houseId, data);
+  async function addRoom(houseId, data, scope) {
+    const room = await api.createRoom(houseId, data, scope);
     setHouse(h => h ? { ...h, rooms: [...h.rooms, room].sort((a,b) => a.sortOrder - b.sortOrder) } : h);
     return room;
   }
@@ -48,24 +48,24 @@ export function useHouse() {
     setHouse(h => h ? { ...h, rooms: h.rooms.filter(r => r.id !== roomId) } : h);
   }
 
-  async function addRule(houseId, type, config) {
-    const rule = await api.createRule(houseId, type, config);
+  async function addRule(houseId, type, config, scope) {
+    const rule = await api.createRule(houseId, type, config, scope);
     setHouse(h => h ? { ...h, rules: [...h.rules, rule] } : h);
     return rule;
   }
 
-  async function editRule(houseId, ruleId, type, config) {
-    await api.updateRule(houseId, ruleId, type, config);
+  async function editRule(houseId, ruleId, type, config, scope) {
+    await api.updateRule(houseId, ruleId, type, config, scope);
     setHouse(h => h ? { ...h, rules: h.rules.map(r => r.id === ruleId ? { ...r, type, config } : r) } : h);
   }
 
-  async function removeRule(houseId, ruleId) {
-    await api.deleteRule(houseId, ruleId);
+  async function removeRule(houseId, ruleId, scope) {
+    await api.deleteRule(houseId, ruleId, scope);
     setHouse(h => h ? { ...h, rules: h.rules.filter(r => r.id !== ruleId) } : h);
   }
 
-  async function updateRotation(houseId, rotationType, rotationDays) {
-    await api.updateRotation(houseId, rotationType, rotationDays);
+  async function updateRotation(houseId, rotationType, rotationDays, scope) {
+    await api.updateRotation(houseId, rotationType, rotationDays, scope);
     setHouse(h => h ? { ...h, rotationType, rotationDays: rotationType === 'daily' ? rotationDays : null } : h);
   }
 

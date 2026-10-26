@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowRight, ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Loader2, Link2 } from 'lucide-react';
 import { api } from '../api.js';
 
 const inputCls =
@@ -12,19 +12,18 @@ const labelCls = 'block text-[.7rem] font-bold text-ink-2 mb-1 uppercase trackin
 // attiva): collega quell'identità a un coinquilino di una casa
 // esistente tramite POST /houses/claim, o ne crea uno nuovo.
 //
-// `initialToken` (FEAT-06, link/QR aperto da /join/:token): salta lo
-// step del codice e risolve direttamente la casa. Un token personale
-// (invito per un coinquilino specifico) salta anche la lista e va dritto
-// alla conferma; un token casa mostra la stessa lista del vecchio flusso
-// col codice, solo che il "codice" è invisibile all'utente.
+// Si entra solo con `initialToken` (FEAT-06, link/QR aperto da
+// /join/:token): il vecchio ingresso col codice casa è stato rimosso. Un
+// token personale (invito per un coinquilino specifico) va dritto alla
+// conferma; un token casa mostra la lista dei coinquilini. Senza token (o
+// con un token non valido) si spiega come farsi mandare il link.
 export function JoinHouseScreen({ onSuccess, onBack, initialToken }) {
-  // step: 'resolving' | 'code' | 'select' | 'new-name' | 'confirm-personal'
-  const [step,      setStep]      = useState(initialToken ? 'resolving' : 'code');
-  const [houseCode, setHouseCode] = useState('');
+  // step: 'resolving' | 'no-invite' | 'select' | 'new-name' | 'confirm-personal'
+  const [step,      setStep]      = useState(initialToken ? 'resolving' : 'no-invite');
   const [house,     setHouse]     = useState(null); // { houseId, houseName, users }
   const [newName,   setNewName]   = useState('');
   const [personal,  setPersonal]  = useState(null); // { userName, houseName } per token personale
-  const [source,    setSource]    = useState(null); // { token } | { houseCode }
+  const [source,    setSource]    = useState(null); // { token }
   const [loading,   setLoading]   = useState(false);
   const [error,     setError]     = useState(null);
 
@@ -43,26 +42,10 @@ export function JoinHouseScreen({ onSuccess, onBack, initialToken }) {
         }
       } catch (e) {
         setError(e.message);
-        setStep('code');
+        setStep('no-invite');
       }
     })();
   }, [initialToken]);
-
-  async function handleLookup() {
-    const code = houseCode.trim().toUpperCase();
-    if (!code) return;
-    setLoading(true); setError(null);
-    try {
-      const res = await api.lookupHouse(code);
-      setHouse(res);
-      setSource({ houseCode: code });
-      setStep('select');
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }
 
   async function claim(opts = {}) {
     setLoading(true); setError(null);
@@ -117,32 +100,19 @@ export function JoinHouseScreen({ onSuccess, onBack, initialToken }) {
     </div>
   );
 
-  // ── Step: codice casa ─────────────────────────────────────────────
-  if (step === 'code') return (
+  // ── Step: nessun invito (aperto senza link, o link non valido) ──────
+  if (step === 'no-invite') return (
     <div className="min-h-screen bg-cream flex flex-col items-center justify-center p-6 gap-4">
       <div className="text-center mb-2">
+        <div className="flex justify-center text-brown mb-2"><Link2 size={36} /></div>
         <div className="font-serif text-[1.8rem] text-brown">Entra in una casa</div>
-        <p className="text-[.85rem] text-ink-2 mt-1">Inserisci il codice della casa</p>
+        <p className="text-[.85rem] text-ink-2 mt-1 max-w-[300px]">
+          Per entrare serve il link d'invito (o il QR): chiedilo a un coinquilino, lo trova in Coinquilini.
+          Poi aprilo da questo telefono.
+        </p>
       </div>
 
-      <input
-        type="text" value={houseCode}
-        onChange={e => setHouseCode(e.target.value.toUpperCase())}
-        onKeyDown={e => e.key === 'Enter' && handleLookup()}
-        placeholder="es. CENCIO"
-        maxLength={12}
-        className="w-full max-w-[320px] border-[1.5px] border-border rounded-[14px] px-4 py-3.5 text-center text-[1.4rem] font-bold font-mono tracking-[.15em] bg-card text-brown outline-none focus:border-brown transition-colors"
-      />
-
       {error && <p className="text-[.82rem] text-red text-center max-w-[280px]">{error}</p>}
-
-      <button
-        onClick={handleLookup}
-        disabled={loading || !houseCode.trim()}
-        className="w-full max-w-[320px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
-      >
-        {loading ? 'Cerco…' : <>Continua <ArrowRight size={18} /></>}
-      </button>
 
       <button onClick={onBack} className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-brown transition-colors py-1 flex items-center gap-1">
         <ArrowLeft size={14} /> Torna indietro
@@ -186,11 +156,6 @@ export function JoinHouseScreen({ onSuccess, onBack, initialToken }) {
 
       {error && <p className="text-[.82rem] text-red text-center max-w-[280px]">{error}</p>}
 
-      {!initialToken && (
-        <button onClick={() => { setStep('code'); setError(null); }} className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-brown transition-colors py-1 flex items-center gap-1">
-          <ArrowLeft size={14} /> Cambia codice
-        </button>
-      )}
     </div>
   );
 
