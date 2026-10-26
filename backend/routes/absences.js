@@ -28,9 +28,10 @@ router.get('/', async (req, res) => {
 // salvata quando invece lo è. Il ricalcolo verrà comunque ritentato alla
 // prossima chiamata (ensureFutureWeeks in GET /weeks non dipende da questo),
 // qui logghiamo soltanto per non perdere visibilità sul fallimento.
-async function invalidateBestEffort(houseId) {
+async function invalidateBestEffort(req) {
+  const { houseId } = req.params;
   try {
-    await invalidateUpcomingWeeks(db, houseId);
+    await invalidateUpcomingWeeks(db, houseId, { recalculateNow: req.query.recalculate === 'now' });
   } catch (e) {
     console.error(`Invalidazione settimane fallita per casa ${houseId}:`, e.message);
   }
@@ -42,7 +43,7 @@ router.post('/', async (req, res) => {
   if (from > to) return res.status(400).json({ error: 'from deve essere ≤ to' });
   try {
     const absence = await db.insertAbsence(req.params.houseId, userId, from, to);
-    await invalidateBestEffort(req.params.houseId);
+    await invalidateBestEffort(req);
     sendNotificationExcluding(req.params.houseId, {
       title: 'Nuova assenza',
       body: `${absence.userName} sarà assente dal ${fmt(from)} al ${fmt(to)}.`,
@@ -62,7 +63,7 @@ router.put('/:absenceId', async (req, res) => {
     const absence = await db.updateAbsence(req.params.houseId, req.params.absenceId, {
       userId, from, to,
     });
-    await invalidateBestEffort(req.params.houseId);
+    await invalidateBestEffort(req);
     res.json(absence);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -72,7 +73,7 @@ router.put('/:absenceId', async (req, res) => {
 router.delete('/:absenceId', async (req, res) => {
   try {
     await db.deleteAbsence(req.params.houseId, req.params.absenceId);
-    await invalidateBestEffort(req.params.houseId);
+    await invalidateBestEffort(req);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });

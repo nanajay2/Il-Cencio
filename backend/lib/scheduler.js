@@ -38,10 +38,6 @@ function firstOfMonthBefore(dateStr) {
   const pm = m === 1 ? 12 : m - 1;
   return `${py}-${String(pm).padStart(2, '0')}-01`;
 }
-function firstOfNextMonth(dateStr) {
-  const [y, m] = dateStr.split('-').map(Number);
-  return new Date(Date.UTC(y, m, 1)).toISOString().split('T')[0];
-}
 function lastOfMonth(dateStr) {
   const [y, m] = dateStr.split('-').map(Number);
   return new Date(Date.UTC(y, m, 0)).toISOString().split('T')[0];
@@ -49,13 +45,13 @@ function lastOfMonth(dateStr) {
 
 // Avanza al periodo successivo in base alla rotazione della casa.
 // rotation = { type: 'weekly'|'daily'|'monthly', days: number|null }
-function nextPeriod(lastStart, rotation) {
-  if (rotation.type === 'monthly') {
-    const ns = firstOfNextMonth(lastStart);
-    return [ns, lastOfMonth(ns)];
-  }
+// Il nuovo turno parte il giorno dopo la fine del precedente (non dal suo
+// inizio + durata): se la cadenza è cambiata a turno in corso, il turno
+// attuale finisce con la vecchia durata e il successivo usa quella nuova.
+function nextPeriod(lastEnd, rotation) {
+  const ns = addDays(lastEnd, 1);
+  if (rotation.type === 'monthly') return [ns, lastOfMonth(ns)];
   const n = rotation.type === 'daily' ? (rotation.days || 1) : 7;
-  const ns = addDays(lastStart, n);
   return [ns, addDays(ns, n - 1)];
 }
 
@@ -75,7 +71,7 @@ export function computeNextWeek(weeks, users, rooms, rules, rotation = { type: '
   const last   = sorted[sorted.length - 1];
   if (!last) return null;
 
-  const [ns, ne] = nextPeriod(last.start, rotation);
+  const [ns, ne] = nextPeriod(last.end, rotation);
   if (weeks.find(w => w.start === ns)) return null;
 
   // Vero se l'assenza copre più di ABSENCE_EXCLUSION_THRESHOLD della durata
@@ -286,9 +282,12 @@ export async function purgeOldWeeks(db, houseId) {
   await db.deleteWeeksBefore(houseId, cutoff);
 }
 
-// Le stanze sono cambiate: le settimane non ancora concluse (corrente + future)
-// possono avere assignment orfani o mancanti per le vecchie/nuove stanze.
-// Le cancelliamo: ensureFutureWeeks le rigenera da capo allo step successivo.
-export async function invalidateUpcomingWeeks(db, houseId) {
-  await db.deleteWeeksFrom(houseId, today());
+// Una modifica (stanze, persone, regole, assenze, cadenza) invalida i turni
+// già calcolati. Di default si cancellano solo quelli futuri: il turno in
+// corso resta com'è, con spunte e scambi, e la modifica vale dal turno dopo.
+// Con `recalculateNow` si cancella anche il turno in corso: ensureFutureWeeks
+// lo rigenera da capo (si perdono spunte e scambi).
+export async function invalidateUpcomingWeeks(db, houseId, { recalculateNow = false } = {}) {
+  if (recalculateNow) await db.deleteWeeksFrom(houseId, today());
+  else await db.deleteWeeksStartingAfter(houseId, today());
 }

@@ -410,6 +410,14 @@ export async function deleteWeeksFrom(houseId, fromDate) {
   if (error) throw error;
 }
 
+// Cancella solo i turni che iniziano dopo `fromDate`: il turno in corso (e
+// quindi spunte e scambi) resta intatto.
+export async function deleteWeeksStartingAfter(houseId, fromDate) {
+  const { error } = await supabase
+    .from('weeks').delete().eq('house_id', houseId).gt('start_date', fromDate);
+  if (error) throw error;
+}
+
 export async function setDone(houseId, weekId, userId, roomId, done) {
   const { error } = await supabase
     .from('assignments').update({ done })
@@ -609,7 +617,7 @@ export const db = {
   getUsers, createUserSlot, deleteUser, leaveHouse,
   getRooms, createRoom, updateRoom, deleteRoom,
   getRules, createRule, updateRule, deleteRule,
-  getWeeks, insertWeek, deleteWeeksBefore, deleteWeeksFrom, setDone,
+  getWeeks, insertWeek, deleteWeeksBefore, deleteWeeksFrom, deleteWeeksStartingAfter, setDone,
   getAbsences, insertAbsence, updateAbsence, deleteAbsence, deleteExpiredAbsences,
   getPushSubscriptions, savePushSubscription, deletePushSubscription, deletePushSubscriptionByEndpoint,
   getSwapRequests, getSwapById, createSwapRequest, updateSwapStatus, getAssignment, swapAssignments,

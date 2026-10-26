@@ -105,6 +105,14 @@ test('sequenza r1 -> r2 con esenzione: chi è esente non viene forzato', () => {
   assert.notEqual(next.assignments.find(a => a.room_id === 'r2').user_id, cook);
 });
 
+test('cambio di cadenza a turno in corso: il turno dopo parte il giorno dopo la fine', () => {
+  const { users, rooms } = makeHouse(3, 3);
+  const weeks = [{ id: '2026-10-26', start: '2026-10-26', end: '2026-11-01', assignments: [] }];
+  const next = computeNextWeek(weeks, users, rooms, [], { type: 'daily', days: 3 }, []);
+  assert.equal(next.start, '2026-11-02');
+  assert.equal(next.end, '2026-11-04');
+});
+
 test('casa 10x10 entro il budget di tempo', () => {
   const t0 = performance.now();
   simulate(makeHouse(10, 10), [], 5);
