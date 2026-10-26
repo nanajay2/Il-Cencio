@@ -37,7 +37,9 @@ function describeRule(rule, rooms, users) {
     return `${roomName(config.room_id)} → solo ${(config.user_ids ?? []).map(userName).join(', ') || '—'}`;
   }
   if (type === 'sequence') {
-    const exempt = (config.exempt_user_ids ?? []).map(userName);
+    const exempt = (config.exempt_user_ids ?? [])
+      .filter(id => users.some(u => u.id === id))
+      .map(userName);
     return `${roomName(config.from_room_id)} → ${roomName(config.to_room_id)} la settimana dopo` +
       (exempt.length ? ` (tranne ${exempt.join(', ')})` : '');
   }
@@ -91,7 +93,7 @@ export function SettingsPanel({
     } else if (rule.type === 'sequence') {
       setSeqFrom(config.from_room_id);
       setSeqTo(config.to_room_id);
-      setSeqExempt(config.exempt_user_ids ?? []);
+      setSeqExempt((config.exempt_user_ids ?? []).filter(id => house.users.some(u => u.id === id)));
     } else if (rule.type === 'exclusion') {
       setExclUser(config.user_id);
       setExclRoom(config.room_id);
@@ -222,27 +224,27 @@ export function SettingsPanel({
 
                     {ruleType === 'pool_restriction' && (
                       <>
-                        <select value={poolRoom} onChange={e => setPoolRoom(e.target.value)} className={selectCls}>
-                          <option value="">Scegli stanza…</option>
-                          {house.rooms.map(r => <option key={r.id} value={r.id}>{r.icon} {r.name}</option>)}
-                        </select>
-                        <div className="flex flex-wrap gap-1.5">
-                          {house.users.map(u => (
-                            <button
-                              key={u.id}
-                              type="button"
-                              onClick={() => toggleAllowedUser(u.id)}
-                              className={
-                                'px-3 py-1.5 rounded-full text-[.78rem] font-semibold border-[1.5px] transition-colors cursor-pointer ' +
-                                (poolUsers.includes(u.id)
-                                  ? 'bg-brown text-ink border-brown'
-                                  : 'bg-cream text-ink-2 border-border')
-                              }
-                            >
-                              {u.name}
-                            </button>
-                          ))}
-                        </div>
+                          <select value={poolRoom} onChange={e => setPoolRoom(e.target.value)} className={selectCls}>
+                            <option value="">Scegli stanza…</option>
+                            {house.rooms.map(r => <option key={r.id} value={r.id}>{r.icon} {r.name}</option>)}
+                          </select>
+                          <div className="flex flex-wrap gap-1.5">
+                            {house.users.map(u => (
+                              <button
+                                key={u.id}
+                                type="button"
+                                onClick={() => toggleAllowedUser(u.id)}
+                                className={
+                                  'px-3 py-1.5 rounded-full text-[.78rem] font-semibold border-[1.5px] transition-colors cursor-pointer ' +
+                                  (poolUsers.includes(u.id)
+                                    ? 'bg-brown text-ink border-brown'
+                                    : 'bg-cream text-ink-2 border-border')
+                                }
+                              >
+                                {u.name}
+                              </button>
+                            ))}
+                          </div>
                       </>
                     )}
 
