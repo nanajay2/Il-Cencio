@@ -12,19 +12,25 @@ function yesterdayStr() {
   return d.toISOString().split('T')[0];
 }
 
-function groupPendingByUser(assignments) {
+function groupByUser(assignments, { pendingOnly }) {
   const byUser = new Map();
   for (const a of assignments) {
-    if (a.done) continue;
+    if (pendingOnly && a.done) continue;
     if (!byUser.has(a.userId)) byUser.set(a.userId, []);
     byUser.get(a.userId).push(a.roomName);
   }
   return byUser;
 }
 
-// Per ogni casa, ricorda ai coinquilini le stanze non ancora segnate come
-// fatte nella settimana corrente.
-async function sendDailyReminders() {
+function groupPendingByUser(assignments) {
+  return groupByUser(assignments, { pendingOnly: true });
+}
+
+// Per ogni casa, due soli avvisi per turno invece di uno ogni giorno:
+// - il primo giorno del turno, a tutti, le stanze assegnate;
+// - l'ultimo giorno, a chi ha ancora stanze non segnate come fatte.
+// Con turni di un giorno solo (inizio = fine) parte solo il primo.
+async function sendTurnReminders() {
   const today = todayStr();
   const houseIds = await db.getAllHouseIds();
 
@@ -34,16 +40,27 @@ async function sendDailyReminders() {
       const currentWeek = weeks.find(w => today >= w.start && today <= w.end);
       if (!currentWeek) continue;
 
-      const pendingByUser = groupPendingByUser(currentWeek.assignments);
-      await Promise.all([...pendingByUser.entries()].map(([userId, roomNames]) =>
-        sendNotification(houseId, {
-          title: 'Promemoria turni',
-          body: `Da fare ancora questa settimana: ${roomNames.join(', ')}.`,
-          url: '/',
-        }, userId)
-      ));
+      if (today === currentWeek.start) {
+        const byUser = groupByUser(currentWeek.assignments, { pendingOnly: false });
+        await Promise.all([...byUser.entries()].map(([userId, roomNames]) =>
+          sendNotification(houseId, {
+            title: 'Nuovo turno',
+            body: `Questo turno hai ${roomNames.join(', ')}.`,
+            url: '/',
+          }, userId)
+        ));
+      } else if (today === currentWeek.end) {
+        const pendingByUser = groupPendingByUser(currentWeek.assignments);
+        await Promise.all([...pendingByUser.entries()].map(([userId, roomNames]) =>
+          sendNotification(houseId, {
+            title: 'Ultimo giorno del turno',
+            body: `Devi ancora fare ${roomNames.join(', ')}: oggi è l'ultimo giorno.`,
+            url: '/',
+          }, userId)
+        ));
+      }
     } catch (e) {
-      console.error(`Reminder giornaliero fallito per casa ${houseId}:`, e.message);
+      console.error(`Reminder turno fallito per casa ${houseId}:`, e.message);
     }
   }
 }
@@ -76,6 +93,6 @@ async function sendMissedTurnReminders() {
 
 // Ogni giorno alle 9:00, ora del server.
 export function startReminderCron() {
-  cron.schedule('0 9 * * *', sendDailyReminders);
+  cron.schedule('0 9 * * *', sendTurnReminders);
   cron.schedule('0 9 * * *', sendMissedTurnReminders);
 }
