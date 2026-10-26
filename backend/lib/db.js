@@ -12,11 +12,8 @@ export async function getHouse(houseId) {
     getUsers(houseId), getRooms(houseId), getRules(houseId),
   ]);
 
-  // house_invite_code resta in tabella (colonna legacy) ma non si espone
-  // più: l'ingresso col codice casa è stato rimosso, si entra solo con invito.
-  const { house_invite_code, ...rest } = house;
   return {
-    ...rest,
+    ...house,
     rotationType: house.rotation_type,
     rotationDays: house.rotation_days,
     users, rooms, rules,
