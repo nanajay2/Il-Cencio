@@ -4,6 +4,7 @@ import { Header }             from './components/Header.jsx';
 import { HouseSwitcherModal } from './components/HouseSwitcherModal.jsx';
 import { ChoreCard }          from './components/ChoreCard.jsx';
 import { RevealModal }        from './components/RevealModal.jsx';
+import { RecalculateModal }   from './components/RecalculateModal.jsx';
 import { CatMascot }          from './components/CatMascot.jsx';
 import { Toast, useToast }    from './components/Toast.jsx';
 import { WelcomeScreen }      from './components/WelcomeScreen.jsx';
@@ -97,6 +98,8 @@ export default function App() {
   const [showCoinquilini, setShowCoinquilini] = useState(false);
   const [showRotation, setShowRotation] = useState(false);
   const [showReveal, setShowReveal] = useState(false);
+  const [recalcVariant, setRecalcVariant] = useState(null); // 'next' | 'absence' | 'confirm' | null
+  const recalcResolver = useRef(null);
   const suppressRevealRef = useRef(false);
   const [viewMode, setViewMode] = useState('settimana'); // 'settimana' | 'mese'
   const [weekAnchorDay, setWeekAnchorDay] = useState(todayStr());
@@ -289,8 +292,29 @@ export default function App() {
     supabase.auth.signOut();
   }
 
+  // Chiede all'utente se la modifica vale dal turno successivo o se ricalcolare
+  // anche il turno in corso. Risolve 'next', 'now' oppure null (annullato).
+  function askRecalculate(variant) {
+    return new Promise(resolve => {
+      recalcResolver.current = resolve;
+      setRecalcVariant(variant);
+    });
+  }
+
+  function answerRecalculate(choice) {
+    setRecalcVariant(null);
+    recalcResolver.current?.(choice);
+    recalcResolver.current = null;
+  }
+
+  // Vero se l'intervallo [from, to] tocca il turno in corso.
+  function touchesCurrentTurn(from, to) {
+    const cw = weeksHook.currentWeek;
+    return !!cw && from <= cw.end && to >= cw.start;
+  }
+
   async function handleLeaveHouse() {
-    if (!window.confirm('Sei sicuro di voler abbandonare questa casa? Non potrai più accedere senza un nuovo invito.')) return;
+    if (!window.confirm('Sei sicuro di voler abbandonare questa casa? Non potrai più accedere senza un nuovo invito. Il turno in corso verrà ricalcolato.')) return;
     try {
       await api.leaveHouse(houseId);
       setShowSettings(false);
@@ -326,8 +350,9 @@ export default function App() {
   // (vedi backend/routes/absences.js), nel qual caso i turni vanno comunque
   // ricaricati invece di restare bloccati sullo stato vecchio in UI.
   async function handleAddAbsence(uid, from, to) {
+    const scope = touchesCurrentTurn(from, to) ? await askRecalculate('absence') : 'next';
     try {
-      await absencesHook.addAbsence(houseId, uid, from, to);
+      await absencesHook.addAbsence(houseId, uid, from, to, scope);
       const name = houseHook.house?.users?.find(u => u.id === uid)?.name ?? 'Utente';
       showToast(`Assenza di ${name} aggiunta`, 'success');
     } catch (e) {
@@ -338,8 +363,11 @@ export default function App() {
   }
 
   async function handleUpdateAbsence(id, uid, from, to) {
+    const old = absencesHook.absences.find(a => a.id === id);
+    const touches = touchesCurrentTurn(from, to) || (old && touchesCurrentTurn(old.from, old.to));
+    const scope = touches ? await askRecalculate('absence') : 'next';
     try {
-      await absencesHook.updateAbsence(houseId, id, uid, from, to);
+      await absencesHook.updateAbsence(houseId, id, uid, from, to, scope);
       showToast('Assenza aggiornata', 'success');
     } catch (e) {
       showToast(e.message, 'error');
@@ -349,8 +377,10 @@ export default function App() {
   }
 
   async function handleRemoveAbsence(id) {
+    const old = absencesHook.absences.find(a => a.id === id);
+    const scope = old && touchesCurrentTurn(old.from, old.to) ? await askRecalculate('absence') : 'next';
     try {
-      await absencesHook.removeAbsence(houseId, id);
+      await absencesHook.removeAbsence(houseId, id, scope);
     } catch (e) {
       showToast(e.message, 'error');
     } finally {
@@ -589,15 +619,18 @@ export default function App() {
           onLogout={logout}
           onLeaveHouse={handleLeaveHouse}
           onAddRule={async (type, config) => {
-            await houseHook.addRule(houseId, type, config);
+            const scope = await askRecalculate('next');
+            await houseHook.addRule(houseId, type, config, scope);
             await weeksHook.load(houseId);
           }}
           onEditRule={async (ruleId, type, config) => {
-            await houseHook.editRule(houseId, ruleId, type, config);
+            const scope = await askRecalculate('next');
+            await houseHook.editRule(houseId, ruleId, type, config, scope);
             await weeksHook.load(houseId);
           }}
           onRemoveRule={async (ruleId) => {
-            await houseHook.removeRule(houseId, ruleId);
+            const scope = await askRecalculate('next');
+            await houseHook.removeRule(houseId, ruleId, scope);
             await weeksHook.load(houseId);
           }}
         />
@@ -647,7 +680,8 @@ export default function App() {
         <RoomsScreen
           house={house}
           onAddRoom={async (data) => {
-            await houseHook.addRoom(houseId, data);
+            const scope = await askRecalculate('next');
+            await houseHook.addRoom(houseId, data, scope);
             await weeksHook.load(houseId);
             showToast('Stanza aggiunta', 'success');
           }}
@@ -657,6 +691,7 @@ export default function App() {
             showToast('Stanza aggiornata', 'success');
           }}
           onRemoveRoom={async (roomId) => {
+            if (!(await askRecalculate('confirm'))) return;
             await houseHook.removeRoom(houseId, roomId);
             await weeksHook.load(houseId);
           }}
@@ -668,11 +703,13 @@ export default function App() {
         <CoinquiliniScreen
           house={house}
           onAddUser={async (name) => {
-            await houseHook.addUser(houseId, name, '');
+            const scope = await askRecalculate('next');
+            await houseHook.addUser(houseId, name, '', scope);
             await weeksHook.load(houseId);
             showToast(`${name} aggiunto`, 'success');
           }}
           onRemoveUser={async (uid) => {
+            if (!(await askRecalculate('confirm'))) return;
             await houseHook.removeUser(houseId, uid);
             await weeksHook.load(houseId);
           }}
@@ -684,12 +721,15 @@ export default function App() {
         <RotationScreen
           house={house}
           onUpdateRotation={async (rotationType, rotationDays) => {
-            await houseHook.updateRotation(houseId, rotationType, rotationDays);
+            const scope = await askRecalculate('next');
+            await houseHook.updateRotation(houseId, rotationType, rotationDays, scope);
             await weeksHook.load(houseId);
           }}
           onClose={() => setShowRotation(false)}
         />
       )}
+
+      <RecalculateModal variant={recalcVariant} onChoose={answerRecalculate} />
 
       {/* <CatMascot weeks={weeks} userId={userId} /> */}
       <Toast toast={toast} />

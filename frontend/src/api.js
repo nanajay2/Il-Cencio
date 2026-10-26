@@ -17,12 +17,15 @@ async function req(path, opts = {}) {
 
 const h = (houseId) => `/houses/${houseId}`;
 
+// scope 'now' = l'utente ha scelto di ricalcolare anche il turno in corso;
+// altrimenti la modifica vale dal turno successivo (vedi il backend).
+const q = (scope) => (scope === 'now' ? '?recalculate=now' : '');
+
 export const api = {
   // Onboarding — l'identità arriva dal JWT Supabase, non da PIN
-  lookupHouse:     (houseCode)          => req('/houses/lookup', { method: 'POST', body: JSON.stringify({ houseCode }) }),
   getHouseMembers: (houseId)            => req(`/houses/${houseId}/members`),
-  claim:           ({ houseCode, token, userId, name } = {}) =>
-    req('/houses/claim', { method: 'POST', body: JSON.stringify({ houseCode, token, userId, name }) }),
+  claim:           ({ token, userId, name } = {}) =>
+    req('/houses/claim', { method: 'POST', body: JSON.stringify({ token, userId, name }) }),
   myHouses:        ()                   => req('/houses/mine'),
 
   // Inviti (FEAT-06: link + QR, sostituiscono il codice esadecimale)
@@ -32,23 +35,23 @@ export const api = {
 
   // Casa
   getHouse:    (houseId)               => req(h(houseId)),
-  updateRotation: (houseId, rotationType, rotationDays) =>
-    req(`${h(houseId)}/rotation`, { method: 'PUT', body: JSON.stringify({ rotationType, rotationDays }) }),
+  updateRotation: (houseId, rotationType, rotationDays, scope) =>
+    req(`${h(houseId)}/rotation${q(scope)}`, { method: 'PUT', body: JSON.stringify({ rotationType, rotationDays }) }),
 
   // Utenti
-  createUser:  (houseId, name, email)  => req(`${h(houseId)}/users`, { method: 'POST', body: JSON.stringify({ name, email }) }),
+  createUser:  (houseId, name, email, scope) => req(`${h(houseId)}/users${q(scope)}`, { method: 'POST', body: JSON.stringify({ name, email }) }),
   deleteUser:  (houseId, userId)       => req(`${h(houseId)}/users/${userId}`, { method: 'DELETE' }),
   leaveHouse:  (houseId)               => req(`${h(houseId)}/leave`, { method: 'POST' }),
 
   // Stanze
-  createRoom:  (houseId, data)         => req(`${h(houseId)}/rooms`, { method: 'POST', body: JSON.stringify(data) }),
+  createRoom:  (houseId, data, scope)   => req(`${h(houseId)}/rooms${q(scope)}`, { method: 'POST', body: JSON.stringify(data) }),
   updateRoom:  (houseId, roomId, data) => req(`${h(houseId)}/rooms/${roomId}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteRoom:  (houseId, roomId)       => req(`${h(houseId)}/rooms/${roomId}`, { method: 'DELETE' }),
 
   // Regole
-  createRule:  (houseId, type, config) => req(`${h(houseId)}/rules`, { method: 'POST', body: JSON.stringify({ type, config }) }),
-  updateRule:  (houseId, ruleId, type, config) => req(`${h(houseId)}/rules/${ruleId}`, { method: 'PUT', body: JSON.stringify({ type, config }) }),
-  deleteRule:  (houseId, ruleId)       => req(`${h(houseId)}/rules/${ruleId}`, { method: 'DELETE' }),
+  createRule:  (houseId, type, config, scope) => req(`${h(houseId)}/rules${q(scope)}`, { method: 'POST', body: JSON.stringify({ type, config }) }),
+  updateRule:  (houseId, ruleId, type, config, scope) => req(`${h(houseId)}/rules/${ruleId}${q(scope)}`, { method: 'PUT', body: JSON.stringify({ type, config }) }),
+  deleteRule:  (houseId, ruleId, scope) => req(`${h(houseId)}/rules/${ruleId}${q(scope)}`, { method: 'DELETE' }),
 
   // Settimane
   getWeeks:    (houseId)               => req(`${h(houseId)}/weeks`),
@@ -58,11 +61,11 @@ export const api = {
 
   // Assenze
   getAbsences: (houseId)               => req(`${h(houseId)}/absences`),
-  addAbsence:  (houseId, userId, from, to) =>
-    req(`${h(houseId)}/absences`, { method: 'POST', body: JSON.stringify({ userId, from, to }) }),
-  updateAbsence:(houseId, absenceId, userId, from, to) =>
-    req(`${h(houseId)}/absences/${absenceId}`, { method: 'PUT', body: JSON.stringify({ userId, from, to }) }),
-  deleteAbsence:(houseId, absenceId)   => req(`${h(houseId)}/absences/${absenceId}`, { method: 'DELETE' }),
+  addAbsence:  (houseId, userId, from, to, scope) =>
+    req(`${h(houseId)}/absences${q(scope)}`, { method: 'POST', body: JSON.stringify({ userId, from, to }) }),
+  updateAbsence:(houseId, absenceId, userId, from, to, scope) =>
+    req(`${h(houseId)}/absences/${absenceId}${q(scope)}`, { method: 'PUT', body: JSON.stringify({ userId, from, to }) }),
+  deleteAbsence:(houseId, absenceId, scope) => req(`${h(houseId)}/absences/${absenceId}${q(scope)}`, { method: 'DELETE' }),
 
   // Notifiche push
   pushSubscribe:  (houseId, subscription) =>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { TriangleAlert, X, Home, PartyPopper, Users, Check, ArrowRight, ArrowLeft } from 'lucide-react';
+import { TriangleAlert, X, Home, PartyPopper, Users, ArrowRight, ArrowLeft } from 'lucide-react';
 import { api } from '../api.js';
 
 const inputCls =
@@ -19,9 +19,8 @@ const ROTATIONS = [
 ];
 
 export function CreateHouseScreen({ onSuccess, onBack }) {
-  const [step, setStep] = useState(1); // 1=casa, 2=coinquilini, 3=rotazione, 4=codice invito
+  const [step, setStep] = useState(1); // 1=casa, 2=coinquilini, 3=rotazione, 4=casa creata
   const [session, setSession] = useState(null);
-  const [codeCopied, setCodeCopied] = useState(false);
 
   // Step 1
   const [houseName, setHouseName] = useState('');
@@ -247,35 +246,16 @@ export function CreateHouseScreen({ onSuccess, onBack }) {
     </div>
   );
 
-  // ── Step 4: codice invito casa ────────────────────────────────────────
-  function copyHouseCode() {
-    navigator.clipboard.writeText(session.houseInviteCode ?? '');
-    setCodeCopied(true);
-    setTimeout(() => setCodeCopied(false), 2000);
-  }
-
+  // ── Step 4: casa creata, si invita dai Coinquilini ─────────────────
   return (
     <div className="min-h-screen bg-cream flex flex-col items-center justify-center p-6 gap-4">
       <div className="text-center mb-2">
         <div className="flex justify-center text-brown"><PartyPopper size={40} /></div>
         <div className="font-serif text-[1.8rem] text-brown">Casa creata!</div>
         <p className="text-[.85rem] text-ink-2 mt-1 max-w-[340px]">
-          Questo è il <strong>codice invito</strong> della tua casa: condividilo con i coinquilini
-          che vuoi far entrare, così potranno registrarsi da soli con la propria email.
-          Lo trovi anche in seguito da <Users size={13} className="inline align-[-2px]" /> Coinquilini.
+          Per far entrare i coinquilini apri <Users size={13} className="inline align-[-2px]" /> Coinquilini
+          e condividi il <strong>link d'invito</strong> o il QR: potranno registrarsi da soli con la propria email.
         </p>
-      </div>
-
-      <div className="w-full max-w-[360px] flex items-center gap-2">
-        <code className="flex-1 text-center text-[1.4rem] font-mono font-bold tracking-[.15em] bg-card border-[1.5px] border-border rounded-[12px] py-3 text-brown">
-          {session?.houseInviteCode}
-        </code>
-        <button
-          onClick={copyHouseCode}
-          className="px-4 py-3 bg-brown text-ink font-bold text-[.85rem] rounded-[12px] border-0 cursor-pointer hover:bg-brown-mid transition-colors flex-shrink-0 flex items-center gap-1.5"
-        >
-          {codeCopied ? <><Check size={16} /> Copiato</> : 'Copia'}
-        </button>
       </div>
 
       <button

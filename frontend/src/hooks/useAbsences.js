@@ -19,20 +19,20 @@ export function useAbsences() {
     }
   }, []);
 
-  async function addAbsence(houseId, userId, from, to) {
-    const abs = await api.addAbsence(houseId, userId, from, to);
+  async function addAbsence(houseId, userId, from, to, scope) {
+    const abs = await api.addAbsence(houseId, userId, from, to, scope);
     setAbsences(a => [...a, abs]);
     return abs;
   }
 
-  async function updateAbsence(houseId, absenceId, userId, from, to) {
-    const abs = await api.updateAbsence(houseId, absenceId, userId, from, to);
+  async function updateAbsence(houseId, absenceId, userId, from, to, scope) {
+    const abs = await api.updateAbsence(houseId, absenceId, userId, from, to, scope);
     setAbsences(a => a.map(x => x.id === absenceId ? abs : x));
     return abs;
   }
 
-  async function removeAbsence(houseId, absenceId) {
-    await api.deleteAbsence(houseId, absenceId);
+  async function removeAbsence(houseId, absenceId, scope) {
+    await api.deleteAbsence(houseId, absenceId, scope);
     setAbsences(a => a.filter(x => x.id !== absenceId));
   }
 
