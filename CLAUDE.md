@@ -39,7 +39,7 @@ Ogni PR aperta su `nanajay2/Il-Cencio` va impostata così, subito dopo la creazi
 - **Titolo**: Conventional Commits, preceduto dal numero della issue, es. `#112: fix(scheduler): avoid same room two turns in a row`.
 - **Assignee**: `nanajay2`.
 - **Label**: solo la label di tipo della issue collegata — `bug`, `Feature`, `task` o `Epic` (non label come `analysis`, `documentation`, `paused`).
-- **Project**: `Il Cencio` (nanajay2, project n. 6), Status `Todo`.
+- **Project**: `Il Cencio` (nanajay2, project n. 6), Status `New` (le colonne del project sono Analysis, New, Paused, Active, Done).
 - **Milestone**: la stessa della issue collegata.
 - **Development**: issue collegata con `Closes #<n>` nella descrizione; usare `Refs #<n>` se la issue deve restare aperta (es. parte del task in attesa di risposta). GitHub chiude le issue in automatico solo per PR verso il branch di default (`develop`); per PR con base diversa il collegamento va fatto a mano dalla sezione Development.
 - **Descrizione**: si apre con un **riassunto delle modifiche** per chi arriva sulla PR senza contesto (3-5 righe: problema, soluzione, impatto per chi usa l'app); poi cosa cambia nel dettaglio, cosa non è incluso e perché, verifica (stack Supabase locale, simulazioni: casi e risultati), build, note per il merge (es. migrazioni da applicare con `supabase db push` al rilascio). Se alla PR si aggiungono commit dopo l'apertura, aggiornare il riassunto.
