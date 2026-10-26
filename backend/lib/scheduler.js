@@ -114,15 +114,6 @@ export function computeNextWeek(weeks, users, rooms, rules, rotation = { type: '
     return count;
   }
 
-  // Indice in sorted per "l'ultima volta che userId ha avuto un turno qualsiasi"
-  // (usato per far ruotare equamente chi resta senza turno quando gli utenti superano le stanze)
-  function lastTimeAssigned(userId) {
-    for (let i = sorted.length - 1; i >= 0; i--) {
-      if ((sorted[i].assignments || []).some(a => (a.user_id ?? a.userId) === userId)) return i;
-    }
-    return -1;
-  }
-
   // ── Costruzione vincoli ──────────────────────────────────────────
   const poolFor    = new Map();   // roomId → Set<userId> (Map: chiave non stringificata, indipendente dal tipo id)
   const exclusions = new Set();   // 'userId:roomId'
@@ -135,90 +126,100 @@ export function computeNextWeek(weeks, users, rooms, rules, rotation = { type: '
     } else if (type === 'exclusion') {
       exclusions.add(`${config.user_id}:${config.room_id}`);
     } else if (type === 'sequence') {
+      // exempt_user_ids: persone a cui la sequenza non si applica (es. chi
+      // condivide un bagno in pool ristretto: se chi fa la cucina venisse
+      // forzato sul corridoio, l'altro si ritroverebbe il bagno due turni di fila)
+      const exempt = new Set(config.exempt_user_ids ?? []);
       const match = (last.assignments || []).find(a => (a.room_id ?? a.roomId) === config.from_room_id);
-      if (match) forced.set(match.user_id ?? match.userId, config.to_room_id);
+      const uid = match && (match.user_id ?? match.userId);
+      if (match && !exempt.has(uid)) forced.set(uid, config.to_room_id);
     }
-  }
-
-  const usedRooms = new Set();
-  const weekLoad  = new Map();   // userId → quante stanze già assegnate in questa settimana
-  const assigned  = [];          // [{ user_id, room_id }]  — una persona può averne più di una
-
-  function assign(userId, roomId) {
-    assigned.push({ user_id: userId, room_id: roomId });
-    weekLoad.set(userId, (weekLoad.get(userId) ?? 0) + 1);
-    usedRooms.add(roomId);
-  }
-
-  // Sceglie chi assegnare a roomId dando priorità, in ordine:
-  // 1. chi non fa questa specifica stanza da più tempo (varietà per stanza — il
-  //    criterio principale: senza questo, chi resta "occupato" da un'assegnazione
-  //    forzata come le regole di sequenza risulterebbe sempre svantaggiato nei
-  //    confronti successivi e finirebbe incastrato sempre sulla stessa stanza)
-  // 2. chi ha fatto meno stanze in totale nella storia (bilancia il carico
-  //    complessivo nel tempo)
-  // 3. chi è senza turno da più tempo in generale (fa ruotare chi resta escluso
-  //    quando gli utenti superano le stanze)
-  // 4. chi ha meno stanze assegnate finora in questa settimana (spalma il
-  //    carico extra quando le stanze superano le persone — ultimo criterio,
-  //    altrimenti sovrasta la varietà per stanza)
-  function pickLeast(pool, roomId) {
-    const avail = pool.filter(uid => !exclusions.has(`${uid}:${roomId}`) && !isAbsentEnoughToExclude(uid));
-    if (!avail.length) return null;
-    return avail.reduce((best, uid) => {
-      const lastUid = lastTimeDid(uid, roomId), lastBest = lastTimeDid(best, roomId);
-      if (lastUid !== lastBest) return lastUid < lastBest ? uid : best;
-
-      const totUid = totalAssignedCount(uid), totBest = totalAssignedCount(best);
-      if (totUid !== totBest) return totUid < totBest ? uid : best;
-
-      const idleUid  = lastTimeAssigned(uid);
-      const idleBest = lastTimeAssigned(best);
-      if (idleUid !== idleBest) return idleUid < idleBest ? uid : best;
-
-      const loadUid = weekLoad.get(uid) ?? 0, loadBest = weekLoad.get(best) ?? 0;
-      return loadUid < loadBest ? uid : best;
-    });
   }
 
   const allUserIds = users.map(u => u.id);
   const sortedRooms = [...rooms].sort((a, b) => a.sort_order - b.sort_order);
+  const presentUserIds = allUserIds.filter(uid => !isAbsentEnoughToExclude(uid));
+
+  const weekLoad = new Map();   // userId → quante stanze già assegnate in questo turno
+  const assigned = [];          // [{ user_id, room_id }]  — una persona può averne più di una
+  const usedRooms = new Set();
 
   // 1. Assegnazioni forzate (sequence)
   for (const [userId, roomId] of forced) {
     if (!weekLoad.has(userId) && !usedRooms.has(roomId) &&
         rooms.find(r => r.id === roomId) && !isAbsentEnoughToExclude(userId)) {
-      assign(userId, roomId);
+      assigned.push({ user_id: userId, room_id: roomId });
+      weekLoad.set(userId, 1);
+      usedRooms.add(roomId);
     }
   }
 
-  // 2. Pool-restricted rooms — prova prima chi non ha ancora nulla questa
-  //    settimana, così non si "ruba" la stanza a chi aspetta il suo turno solo
-  //    perché il tie-break li preferiva; ricade su tutto il pool se nessuno dei
-  //    "liberi" è idoneo (es. tutti assenti), non solo se il pool è vuoto —
-  //    altrimenti la stanza resta scoperta anche quando qualcuno del pool,
-  //    già occupato altrove, potrebbe comunque farla.
-  for (const [roomId, allowedSet] of poolFor) {
-    if (usedRooms.has(roomId)) continue;
-    const allowed  = [...allowedSet].filter(uid => allUserIds.includes(uid));
-    const free     = allowed.filter(uid => !weekLoad.has(uid));
-    const pick     = pickLeast(free, roomId) ?? pickLeast(allowed, roomId);
-    if (pick) assign(pick, roomId);
+  // 2. Tutte le altre stanze insieme, cercando la combinazione col costo
+  //    totale minimo invece di assegnarle una alla volta in ordine: con
+  //    l'assegnazione stanza-per-stanza l'ultima stanza finiva per forza a
+  //    chi era rimasto libero, anche se l'aveva appena fatta (stessa stanza
+  //    due turni di fila). Costo di dare roomId a userId:
+  //    - ripetizione: pesante se l'ha fatta nel turno precedente, decresce
+  //      (÷4) per ogni turno più indietro — è il criterio principale;
+  //    - carico: ogni stanza oltre la prima nello stesso turno costa, e oltre
+  //      la quota equa (stanze/persone arrotondato per eccesso) costa molto,
+  //      così le stanze in più si spalmano e nessuno resta a zero inutilmente;
+  //    - storico: chi ha fatto più stanze in passato paga un po' di più,
+  //      per far ruotare chi resta senza turno o chi prende la stanza in più.
+  //    Vincoli rigidi: pool_restriction, exclusion, assenze. Una stanza senza
+  //    nessun candidato idoneo resta scoperta (come prima).
+  const REPEAT_PENALTY   = 1000;
+  const EXTRA_ROOM_COST  = 300;
+  const OVER_QUOTA_COST  = 10000;
+  const HISTORY_COST     = 10;
+  const SEARCH_NODE_LIMIT = 200000;
+
+  const quota = presentUserIds.length ? Math.ceil(sortedRooms.length / presentUserIds.length) : 1;
+
+  function baseCost(userId, roomId) {
+    const lastIdx = lastTimeDid(userId, roomId);
+    const repeat = lastIdx < 0 ? 0 : REPEAT_PENALTY / 4 ** (sorted.length - 1 - lastIdx);
+    return repeat + HISTORY_COST * totalAssignedCount(userId);
   }
 
-  // 3. Stanze rimanenti → utenti rimanenti (least-recently), stesso principio:
-  //    priorità a chi è ancora completamente libero, ma ricade su tutti se tra
-  //    i "liberi" nessuno è idoneo (es. tutti assenti tranne chi ha già un
-  //    turno) invece di lasciare la stanza scoperta. Le stanze con
-  //    pool_restriction sono escluse: se lo step 2 non ha trovato nessuno
-  //    idoneo nel pool consentito, la regola impone che restino scoperte,
-  //    non che si aprano a chiunque altro in casa.
-  for (const room of sortedRooms) {
-    if (usedRooms.has(room.id) || poolFor.has(room.id)) continue;
-    const free = allUserIds.filter(uid => !weekLoad.has(uid));
-    const pick = pickLeast(free, room.id) ?? pickLeast(allUserIds, room.id);
-    if (pick) assign(pick, room.id);
+  function loadCost(load) {   // costo aggiuntivo della (load+1)-esima stanza
+    return (load > 0 ? EXTRA_ROOM_COST * load : 0) + (load >= quota ? OVER_QUOTA_COST : 0);
   }
+
+  const openRooms = sortedRooms
+    .filter(r => !usedRooms.has(r.id))
+    .map(r => {
+      const pool = poolFor.get(r.id);
+      const candidates = presentUserIds
+        .filter(uid => (!pool || pool.has(uid)) && !exclusions.has(`${uid}:${r.id}`))
+        .map(uid => ({ uid, cost: baseCost(uid, r.id) }));
+      return { id: r.id, candidates };
+    })
+    .filter(r => r.candidates.length)
+    // prima le stanze con meno candidati: la ricerca pota molto prima
+    .sort((a, b) => a.candidates.length - b.candidates.length);
+
+  let best = null, bestCost = Infinity, nodes = 0;
+  const choice = [];
+  (function search(i, cost) {
+    if (cost >= bestCost || nodes++ > SEARCH_NODE_LIMIT) return;
+    if (i === openRooms.length) { bestCost = cost; best = [...choice]; return; }
+    const room = openRooms[i];
+    const options = room.candidates
+      .map(c => ({ uid: c.uid, cost: c.cost + loadCost(weekLoad.get(c.uid) ?? 0) }))
+      .sort((a, b) => a.cost - b.cost);
+    for (const o of options) {
+      weekLoad.set(o.uid, (weekLoad.get(o.uid) ?? 0) + 1);
+      choice.push({ user_id: o.uid, room_id: room.id });
+      search(i + 1, cost + o.cost);
+      choice.pop();
+      weekLoad.set(o.uid, weekLoad.get(o.uid) - 1);
+    }
+  })(0, 0);
+
+  const byRoomOrder = new Map(sortedRooms.map((r, i) => [r.id, i]));
+  assigned.push(...(best ?? []));
+  assigned.sort((a, b) => byRoomOrder.get(a.room_id) - byRoomOrder.get(b.room_id));
 
   const assignments = assigned.map(({ user_id, room_id }) => ({
     user_id, room_id, done: false,
