@@ -11,17 +11,6 @@ const protectAdmin = [...protect, requireAdmin];
 // ── Onboarding ───────────────────────────────────────────────────
 // NOTA: queste route devono stare prima di /:houseId
 
-// Lookup casa dal codice — pubblico, serve prima ancora di autenticarsi
-router.post('/lookup', async (req, res) => {
-  const { houseCode } = req.body;
-  if (!houseCode) return res.status(400).json({ error: 'houseCode richiesto' });
-  try {
-    res.json(await db.lookupHouseByCode(houseCode));
-  } catch (e) {
-    res.status(404).json({ error: e.message });
-  }
-});
-
 // Lista membri per device già associato (senza codice invito) — pubblico,
 // non espone nulla di sensibile (solo nome e stato "collegato")
 router.get('/:houseId/members', async (req, res) => {
@@ -45,28 +34,22 @@ router.get('/invites/:token', async (req, res) => {
 
 // Collega l'identità Supabase appena autenticata (login/signup fatto lato
 // client con l'SDK) a una riga `users` esistente (slot creato da un admin,
-// selezionato via userId) o nuova (self-serve join, con name). Accetta un
-// token invito (FEAT-06) o, transitoriamente, il vecchio houseCode
-// (US-01.4/US-06.5: rimosso solo dopo il rollout del nuovo meccanismo).
+// selezionato via userId) o nuova (self-serve join, con name). Serve un
+// token invito (FEAT-06): il vecchio ingresso col codice casa è stato rimosso.
 // Un'identità può fare /claim per più case diverse (vedi requireMembership);
 // qui si blocca solo il doppio-claim sulla STESSA casa.
 router.post('/claim', requireAuth, async (req, res) => {
-  const { houseCode, token, userId, name } = req.body;
-  if (!houseCode && !token) return res.status(400).json({ error: 'houseCode o token richiesto' });
+  const { token, userId, name } = req.body;
+  if (!token) return res.status(400).json({ error: 'token invito richiesto' });
   try {
-    let houseId, invite = null;
-    if (token) {
-      invite = await db.resolveInvite(token);
-      houseId = invite.houseId;
-    } else {
-      ({ houseId } = await db.lookupHouseByCode(houseCode));
-    }
+    const invite = await db.resolveInvite(token);
+    const { houseId } = invite;
 
     const already = await db.getMembership(req.authId, houseId);
     if (already) return res.status(409).json({ error: 'Fai già parte di questa casa' });
 
     let claimed;
-    if (invite?.userId) {
+    if (invite.userId) {
       // invito personale: lo slot è già determinato dal token, ignora userId/name nel body
       claimed = await db.claimUserSlotByAuth(houseId, invite.userId, req.authId, req.authEmail);
       await db.consumeInvite(token);
