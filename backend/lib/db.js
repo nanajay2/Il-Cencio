@@ -52,7 +52,7 @@ export async function createHouse(name, adminName, authId, email) {
 
   const { error: he } = await supabase
     .from('houses')
-    .insert({ id, name, house_invite_code: randomBytes(4).toString('hex').toUpperCase() });
+    .insert({ id, name });
   if (he) throw he;
 
   const { data: user, error: ue } = await supabase
