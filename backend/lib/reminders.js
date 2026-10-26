@@ -22,10 +22,6 @@ function groupByUser(assignments, { pendingOnly }) {
   return byUser;
 }
 
-function groupPendingByUser(assignments) {
-  return groupByUser(assignments, { pendingOnly: true });
-}
-
 // Per ogni casa, due soli avvisi per turno invece di uno ogni giorno:
 // - il primo giorno del turno, a tutti, le stanze assegnate;
 // - l'ultimo giorno, a chi ha ancora stanze non segnate come fatte.
@@ -50,7 +46,7 @@ async function sendTurnReminders() {
           }, userId)
         ));
       } else if (today === currentWeek.end) {
-        const pendingByUser = groupPendingByUser(currentWeek.assignments);
+        const pendingByUser = groupByUser(currentWeek.assignments, { pendingOnly: true });
         await Promise.all([...pendingByUser.entries()].map(([userId, roomNames]) =>
           sendNotification(houseId, {
             title: 'Ultimo giorno del turno',
@@ -77,7 +73,7 @@ async function sendMissedTurnReminders() {
       const endedWeek = weeks.find(w => w.end === yesterday);
       if (!endedWeek) continue;
 
-      const missedByUser = groupPendingByUser(endedWeek.assignments);
+      const missedByUser = groupByUser(endedWeek.assignments, { pendingOnly: true });
       await Promise.all([...missedByUser.entries()].map(([userId, roomNames]) =>
         sendNotification(houseId, {
           title: 'Turno non completato',
