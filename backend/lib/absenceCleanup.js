@@ -5,6 +5,10 @@ function todayStr() {
   return new Date().toISOString().split('T')[0];
 }
 
+// Un'assenza si cancella il giorno dopo la sua fine, anche se il turno che la
+// contiene dura ancora. Il turno in corso non viene più rigenerato di default,
+// quindi non perde nulla; solo con "Ricalcola da ora" a assenza già finita la
+// persona torna in lista (caso raro, il modale di conferma avvisa già).
 export async function cleanupExpiredAbsences() {
   try {
     const n = await db.deleteExpiredAbsences(todayStr());
