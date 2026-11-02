@@ -1,27 +1,10 @@
 import { Router } from 'express';
 import { db } from '../lib/db.js';
 import { computeNextWeek, ensureFutureWeeks, purgeOldWeeks } from '../lib/scheduler.js';
-import { sendNotification } from '../lib/push.js';
 import { requireAuth, requireMembership } from '../lib/auth.js';
 
 const router = Router({ mergeParams: true });
 router.use(requireAuth, requireMembership);
-
-// Notifica ogni coinquilino delle stanze assegnategli nella settimana appena generata.
-async function notifyAssignedUsers(houseId, week) {
-  const roomsByUser = new Map();
-  for (const a of week.assignments) {
-    if (!roomsByUser.has(a.userId)) roomsByUser.set(a.userId, []);
-    roomsByUser.get(a.userId).push(a.roomName);
-  }
-  await Promise.all([...roomsByUser.entries()].map(([userId, roomNames]) =>
-    sendNotification(houseId, {
-      title: 'È il tuo turno',
-      body: `Questa settimana tocca a te: ${roomNames.join(', ')}.`,
-      url: '/',
-    }, userId)
-  ));
-}
 
 router.get('/', async (req, res) => {
   const { houseId } = req.params;
@@ -46,9 +29,9 @@ router.post('/', async (req, res) => {
     if (!nw) return res.status(409).json({ error: 'Il turno successivo esiste già' });
     await db.insertWeek(nw, houseId);
     const allWeeks = await db.getWeeks(houseId);
-    const week = allWeeks.find(w => w.id === nw.id) ?? nw;
-    notifyAssignedUsers(houseId, week).catch(e => console.error('Notifica nuovo turno fallita:', e.message));
-    res.status(201).json(week);
+    // Nessuna notifica qui: i turni si generano anche in anticipo. L'avviso di
+    // nuovo turno parte dal cron (reminders.js), il primo giorno del turno.
+    res.status(201).json(allWeeks.find(w => w.id === nw.id) ?? nw);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
