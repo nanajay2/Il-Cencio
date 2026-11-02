@@ -516,7 +516,7 @@ function mapSwap(s) {
   return {
     id: s.id, houseId: s.house_id, weekId: s.week_id, status: s.status,
     fromUserId: s.from_user_id, fromUserName: s.from_user.name,
-    fromRoomId: s.from_room_id, fromRoomName: s.from_room.name,
+    fromRoomId: s.from_room_id, fromRoomName: s.from_room?.name ?? null,
     toUserId: s.to_user_id, toUserName: s.to_user.name,
     toRoomId: s.to_room_id, toRoomName: s.to_room?.name ?? null,
     createdAt: s.created_at,
@@ -570,25 +570,28 @@ export async function getAssignment(houseId, weekId, userId, roomId) {
   return data;
 }
 
-// Scambia le stanze assegnate a due utenti nella stessa settimana. Se
-// toRoomId e' null, e' un trasferimento a senso unico (il destinatario
-// non aveva turni: riceve la stanza senza restituirne una). Il
-// completamento (done) non viene portato dietro: la responsabilita' del
-// task cambia persona.
+// Scambia le stanze assegnate a due utenti nella stessa settimana. Una delle
+// due stanze può mancare: con toRoomId null chi propone cede la sua stanza,
+// con fromRoomId null prende quella dell'altro. Il completamento (done) non
+// viene portato dietro: la responsabilita' del task cambia persona.
 export async function swapAssignments(houseId, weekId, fromUserId, fromRoomId, toUserId, toRoomId) {
-  const deleteFilter = toRoomId != null
-    ? `and(user_id.eq.${fromUserId},room_id.eq.${fromRoomId}),and(user_id.eq.${toUserId},room_id.eq.${toRoomId})`
-    : `and(user_id.eq.${fromUserId},room_id.eq.${fromRoomId})`;
+  const filters = [];
+  const rows = [];
+  if (fromRoomId != null) {
+    filters.push(`and(user_id.eq.${fromUserId},room_id.eq.${fromRoomId})`);
+    rows.push({ house_id: houseId, week_id: weekId, user_id: toUserId, room_id: fromRoomId, done: false });
+  }
+  if (toRoomId != null) {
+    filters.push(`and(user_id.eq.${toUserId},room_id.eq.${toRoomId})`);
+    rows.push({ house_id: houseId, week_id: weekId, user_id: fromUserId, room_id: toRoomId, done: false });
+  }
+
   const { error: de } = await supabase
     .from('assignments').delete()
     .eq('house_id', houseId).eq('week_id', weekId)
-    .or(deleteFilter);
+    .or(filters.join(','));
   if (de) throw de;
 
-  const rows = [{ house_id: houseId, week_id: weekId, user_id: toUserId, room_id: fromRoomId, done: false }];
-  if (toRoomId != null) {
-    rows.push({ house_id: houseId, week_id: weekId, user_id: fromUserId, room_id: toRoomId, done: false });
-  }
   const { error: ie } = await supabase.from('assignments').insert(rows);
   if (ie) throw ie;
 }

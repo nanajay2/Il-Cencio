@@ -1,18 +1,8 @@
 import { useState } from 'react';
-import { X, CalendarDays, ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
-import { MONTHS, DAYS, fmt, todayStr } from '../constants.js';
+import { ChevronLeft, ChevronRight, Pencil, X } from 'lucide-react';
+import { MONTHS_LONG, fmt, todayStr } from '../constants.js';
 import { firstOfMonth, monthRangeOf, daysInRange } from '../lib/calendarBuckets.js';
-import { useBodyScrollLock } from '../hooks/useBodyScrollLock.js';
-
-const inputCls =
-  'border-[1.5px] border-border rounded-[10px] px-3 py-2 text-[.84rem] font-sans ' +
-  'bg-cream text-ink outline-none h-[38px] transition-colors focus:border-brown flex-1 min-w-0';
-
-const btnCls =
-  'h-[38px] px-4 bg-brown text-ink border-0 rounded-[10px] font-sans text-[.8rem] font-bold cursor-pointer hover:bg-brown-mid transition-colors whitespace-nowrap flex-shrink-0';
-
-const sectionCls = 'bg-card rounded-2xl border border-border p-5 flex flex-col gap-3';
-const titleCls   = 'font-bold text-[.92rem] text-ink mb-1';
+import { Avatar } from './Avatar.jsx';
 
 function prevMonth(dateStr) {
   const [y, m] = dateStr.split('-').map(Number);
@@ -22,10 +12,16 @@ function nextMonth(dateStr) {
   const [y, m] = dateStr.split('-').map(Number);
   return new Date(Date.UTC(y, m, 1)).toISOString().split('T')[0];
 }
+function leadingBlanks(firstDay) {
+  return (new Date(firstDay + 'T12:00:00Z').getUTCDay() + 6) % 7;
+}
+function dayCount(from, to) {
+  return Math.round((new Date(to + 'T12:00:00Z') - new Date(from + 'T12:00:00Z')) / 86400000) + 1;
+}
 
-export function AbsencesScreen({ house, currentUserId, absences, onAdd, onUpdate, onRemove, onClose }) {
-  useBodyScrollLock();
-  const [anchor, setAnchor] = useState(firstOfMonth(todayStr()));
+export function AbsencesScreen({ house, currentUserId, absences, onAdd, onUpdate, onRemove }) {
+  const today = todayStr();
+  const [anchor, setAnchor] = useState(firstOfMonth(today));
   const [rangeStart, setRangeStart] = useState(null);
   const [rangeEnd,   setRangeEnd]   = useState(null);
   const [userId, setUserId] = useState(currentUserId);
@@ -54,6 +50,7 @@ export function AbsencesScreen({ house, currentUserId, absences, onAdd, onUpdate
     setRangeStart(a.from);
     setRangeEnd(a.to);
     setAnchor(firstOfMonth(a.from));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   function cancelEdit() {
@@ -81,128 +78,154 @@ export function AbsencesScreen({ house, currentUserId, absences, onAdd, onUpdate
   }
 
   const canAdd = rangeStart && rangeEnd && userId && !saving;
+  const selectedName = String(userId) === String(currentUserId)
+    ? 'La tua assenza'
+    : `Assenza di ${house.users.find(u => String(u.id) === String(userId))?.name ?? ''}`;
+
+  let rangeText = 'Tocca il primo giorno';
+  if (rangeStart && !rangeEnd) rangeText = `${fmt(rangeStart)} · tocca l'ultimo giorno`;
+  if (rangeStart && rangeEnd) {
+    const n = dayCount(rangeStart, rangeEnd);
+    rangeText = `${fmt(rangeStart)} – ${fmt(rangeEnd)} · ${n} ${n === 1 ? 'giorno' : 'giorni'}`;
+  }
 
   return (
-    <div className="fixed inset-0 bg-brown z-[300] overflow-y-auto p-4">
-      <div className="max-w-[480px] mx-auto flex flex-col gap-4 pb-8" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)' }}>
+    <>
+      <div>
+        <h1 className="font-display font-extrabold text-[1.875rem] leading-[1.1] tracking-[-.02em]">Assenze</h1>
+        <p className="text-[.875rem] text-ink-2 mt-1">
+          {editingId ? 'Stai modificando un\'assenza.' : 'Segna quando qualcuno è via.'}
+        </p>
+      </div>
 
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="font-serif text-[1.6rem] text-ink truncate flex items-center gap-2">
-            <CalendarDays size={22} className="flex-shrink-0" /> Assenze
-          </h2>
+      <div role="group" aria-label="Chi" className="flex gap-1.5 overflow-x-auto -mx-5 px-5 pb-0.5">
+        {house.users.map(u => {
+          const active = String(u.id) === String(userId);
+          return (
+            <button
+              key={u.id}
+              type="button"
+              aria-pressed={active}
+              onClick={() => setUserId(u.id)}
+              className={
+                'h-10 pl-1.5 pr-3.5 rounded-full border-0 flex items-center gap-2 text-[.875rem] font-bold cursor-pointer flex-shrink-0 ' +
+                (active ? 'bg-ink text-white' : 'bg-card text-ink')
+              }
+            >
+              <Avatar name={u.name} size={28} />
+              {String(u.id) === String(currentUserId) ? 'Tu' : u.name}
+            </button>
+          );
+        })}
+      </div>
+
+      <section aria-label="Scegli i giorni" className="bg-card rounded-[20px] px-2.5 pt-2 pb-3.5">
+        <div className="flex items-center justify-between">
           <button
-            onClick={onClose}
-            aria-label="Chiudi"
-            className="w-8 h-8 rounded-full border-0 cursor-pointer flex items-center justify-center transition-colors flex-shrink-0"
-            style={{ background: 'rgba(78,34,15,.1)', color: '#7A5038' }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(78,34,15,.18)'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(78,34,15,.1)'; }}
+            type="button"
+            onClick={() => setAnchor(prevMonth(anchor))}
+            aria-label="Mese precedente"
+            className="w-11 h-10 border-0 bg-transparent text-ink flex items-center justify-center cursor-pointer"
           >
-            <X size={14} strokeWidth={1.8} />
+            <ChevronLeft size={20} strokeWidth={2.2} aria-hidden="true" />
+          </button>
+          <span className="text-[1rem] font-bold capitalize">{MONTHS_LONG[m - 1]} {y}</span>
+          <button
+            type="button"
+            onClick={() => setAnchor(nextMonth(anchor))}
+            aria-label="Mese successivo"
+            className="w-11 h-10 border-0 bg-transparent text-ink flex items-center justify-center cursor-pointer"
+          >
+            <ChevronRight size={20} strokeWidth={2.2} aria-hidden="true" />
           </button>
         </div>
 
-        <section className={sectionCls}>
-          <div className={titleCls}>{editingId ? 'Modifica assenza' : 'Nuova assenza'}</div>
-          <p className="text-[.77rem] text-ink-2 -mt-1">Tocca il primo e l'ultimo giorno dell'assenza.</p>
-
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setAnchor(prevMonth(anchor))}
-              className="w-9 h-9 rounded-full border border-sage bg-cream flex items-center justify-center text-ink cursor-pointer transition-all hover:bg-cream-2 flex-shrink-0"
-            >
-              <ChevronLeft size={18} />
-            </button>
-            <div className="flex-1 text-center text-[.92rem] font-bold text-ink capitalize">
-              {MONTHS[m - 1]} {y}
-            </div>
-            <button
-              onClick={() => setAnchor(nextMonth(anchor))}
-              className="w-9 h-9 rounded-full border border-sage bg-cream flex items-center justify-center text-ink cursor-pointer transition-all hover:bg-cream-2 flex-shrink-0"
-            >
-              <ChevronRight size={18} />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-7 gap-1.5">
-            {days.map(d => {
-              const inRange = rangeStart && d >= rangeStart && d <= (rangeEnd ?? rangeStart);
-              const isEdge  = d === rangeStart || d === rangeEnd;
-              return (
-                <button
-                  key={d}
-                  onClick={() => tapDay(d)}
-                  className={
-                    'aspect-square flex items-center justify-center rounded-lg text-[.78rem] font-semibold cursor-pointer transition-colors border ' +
-                    (isEdge
-                      ? 'bg-brown text-ink border-brown'
-                      : inRange
-                      ? 'bg-cream-2 text-ink border-border'
-                      : 'bg-cream text-ink border-border hover:bg-cream-2 hover:border-sage')
-                  }
-                >
-                  {+d.split('-')[2]}
-                </button>
-              );
-            })}
-          </div>
-
-          {rangeStart && (
-            <p className="text-[.82rem] text-ink-2">
-              Dal <strong className="text-ink">{fmt(rangeStart)}</strong> al{' '}
-              <strong className="text-ink">{rangeEnd ? fmt(rangeEnd) : '…'}</strong>
-            </p>
-          )}
-
-          <div className="flex gap-2 items-end">
-            <div className="flex-1">
-              <label className="block text-[.7rem] font-bold text-ink-2 mb-1 uppercase tracking-[.05em]">Persona</label>
-              <select value={userId} onChange={e => setUserId(e.target.value)} className={inputCls + ' w-full'}>
-                {house.users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-              </select>
-            </div>
-            {editingId && (
+        <div className="grid grid-cols-7 gap-y-1">
+          {Array.from({ length: leadingBlanks(monthStart) }, (_, i) => <span key={`b${i}`} />)}
+          {days.map(d => {
+            const last = rangeEnd ?? rangeStart;
+            const inRange = rangeStart && d >= rangeStart && d <= last;
+            const isEdge = d === rangeStart || d === rangeEnd;
+            const single = rangeStart === last;
+            let radius = 'rounded-xl';
+            if (inRange && !single) {
+              radius = d === rangeStart ? 'rounded-l-xl' : d === last ? 'rounded-r-xl' : '';
+            }
+            return (
               <button
-                onClick={cancelEdit}
-                className="h-[38px] px-4 bg-transparent text-ink-2 border-[1.5px] border-border rounded-[10px] font-sans text-[.8rem] font-bold cursor-pointer hover:bg-cream-2 transition-colors whitespace-nowrap flex-shrink-0"
+                key={d}
+                type="button"
+                onClick={() => tapDay(d)}
+                aria-pressed={!!inRange}
+                aria-label={fmt(d)}
+                className={
+                  'h-10 border-0 p-0 text-[.875rem] font-semibold cursor-pointer ' + radius + ' ' +
+                  (isEdge ? 'bg-primary text-white' : inRange ? 'bg-primary-soft text-primary' : d < today ? 'bg-transparent text-ink-2' : 'bg-transparent text-ink')
+                }
               >
-                Annulla
+                {+d.split('-')[2]}
               </button>
-            )}
-            <button onClick={handleAdd} disabled={!canAdd} className={btnCls + ' disabled:opacity-50 disabled:cursor-not-allowed'}>
-              {saving ? 'Salvataggio…' : editingId ? 'Salva modifiche' : 'Aggiungi'}
+            );
+          })}
+        </div>
+
+        <div className="flex items-center gap-2.5 mt-3 px-1">
+          <div className="flex-1 min-w-0">
+            <div className="text-[.75rem] font-bold text-ink-2 uppercase tracking-[.06em] truncate">{selectedName}</div>
+            <div className="text-[.9375rem] font-bold">{rangeText}</div>
+          </div>
+          {editingId && (
+            <button
+              type="button"
+              onClick={cancelEdit}
+              className="h-12 px-3.5 rounded-[14px] border-[1.5px] border-border bg-card text-ink text-[.875rem] font-bold cursor-pointer flex-shrink-0"
+            >
+              Annulla
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={handleAdd}
+            disabled={!canAdd}
+            className="h-12 px-4 rounded-[14px] border-0 bg-primary text-white text-[.9375rem] font-bold cursor-pointer hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+          >
+            {saving ? 'Salvo…' : editingId ? 'Salva' : 'Aggiungi'}
+          </button>
+        </div>
+      </section>
+
+      <section aria-label="Assenze in programma" className="bg-card rounded-[20px] px-4 pt-3 pb-1">
+        <h2 className="text-[.9375rem] font-bold mb-0.5">In programma</h2>
+        {absences.length === 0 ? (
+          <p className="text-[.875rem] text-ink-2 py-3 border-t border-soft">Nessuna assenza registrata.</p>
+        ) : absences.map(a => (
+          <div key={a.id} className="flex items-center gap-3 min-h-[52px] border-t border-soft">
+            <Avatar name={a.userName} size={30} />
+            <div className="flex-1 min-w-0">
+              <div className="text-[.875rem] font-semibold truncate">{a.userName}</div>
+              <div className="text-[.8125rem] text-ink-2">
+                {fmt(a.from)} – {fmt(a.to)}{a.from <= today && a.to >= today ? ' · in corso' : ''}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => startEdit(a)}
+              aria-label={`Modifica assenza di ${a.userName}`}
+              className="w-11 h-11 border-0 bg-transparent text-ink-2 flex items-center justify-center cursor-pointer flex-shrink-0 hover:text-ink"
+            >
+              <Pencil size={18} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              onClick={() => onRemove(a.id)}
+              aria-label={`Elimina assenza di ${a.userName}`}
+              className="w-11 h-11 -ml-2 border-0 bg-transparent text-ink-2 flex items-center justify-center cursor-pointer flex-shrink-0 hover:text-red"
+            >
+              <X size={18} aria-hidden="true" />
             </button>
           </div>
-        </section>
-
-        <section className={sectionCls}>
-          <div className={titleCls}>Assenze registrate</div>
-          <div className="flex flex-col gap-1.5">
-            {absences.length === 0 ? (
-              <p className="text-[.82rem] text-ink-2">Nessuna assenza registrata.</p>
-            ) : absences.map(a => (
-              <div key={a.id} className="flex items-center justify-between px-3 py-[9px] bg-cream rounded-[10px] text-[.83rem] border border-border">
-                <span><strong>{a.userName}</strong> — dal {fmt(a.from)} al {fmt(a.to)}</span>
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  <button
-                    onClick={() => startEdit(a)}
-                    className="border-0 bg-transparent cursor-pointer text-ink-2 text-[.9rem] px-[7px] py-[3px] rounded-md transition-all hover:text-ink hover:bg-cream-2"
-                  >
-                    <Pencil size={14} strokeWidth={1.8} />
-                  </button>
-                  <button
-                    onClick={() => onRemove(a.id)}
-                    className="border-0 bg-transparent cursor-pointer text-ink-2 text-[.9rem] px-[7px] py-[3px] rounded-md transition-all hover:text-red hover:bg-red-pale"
-                  >
-                    <X size={14} strokeWidth={1.8} />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-      </div>
-    </div>
+        ))}
+      </section>
+    </>
   );
 }

@@ -4,13 +4,13 @@ import { api } from '../api.js';
 
 const inputCls =
   'w-full border-[1.5px] border-border rounded-[12px] px-4 py-3 text-[.95rem] font-sans ' +
-  'bg-card text-ink outline-none transition-colors focus:border-brown';
+  'bg-card text-ink outline-none transition-colors focus:border-primary';
 
 const labelCls = 'block text-[.7rem] font-bold text-ink-2 mb-1 uppercase tracking-[.06em]';
 
 const pillCls = (active) =>
   'px-3 py-1.5 rounded-full text-[.78rem] font-semibold border-[1.5px] transition-colors cursor-pointer ' +
-  (active ? 'bg-brown text-ink border-brown' : 'bg-cream text-ink-2 border-border');
+  (active ? 'bg-primary text-white border-primary' : 'bg-page text-ink-2 border-border');
 
 const ROTATIONS = [
   { value: 'weekly',  label: 'Settimanale' },
@@ -37,21 +37,6 @@ export function CreateHouseScreen({ onSuccess, onBack }) {
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState(null);
 
-  async function handleCreate() {
-    if (!houseName.trim() || !adminName.trim()) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const s = await api.createHouse(houseName.trim(), adminName.trim());
-      setSession(s);
-      setStep(2);
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
   function addPendingName() {
     const name = nameInput.trim();
     if (!name) return;
@@ -63,21 +48,9 @@ export function CreateHouseScreen({ onSuccess, onBack }) {
     setPendingNames(names => names.filter((_, idx) => idx !== i));
   }
 
-  async function handleCoinquiliniContinue() {
-    setLoading(true);
-    setError(null);
-    try {
-      for (const name of pendingNames) {
-        await api.createUser(session.houseId, name, '');
-      }
-      setStep(3);
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
+  // La casa viene creata solo qui, all'ultimo passo: fino ad allora si può
+  // tornare indietro e cambiare tutto. Se qualcosa fallisce a metà, "Crea casa"
+  // riprende da dove si era fermato senza creare una seconda casa.
   async function handleFinish() {
     if (rotationType === 'daily' && !(Number.isInteger(rotationDays) && rotationDays >= 1 && rotationDays <= 30)) {
       setError('Scegli un numero di giorni tra 1 e 30');
@@ -86,7 +59,16 @@ export function CreateHouseScreen({ onSuccess, onBack }) {
     setLoading(true);
     setError(null);
     try {
-      await api.updateRotation(session.houseId, rotationType, rotationType === 'daily' ? rotationDays : null);
+      let created = session;
+      if (!created) {
+        created = await api.createHouse(houseName.trim(), adminName.trim());
+        setSession(created);
+      }
+      for (const name of pendingNames) {
+        await api.createUser(created.houseId, name, '');
+        setPendingNames(names => names.slice(1));
+      }
+      await api.updateRotation(created.houseId, rotationType, rotationType === 'daily' ? rotationDays : null);
       setStep(4);
     } catch (e) {
       setError(e.message);
@@ -99,9 +81,9 @@ export function CreateHouseScreen({ onSuccess, onBack }) {
 
   // ── Step 1: casa + admin ─────────────────────────────────────────────
   if (step === 1) return (
-    <div className="min-h-screen bg-cream flex flex-col items-center justify-center p-6 gap-4">
+    <div className="min-h-screen bg-page flex flex-col items-center justify-center p-6 gap-4">
       <div className="text-center mb-2">
-        <div className="font-serif text-[1.8rem] text-brown">Crea la tua casa</div>
+        <div className="font-display font-extrabold text-[1.8rem] text-primary">Crea la tua casa</div>
         <p className="text-[.85rem] text-ink-2 mt-1">Configurerai stanze e coinquilini dopo</p>
       </div>
 
@@ -111,7 +93,7 @@ export function CreateHouseScreen({ onSuccess, onBack }) {
           <input type="text" value={houseName} onChange={e => setHouseName(e.target.value)} placeholder="es. Il Cencio" className={inputCls} />
           <p className="text-[.73rem] text-ink-2 mt-1 flex items-start gap-1">
             <TriangleAlert size={14} className="flex-shrink-0 mt-0.5" />
-            Evita di usare il tuo indirizzo reale (via, numero civico): scegli un nome di fantasia. Questo nome può finire nell'URL e nel codice condiviso con altri.
+            Evita di usare il tuo indirizzo reale (via, numero civico): scegli un nome di fantasia. Lo vedrà chi riceve un invito.
           </p>
         </div>
         <div>
@@ -123,14 +105,14 @@ export function CreateHouseScreen({ onSuccess, onBack }) {
       {error && <p className="text-[.82rem] text-red text-center max-w-[320px]">{error}</p>}
 
       <button
-        onClick={handleCreate}
-        disabled={loading || !canSubmitStep1}
-        className="w-full max-w-[360px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+        onClick={() => setStep(2)}
+        disabled={!canSubmitStep1}
+        className="w-full max-w-[360px] bg-primary text-white font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
       >
-        {loading ? 'Creazione…' : <>Continua <ArrowRight size={18} /></>}
+        Continua <ArrowRight size={18} />
       </button>
 
-      <button onClick={onBack} className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-brown transition-colors py-1 flex items-center gap-1">
+      <button onClick={onBack} className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-primary transition-colors py-1 flex items-center gap-1">
         <ArrowLeft size={14} /> Torna indietro
       </button>
     </div>
@@ -138,9 +120,9 @@ export function CreateHouseScreen({ onSuccess, onBack }) {
 
   // ── Step 2: coinquilini ─────────────────────────────────────────────
   if (step === 2) return (
-    <div className="min-h-screen bg-cream flex flex-col items-center justify-center p-6 gap-4">
+    <div className="min-h-screen bg-page flex flex-col items-center justify-center p-6 gap-4">
       <div className="text-center mb-2">
-        <div className="font-serif text-[1.8rem] text-brown">Coinquilini</div>
+        <div className="font-display font-extrabold text-[1.8rem] text-primary">Coinquilini</div>
         <p className="text-[.85rem] text-ink-2 mt-1">
           Aggiungi chi vivrà in questa casa: potranno attivare il proprio accesso con la loro email. Potrai farlo anche dopo.
         </p>
@@ -157,7 +139,7 @@ export function CreateHouseScreen({ onSuccess, onBack }) {
           />
           <button
             onClick={addPendingName}
-            className="px-4 bg-brown text-ink font-bold text-[.85rem] rounded-[12px] border-0 cursor-pointer hover:bg-brown-mid transition-colors flex-shrink-0"
+            className="px-4 bg-primary text-white font-bold text-[.85rem] rounded-[12px] border-0 cursor-pointer hover:bg-primary-dark transition-colors flex-shrink-0"
           >
             Aggiungi
           </button>
@@ -183,27 +165,23 @@ export function CreateHouseScreen({ onSuccess, onBack }) {
       {error && <p className="text-[.82rem] text-red text-center max-w-[320px]">{error}</p>}
 
       <button
-        onClick={handleCoinquiliniContinue}
-        disabled={loading}
-        className="w-full max-w-[360px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+        onClick={() => setStep(3)}
+        className="w-full max-w-[360px] bg-primary text-white font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-primary-dark transition-colors flex items-center justify-center gap-1.5"
       >
-        {loading ? 'Salvataggio…' : <>Continua <ArrowRight size={18} /></>}
+        {pendingNames.length > 0 ? 'Continua' : 'Salta, li aggiungo dopo'} <ArrowRight size={18} />
       </button>
 
-      <button
-        onClick={() => setStep(3)}
-        className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-brown transition-colors py-1 flex items-center gap-1"
-      >
-        Salta, li aggiungo dopo <ArrowRight size={14} />
+      <button onClick={() => setStep(1)} className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-primary transition-colors py-1 flex items-center gap-1">
+        <ArrowLeft size={14} /> Torna indietro
       </button>
     </div>
   );
 
   // ── Step 3: rotazione ────────────────────────────────────────────────
   if (step === 3) return (
-    <div className="min-h-screen bg-cream flex flex-col items-center justify-center p-6 gap-4">
+    <div className="min-h-screen bg-page flex flex-col items-center justify-center p-6 gap-4">
       <div className="text-center mb-2">
-        <div className="font-serif text-[1.8rem] text-brown">Rotazione</div>
+        <div className="font-display font-extrabold text-[1.8rem] text-primary">Rotazione</div>
         <p className="text-[.85rem] text-ink-2 mt-1">Con che frequenza ruotano i turni?</p>
       </div>
 
@@ -239,19 +217,23 @@ export function CreateHouseScreen({ onSuccess, onBack }) {
       <button
         onClick={handleFinish}
         disabled={loading}
-        className="w-full max-w-[360px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+        className="w-full max-w-[360px] bg-primary text-white font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
       >
         {loading ? 'Creazione…' : <>Crea casa <Home size={18} /></>}
       </button>
+
+      {!session && <button onClick={() => { setError(null); setStep(2); }} className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-primary transition-colors py-1 flex items-center gap-1">
+        <ArrowLeft size={14} /> Torna indietro
+      </button>}
     </div>
   );
 
   // ── Step 4: casa creata, si invita dai Coinquilini ─────────────────
   return (
-    <div className="min-h-screen bg-cream flex flex-col items-center justify-center p-6 gap-4">
+    <div className="min-h-screen bg-page flex flex-col items-center justify-center p-6 gap-4">
       <div className="text-center mb-2">
-        <div className="flex justify-center text-brown"><PartyPopper size={40} /></div>
-        <div className="font-serif text-[1.8rem] text-brown">Casa creata!</div>
+        <div className="flex justify-center text-primary"><PartyPopper size={40} /></div>
+        <div className="font-display font-extrabold text-[1.8rem] text-primary">Casa creata!</div>
         <p className="text-[.85rem] text-ink-2 mt-1 max-w-[340px]">
           Per far entrare i coinquilini apri <Users size={13} className="inline align-[-2px]" /> Coinquilini
           e condividi il <strong>link d'invito</strong> o il QR: potranno registrarsi da soli con la propria email.
@@ -260,7 +242,7 @@ export function CreateHouseScreen({ onSuccess, onBack }) {
 
       <button
         onClick={() => onSuccess(session)}
-        className="w-full max-w-[360px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors mt-2 flex items-center justify-center gap-1.5"
+        className="w-full max-w-[360px] bg-primary text-white font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-primary-dark transition-colors mt-2 flex items-center justify-center gap-1.5"
       >
         Vai all'app <ArrowRight size={18} />
       </button>

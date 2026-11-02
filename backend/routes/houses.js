@@ -185,7 +185,7 @@ router.post('/:houseId/leave', ...protect, async (req, res) => {
 
 // ── Stanze ───────────────────────────────────────────────────────
 
-router.post('/:houseId/rooms', ...protectAdmin, async (req, res) => {
+router.post('/:houseId/rooms', ...protect, async (req, res) => {
   const { name, icon, color, sortOrder } = req.body;
   if (!name) return res.status(400).json({ error: 'name richiesto' });
   try {
@@ -197,7 +197,7 @@ router.post('/:houseId/rooms', ...protectAdmin, async (req, res) => {
   }
 });
 
-router.put('/:houseId/rooms/:roomId', ...protectAdmin, async (req, res) => {
+router.put('/:houseId/rooms/:roomId', ...protect, async (req, res) => {
   try {
     await db.updateRoom(req.params.houseId, req.params.roomId, req.body);
     res.json({ ok: true });
@@ -206,7 +206,7 @@ router.put('/:houseId/rooms/:roomId', ...protectAdmin, async (req, res) => {
   }
 });
 
-router.delete('/:houseId/rooms/:roomId', ...protectAdmin, async (req, res) => {
+router.delete('/:houseId/rooms/:roomId', ...protect, async (req, res) => {
   try {
     await db.deleteRoom(req.params.houseId, req.params.roomId);
     await invalidateUpcomingWeeks(db, req.params.houseId, { recalculateNow: true });

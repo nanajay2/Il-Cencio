@@ -21,10 +21,10 @@ export function InstallGate() {
   }
 
   return (
-    <div className="min-h-screen bg-cream flex flex-col items-center justify-center p-6 gap-4">
+    <div className="min-h-screen bg-page flex flex-col items-center justify-center p-6 gap-4">
       <div className="w-full max-w-[380px] bg-card rounded-2xl border border-border p-6 text-center flex flex-col gap-4">
-        <div className="flex justify-center text-brown"><Sparkles size={44} /></div>
-        <div className="font-serif text-[1.6rem] text-ink leading-tight">Installa Il Cencio</div>
+        <div className="flex justify-center text-primary"><Sparkles size={44} /></div>
+        <div className="font-display font-extrabold text-[1.6rem] text-ink leading-tight">Installa Il Cencio</div>
         <p className="text-[.85rem] text-ink-2">
           Per usare l'app devi prima installarla sulla schermata Home del tuo dispositivo.
         </p>
@@ -33,7 +33,7 @@ export function InstallGate() {
           <button
             onClick={handleInstall}
             disabled={installing}
-            className="w-full bg-brown text-ink font-bold text-[.95rem] rounded-2xl py-3.5 border-0 cursor-pointer hover:bg-brown-mid transition-colors shadow-[0_4px_16px_rgba(46,26,14,.25)] disabled:opacity-60 flex items-center justify-center gap-1.5"
+            className="w-full bg-primary text-white font-bold text-[.95rem] rounded-2xl py-3.5 border-0 cursor-pointer hover:bg-primary-dark transition-colors shadow-[0_4px_16px_rgba(23,36,31,.25)] disabled:opacity-60 flex items-center justify-center gap-1.5"
           >
             {installing ? 'Installazione…' : <><Smartphone size={18} /> Installa l'app</>}
           </button>

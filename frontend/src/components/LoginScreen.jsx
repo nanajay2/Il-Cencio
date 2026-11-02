@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase.js';
 
 const inputCls =
   'w-full border-[1.5px] border-border rounded-[12px] px-4 py-3 text-[.95rem] font-sans ' +
-  'bg-card text-ink outline-none transition-colors focus:border-brown';
+  'bg-card text-ink outline-none transition-colors focus:border-primary';
 
 const labelCls = 'block text-[.7rem] font-bold text-ink-2 mb-1 uppercase tracking-[.06em]';
 
@@ -15,6 +15,7 @@ const ERROR_MESSAGES = {
   'User already registered': 'Esiste già un account con questa email',
   'Password should be at least 6 characters': 'La password deve avere almeno 6 caratteri',
   'Email not confirmed': 'Devi confermare la tua email prima di accedere (controlla la posta)',
+  'Failed to fetch': 'Server di accesso non raggiungibile: Failed to fetch',
 };
 function translateError(message) {
   return ERROR_MESSAGES[message] ?? message;
@@ -36,7 +37,7 @@ function GoogleIcon() {
 // App.jsx (via supabase.auth.onAuthStateChange) a decidere il passo
 // successivo — creare/entrare in una casa, o andare dritti all'app se
 // l'identità è già collegata a una o più case.
-export function LoginScreen({ onBack }) {
+export function LoginScreen() {
   const [mode,     setMode]     = useState('signin'); // 'signin' | 'signup'
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
@@ -90,17 +91,17 @@ export function LoginScreen({ onBack }) {
   // la sessione da solo (redirect con token, rilevato automaticamente da
   // supabase-js) e l'app prosegue da App.jsx senza altra azione qui.
   if (signupDone) return (
-    <div className="min-h-screen bg-cream flex flex-col items-center justify-center p-6 gap-4">
+    <div className="min-h-screen bg-page flex flex-col items-center justify-center p-6 gap-4">
       <div className="text-center mb-2 max-w-[340px]">
-        <div className="flex justify-center text-brown mb-2"><Mail size={40} /></div>
-        <div className="font-serif text-[1.6rem] text-brown">Controlla la tua email</div>
+        <div className="flex justify-center text-primary mb-2"><Mail size={40} /></div>
+        <div className="font-display font-extrabold text-[1.6rem] text-primary">Controlla la tua email</div>
         <p className="text-[.85rem] text-ink-2 mt-2">
           Ti abbiamo mandato un link di conferma a <strong>{email}</strong>. Aprilo: tornerai automaticamente qui già connessa/o, senza fare altro.
         </p>
       </div>
       <button
         onClick={() => { setSignupDone(false); setMode('signin'); }}
-        className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-brown transition-colors py-1 flex items-center gap-1"
+        className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-primary transition-colors py-1 flex items-center gap-1"
       >
         <ArrowLeft size={14} /> Ho sbagliato email, torna indietro
       </button>
@@ -108,9 +109,10 @@ export function LoginScreen({ onBack }) {
   );
 
   return (
-    <div className="min-h-screen bg-cream flex flex-col items-center justify-center p-6 gap-4">
-      <div className="text-center mb-2">
-        <div className="font-serif text-[1.8rem] text-brown">{mode === 'signin' ? 'Bentornati' : 'Crea il tuo account'}</div>
+    <div className="min-h-screen bg-page flex flex-col items-center justify-center p-6 gap-4">
+      <div className="text-center mb-2 flex flex-col items-center">
+        <img src="/icon-192.png" alt="" width={80} height={80} className="rounded-[18px] mb-3" />
+        <div className="font-display font-extrabold text-[1.8rem] text-ink">{mode === 'signin' ? 'Il Cencio' : 'Crea il tuo account'}</div>
         <p className="text-[.85rem] text-ink-2 mt-1">
           {mode === 'signin' ? 'Accedi con email e password' : 'Ti servirà per entrare o creare una casa'}
         </p>
@@ -143,7 +145,7 @@ export function LoginScreen({ onBack }) {
       <button
         onClick={handleSubmit}
         disabled={loading || !email.trim() || password.length < 6}
-        className="w-full max-w-[320px] bg-brown text-ink font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-brown-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+        className="w-full max-w-[320px] bg-primary text-white font-bold text-[1rem] rounded-2xl py-4 border-0 cursor-pointer hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
       >
         {loading ? 'Un attimo…' : <>{mode === 'signin' ? 'Accedi' : 'Registrati'} <ArrowRight size={18} /></>}
       </button>
@@ -154,21 +156,19 @@ export function LoginScreen({ onBack }) {
 
       <button
         onClick={handleGoogle}
-        className="w-full max-w-[320px] bg-card border-[1.5px] border-border text-ink font-bold text-[.9rem] rounded-2xl py-3.5 cursor-pointer hover:border-brown transition-colors flex items-center justify-center gap-2"
+        className="w-full max-w-[320px] bg-card border-[1.5px] border-border text-ink font-bold text-[.9rem] rounded-2xl py-3.5 cursor-pointer hover:border-primary transition-colors flex items-center justify-center gap-2"
       >
         <GoogleIcon /> Continua con Google
       </button>
 
       <button
         onClick={() => { setMode(m => m === 'signin' ? 'signup' : 'signin'); setError(null); }}
-        className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-brown transition-colors py-1"
+        className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-primary transition-colors py-1"
       >
         {mode === 'signin' ? 'Non hai un account? Registrati' : 'Hai già un account? Accedi'}
       </button>
 
-      <button onClick={onBack} className="text-[.82rem] text-ink-2 border-0 bg-transparent cursor-pointer hover:text-brown transition-colors py-1 flex items-center gap-1">
-        <ArrowLeft size={14} /> Torna indietro
-      </button>
+      <span className="text-[.75rem] text-ink-2">v{__APP_VERSION__}</span>
     </div>
   );
 }

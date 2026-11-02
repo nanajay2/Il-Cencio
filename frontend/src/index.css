@@ -1,33 +1,36 @@
 @import "tailwindcss";
 
 @theme {
-  --font-family-sans:  'Plus Jakarta Sans', system-ui, sans-serif;
-  --font-family-serif: 'DM Serif Display', serif;
+  --font-sans:    'DM Sans', system-ui, sans-serif;
+  --font-display: 'Bricolage Grotesque', 'DM Sans', sans-serif;
 
-  --color-brown:      #BDB395;
-  --color-brown-mid:  #a89e83;
-  --color-brown-soft: #D5C7A3;
-  --color-cream:      #F6F0F0;
-  --color-cream-2:    #D5C7A3;
-  --color-card:       #F6F0F0;
-  --color-ink:        #4E220F;
-  --color-ink-2:      #7A5038;
-  --color-border:     #F2E2B1;
-  --color-sage:       #BDB395;
-  --color-red:        #b83232;
-  --color-red-pale:   #fceaea;
-  --color-green:      #1f6b52;
-  --color-green-pale: #d4ece5;
+  --color-page:         #F3F5F1;
+  --color-card:         #FFFFFF;
+  --color-ink:          #17241F;
+  --color-ink-2:        #56645E;
+  --color-border:       #E1E6E0;
+  --color-soft:         #EEF1ED;
+  --color-strong:       #C9D2CC;
+  --color-primary:      #1D6F5F;
+  --color-primary-dark: #14524A;
+  --color-primary-soft: #DCEEE8;
+  --color-on-primary:   #CFE6DE;
+  --color-soap:         #F5C451;
+  --color-soap-dark:    #E9B437;
+  --color-red:          #C2452D;
+  --color-red-pale:     #F7E0D9;
 }
 
 body {
-  font-family: var(--font-family-sans);
-  background-color: var(--color-cream);
+  font-family: var(--font-sans);
+  background-color: var(--color-page);
   color: var(--color-ink);
   min-height: 100vh;
   max-width: 480px;
   margin: 0 auto;
 }
+
+button { font-family: inherit; }
 
 /* ── Animazioni (non esprimibili in Tailwind) ───────────── */
 @keyframes slideUp     { from { transform: translateY(60px); opacity: 0; } }
@@ -46,9 +49,9 @@ body {
   padding: 6px 14px; font-family: inherit; font-size: .78rem; font-weight: 600;
   color: var(--color-ink-2); cursor: pointer; transition: all .15s; width: fit-content;
 }
-.done-btn:hover  { border-color: var(--accent, #5a9e8a); color: var(--accent, #5a9e8a); }
+.done-btn:hover  { border-color: var(--accent, var(--color-primary)); color: var(--accent, var(--color-primary)); }
 .done-btn.checked {
-  background: var(--accent, #5a9e8a); border-color: var(--accent, #5a9e8a);
+  background: var(--accent, var(--color-primary)); border-color: var(--accent, var(--color-primary));
   color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.15);
 }
 .done-dot { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid currentColor; flex-shrink: 0; transition: all .15s; }
@@ -64,9 +67,9 @@ body {
 
 /* ── Sparkle (posizioni nth-child non gestibili in Tailwind) ─ */
 .sparkle { position: absolute; pointer-events: none; width: 9px; height: 9px; border-radius: 50%; animation: sparkleAnim 1.4s ease-out infinite; }
-.sparkle:nth-child(1) { top: 12%; left: 10%;  animation-delay: 0s;    background: #c97b4b; }
-.sparkle:nth-child(2) { top: 9%;  right: 15%; animation-delay: .25s;  background: #5a9e8a; }
-.sparkle:nth-child(3) { top: 72%; left: 7%;   animation-delay: .5s;   background: #c9a84c; }
-.sparkle:nth-child(4) { top: 68%; right: 9%;  animation-delay: .15s;  background: #6a96c4; }
-.sparkle:nth-child(5) { top: 38%; left: 4%;   animation-delay: .7s;   background: #c97b4b; }
-.sparkle:nth-child(6) { top: 42%; right: 4%;  animation-delay: .4s;   background: #8c9e8a; }
+.sparkle:nth-child(1) { top: 12%; left: 10%;  animation-delay: 0s;    background: var(--color-soap); }
+.sparkle:nth-child(2) { top: 9%;  right: 15%; animation-delay: .25s;  background: var(--color-primary); }
+.sparkle:nth-child(3) { top: 72%; left: 7%;   animation-delay: .5s;   background: var(--color-soap); }
+.sparkle:nth-child(4) { top: 68%; right: 9%;  animation-delay: .15s;  background: var(--color-primary); }
+.sparkle:nth-child(5) { top: 38%; left: 4%;   animation-delay: .7s;   background: var(--color-soap); }
+.sparkle:nth-child(6) { top: 42%; right: 4%;  animation-delay: .4s;   background: var(--color-strong); }

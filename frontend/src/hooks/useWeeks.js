@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { api } from '../api.js';
 import { todayStr } from '../constants.js';
 
@@ -8,6 +8,7 @@ export function useWeeks() {
   const [navLoading, setNavLoading] = useState(false);
   const [error,      setError]      = useState(null);
   const [currentIdx, setCurrentIdx] = useState(null);
+  const loaded = useRef({ houseId: null, count: 0 });
 
   const sorted = [...weeks].sort((a, b) => a.start.localeCompare(b.start));
 
@@ -21,11 +22,21 @@ export function useWeeks() {
   const load = useCallback(async (houseId) => {
     setLoading(true);
     setError(null);
+    // Cambiando casa i turni e l'indice della precedente non valgono più.
+    if (loaded.current.houseId !== houseId) {
+      loaded.current = { houseId, count: 0 };
+      setWeeks([]);
+      setCurrentIdx(null);
+    }
     try {
       const data = await api.getWeeks(houseId);
       const s = [...data].sort((a, b) => a.start.localeCompare(b.start));
       setWeeks(s);
-      setCurrentIdx(idx => idx === null ? findCurrentIdx(s) : Math.min(idx, s.length - 1));
+      // Si riparte dal turno attuale anche se prima non c'erano turni: casa
+      // senza stanze a cui è stata appena aggiunta la prima.
+      const hadWeeks = loaded.current.count > 0;
+      loaded.current = { houseId, count: s.length };
+      setCurrentIdx(idx => idx === null || !hadWeeks ? findCurrentIdx(s) : Math.max(0, Math.min(idx, s.length - 1)));
     } catch (e) {
       setError(e.message);
     } finally {
