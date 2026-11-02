@@ -6,7 +6,7 @@ import { CalendarClock } from 'lucide-react';
 const VARIANTS = {
   next: {
     title: 'Da quando vale la modifica?',
-    text: 'Le regole verranno applicate dal turno successivo a quello attuale.',
+    text: 'La modifica verrà applicata dal turno successivo a quello attuale.',
     primary: 'Ok',
     secondary: 'Ricalcola da ora',
   },
@@ -34,21 +34,21 @@ export function RecalculateModal({ variant, onChoose }) {
   const onSecondary = () => onChoose('now');
 
   return (
-    <div className="fixed inset-0 bg-[rgba(5,2,0,.6)] backdrop-blur-[4px] z-[600] flex items-center justify-center p-6">
+    <div className="fixed inset-0 bg-[rgba(23,36,31,.6)] backdrop-blur-[4px] z-[600] flex items-center justify-center p-6">
       <div role="dialog" aria-modal="true" className="bg-card rounded-[24px] p-6 max-w-[340px] w-full shadow-[0_20px_60px_rgba(0,0,0,.45)] text-center">
-        <div className="flex justify-center text-brown mb-2"><CalendarClock size={32} /></div>
-        <div className="font-serif text-[1.35rem] text-brown mb-1">{v.title}</div>
+        <div className="flex justify-center text-primary mb-2"><CalendarClock size={32} /></div>
+        <div className="font-display font-extrabold text-[1.35rem] text-primary mb-1">{v.title}</div>
         <p className="text-[.85rem] text-ink-2 mb-5">{v.text}</p>
         <div className="flex flex-col gap-2">
           <button
             onClick={onPrimary}
-            className="w-full bg-brown text-ink font-bold text-[.95rem] rounded-2xl py-3 border-0 cursor-pointer hover:bg-brown-mid transition-colors"
+            className="w-full bg-primary text-white font-bold text-[.95rem] rounded-2xl py-3 border-0 cursor-pointer hover:bg-primary-dark transition-colors"
           >
             {v.primary}
           </button>
           <button
             onClick={onSecondary}
-            className="w-full bg-transparent text-brown font-bold text-[.9rem] rounded-2xl py-3 border-[1.5px] border-border cursor-pointer hover:border-brown transition-colors"
+            className="w-full bg-transparent text-primary font-bold text-[.9rem] rounded-2xl py-3 border-[1.5px] border-border cursor-pointer hover:border-primary transition-colors"
           >
             {v.secondary}
           </button>

@@ -15,6 +15,18 @@ function todayStr() {
   return new Date().toISOString().split('T')[0];
 }
 
+function requestBody(swap) {
+  if (!swap.fromRoomName) return `${swap.fromUserName} ti chiede di prendere ${swap.toRoomName} al posto tuo.`;
+  if (!swap.toRoomName) return `${swap.fromUserName} ti propone di darti ${swap.fromRoomName}.`;
+  return `${swap.fromUserName} ti propone di scambiare ${swap.fromRoomName} con ${swap.toRoomName}.`;
+}
+
+function acceptedBody(swap) {
+  if (!swap.fromRoomName) return `${swap.toUserName} ha accettato: ora ${swap.toRoomName} tocca a te.`;
+  if (!swap.toRoomName) return `${swap.toUserName} ha accettato: ora ${swap.fromRoomName} tocca a lui/lei.`;
+  return `${swap.toUserName} ha accettato lo scambio: ora fai ${swap.toRoomName} invece di ${swap.fromRoomName}.`;
+}
+
 router.get('/', async (req, res) => {
   try {
     res.json(await db.getSwapRequests(req.params.houseId));
@@ -27,8 +39,8 @@ router.post('/', async (req, res) => {
   const { houseId } = req.params;
   const { weekId, fromRoomId, toUserId, toRoomId } = req.body;
   const fromUserId = req.userId; // solo il proprietario del turno può proporlo in scambio
-  if (!weekId || !fromRoomId || !toUserId)
-    return res.status(400).json({ error: 'weekId, fromRoomId, toUserId richiesti' });
+  if (!weekId || !toUserId || (!fromRoomId && !toRoomId))
+    return res.status(400).json({ error: 'weekId, toUserId e almeno una stanza richiesti' });
   if (fromUserId === toUserId)
     return res.status(400).json({ error: 'Non puoi proporre uno scambio con te stesso' });
 
@@ -38,24 +50,23 @@ router.post('/', async (req, res) => {
     if (!week) return res.status(404).json({ error: 'Settimana non trovata' });
     if (week.end < todayStr()) return res.status(400).json({ error: 'Non puoi scambiare un turno gia\' passato' });
 
-    // toRoomId assente = trasferimento a senso unico verso un coinquilino
-    // senza turni questa settimana: nessuna assegnazione da verificare per lui.
-    const checks = [db.getAssignment(houseId, weekId, fromUserId, fromRoomId)];
-    if (toRoomId) checks.push(db.getAssignment(houseId, weekId, toUserId, toRoomId));
-    const [fromAsg, toAsg] = await Promise.all(checks);
-    if (!fromAsg || (toRoomId && !toAsg))
+    // Una delle due stanze può mancare: senza toRoomId chi propone cede la sua
+    // stanza, senza fromRoomId prende quella dell'altro.
+    const [fromAsg, toAsg] = await Promise.all([
+      fromRoomId ? db.getAssignment(houseId, weekId, fromUserId, fromRoomId) : true,
+      toRoomId ? db.getAssignment(houseId, weekId, toUserId, toRoomId) : true,
+    ]);
+    if (!fromAsg || !toAsg)
       return res.status(400).json({ error: 'Una delle due assegnazioni indicate non esiste in questa settimana' });
 
     const swap = await db.createSwapRequest(houseId, {
-      weekId, fromUserId, fromRoomId,
+      weekId, fromUserId, fromRoomId: fromRoomId || null,
       toUserId, toRoomId: toRoomId || null,
     });
 
     sendNotification(houseId, {
       title: 'Richiesta di scambio turno',
-      body: swap.toRoomName
-        ? `${swap.fromUserName} ti propone di scambiare ${swap.fromRoomName} con ${swap.toRoomName}.`
-        : `${swap.fromUserName} ti propone di darti ${swap.fromRoomName}.`,
+      body: requestBody(swap),
       url: `/?swap=${swap.id}`,
       houseId, swapId: swap.id, apiBase: API_BASE,
       actionable: true,
@@ -75,10 +86,11 @@ router.post('/:swapId/accept', async (req, res) => {
       return res.status(403).json({ error: 'Solo il destinatario può rispondere a questa richiesta' });
     if (swap.status !== 'pending') return res.status(409).json({ error: 'Richiesta gia\' evasa' });
 
-    const checks = [db.getAssignment(houseId, swap.weekId, swap.fromUserId, swap.fromRoomId)];
-    if (swap.toRoomId) checks.push(db.getAssignment(houseId, swap.weekId, swap.toUserId, swap.toRoomId));
-    const [fromAsg, toAsg] = await Promise.all(checks);
-    if (!fromAsg || (swap.toRoomId && !toAsg)) {
+    const [fromAsg, toAsg] = await Promise.all([
+      swap.fromRoomId ? db.getAssignment(houseId, swap.weekId, swap.fromUserId, swap.fromRoomId) : true,
+      swap.toRoomId ? db.getAssignment(houseId, swap.weekId, swap.toUserId, swap.toRoomId) : true,
+    ]);
+    if (!fromAsg || !toAsg) {
       await db.updateSwapStatus(houseId, swap.id, 'declined');
       return res.status(409).json({ error: 'Le assegnazioni originali non esistono piu\' (impostazioni cambiate nel frattempo)' });
     }
@@ -88,9 +100,7 @@ router.post('/:swapId/accept', async (req, res) => {
 
     sendNotification(houseId, {
       title: 'Scambio turno accettato',
-      body: swap.toRoomName
-        ? `${swap.toUserName} ha accettato lo scambio: ora fai ${swap.toRoomName} invece di ${swap.fromRoomName}.`
-        : `${swap.toUserName} ha accettato: ora ${swap.fromRoomName} tocca a lui/lei.`,
+      body: acceptedBody(swap),
       url: `/?swap=${swap.id}`,
     }, swap.fromUserId).catch(e => console.error('Notifica esito scambio fallita:', e.message));
 

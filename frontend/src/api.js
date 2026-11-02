@@ -1,16 +1,27 @@
 import { supabase } from './lib/supabase.js';
 
 const BASE = (import.meta.env.VITE_API_URL ?? '') + '/api';
+const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
 
 async function req(path, opts = {}) {
   const { data: { session } } = await supabase.auth.getSession();
   const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
   if (session) headers.Authorization = `Bearer ${session.access_token}`;
 
-  const res = await fetch(BASE + path, { ...opts, headers });
+  // Gli errori restano tecnici ma dicono cosa è fallito: gli id sono nascosti
+  // perché non aiutano a capire e allungano il messaggio.
+  const call = `${opts.method ?? 'GET'} ${path.split('?')[0].replace(UUID, ':id')}`;
+
+  let res;
+  try {
+    res = await fetch(BASE + path, { ...opts, headers });
+  } catch (e) {
+    throw new Error(`Server non raggiungibile: ${e.message} (${call})`);
+  }
   if (!res.ok) {
-    const body = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(body.error || res.statusText);
+    const body = await res.json().catch(() => null);
+    const reason = body?.error || `risposta non valida del server, ${res.statusText || 'nessun dettaglio'}`;
+    throw new Error(`${reason} (${call}, HTTP ${res.status})`);
   }
   return res.json();
 }

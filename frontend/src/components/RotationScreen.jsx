@@ -1,15 +1,15 @@
 import { useState } from 'react';
-import { X, Calendar, Hash, CalendarRange, RotateCw, Check } from 'lucide-react';
-import { useBodyScrollLock } from '../hooks/useBodyScrollLock.js';
+import { Calendar, Hash, CalendarRange, Check } from 'lucide-react';
+import { SubPage } from './SubPage.jsx';
 
 const btnCls =
-  'h-[42px] px-4 bg-brown text-ink border-0 rounded-[10px] font-sans text-[.85rem] font-bold cursor-pointer hover:bg-brown-mid transition-colors whitespace-nowrap flex-shrink-0';
+  'h-11 px-4 bg-primary text-white border-0 rounded-[12px] font-sans text-[.85rem] font-bold cursor-pointer hover:bg-primary-dark transition-colors whitespace-nowrap flex-shrink-0';
 
 const inputCls =
-  'border-[1.5px] border-border rounded-[10px] px-3 py-2 text-[.9rem] font-sans ' +
-  'bg-cream text-ink outline-none h-[42px] transition-colors focus:border-brown';
+  'border-[1.5px] border-border rounded-[12px] px-3 py-2 text-[.9rem] font-sans ' +
+  'bg-page text-ink outline-none h-11 transition-colors focus:border-primary';
 
-const sectionCls = 'bg-card rounded-2xl border border-border p-5 flex flex-col gap-3';
+const sectionCls = 'bg-card rounded-[20px] p-4 flex flex-col gap-3';
 const titleCls   = 'font-bold text-[.92rem] text-ink mb-1';
 
 const ROTATIONS = [
@@ -19,7 +19,6 @@ const ROTATIONS = [
 ];
 
 export function RotationScreen({ house, onUpdateRotation, onClose }) {
-  useBodyScrollLock();
   const [rotationType, setRotationType] = useState(house.rotationType ?? 'weekly');
   const [rotationDays, setRotationDays] = useState(house.rotationDays ?? 3);
   const [saving, setSaving] = useState(false);
@@ -38,22 +37,7 @@ export function RotationScreen({ house, onUpdateRotation, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-brown z-[300] overflow-y-auto p-4">
-      <div className="max-w-[480px] mx-auto flex flex-col gap-4 pb-8" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)' }}>
-
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="font-serif text-[1.6rem] text-ink truncate flex items-center gap-2">
-            <RotateCw size={22} className="flex-shrink-0" /> Rotazione turni
-          </h2>
-          <button
-            onClick={onClose}
-            aria-label="Chiudi"
-            className="w-8 h-8 rounded-full border-0 cursor-pointer flex items-center justify-center transition-colors flex-shrink-0"
-            style={{ background: 'rgba(78,34,15,.1)', color: '#7A5038' }}
-          >
-            <X size={14} strokeWidth={1.8} />
-          </button>
-        </div>
+    <SubPage title="Rotazione turni" onBack={onClose}>
 
         <section className={sectionCls}>
           <p className="text-[.8rem] text-ink-2 -mt-1">
@@ -68,7 +52,7 @@ export function RotationScreen({ house, onUpdateRotation, onClose }) {
                 onClick={() => setRotationType(r.value)}
                 className={
                   'text-left px-4 py-3 rounded-[12px] border-[1.5px] transition-colors cursor-pointer flex items-start gap-3 ' +
-                  (rotationType === r.value ? 'bg-brown border-brown' : 'bg-cream border-border hover:bg-cream-2')
+                  (rotationType === r.value ? 'bg-primary-soft border-primary' : 'bg-page border-border hover:bg-soft')
                 }
               >
                 <r.icon size={20} className="flex-shrink-0 mt-0.5" />
@@ -97,8 +81,6 @@ export function RotationScreen({ house, onUpdateRotation, onClose }) {
             {saving ? 'Salvataggio…' : saved ? <><Check size={16} /> Salvato</> : 'Salva'}
           </button>
         </section>
-
-      </div>
-    </div>
+    </SubPage>
   );
 }

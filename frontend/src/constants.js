@@ -1,9 +1,17 @@
 export const MONTHS = ['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
+export const MONTHS_LONG = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
 export const DAYS   = ['domenica','lunedì','martedì','mercoledì','giovedì','venerdì','sabato'];
 
 export function fmt(s) {
   const [, m, d] = s.split('-');
   return `${+d} ${MONTHS[+m - 1]}`;
+}
+
+// Periodo compatto: "2–6 nov", oppure "28 ott – 1 nov" se cambia il mese.
+export function fmtRange(start, end) {
+  const [, m1, d1] = start.split('-');
+  const [, m2, d2] = end.split('-');
+  return m1 === m2 ? `${+d1}–${+d2} ${MONTHS[+m2 - 1]}` : `${fmt(start)} – ${fmt(end)}`;
 }
 
 export function addDays(s, n) {
