@@ -224,7 +224,34 @@ export function computeNextWeek(weeks, users, rooms, rules, rotation = { type: '
   return { id: ns, start: ns, end: ne, assignments };
 }
 
-export async function ensureFutureWeeks(db, houseId) {
+// Generazione e cancellazione dei turni di una casa non devono accavallarsi:
+// se una modifica cancella i turni mentre un'altra richiesta li sta generando,
+// la generazione prosegue dai turni che ha in memoria e lascia un buco.
+const houseLocks = new Map();
+
+export function withHouseLock(houseId, task) {
+  const previous = houseLocks.get(houseId) ?? Promise.resolve();
+  const run = previous.catch(() => {}).then(task);
+  const tail = run.catch(() => {});
+  houseLocks.set(houseId, tail);
+  tail.then(() => { if (houseLocks.get(houseId) === tail) houseLocks.delete(houseId); });
+  return run;
+}
+
+// Ultimo turno prima di un buco che riguarda il presente o il futuro, se c'è.
+function turnBeforeGap(sortedWeeks, t) {
+  for (let i = 0; i < sortedWeeks.length - 1; i++) {
+    const cur = sortedWeeks[i], next = sortedWeeks[i + 1];
+    if (next.end >= t && next.start > addDays(cur.end, 1)) return cur;
+  }
+  return null;
+}
+
+export function ensureFutureWeeks(db, houseId) {
+  return withHouseLock(houseId, () => generateFutureWeeks(db, houseId));
+}
+
+async function generateFutureWeeks(db, houseId) {
   const [weeks, users, rooms, rules, rotation, absences] = await Promise.all([
     db.getWeeks(houseId),
     db.getUsers(houseId),
@@ -237,7 +264,16 @@ export async function ensureFutureWeeks(db, houseId) {
   if (!users.length || !rooms.length) return 0;
 
   const t = today();
-  let added = 0, safety = 0, current = [...weeks];
+  let added = 0, safety = 0;
+  let current = [...weeks].sort((a, b) => a.start.localeCompare(b.start));
+
+  // La generazione guarda solo l'ultimo turno, quindi un buco non si
+  // riempirebbe mai: si rifanno i turni successivi a partire da prima del buco.
+  const beforeGap = turnBeforeGap(current, t);
+  if (beforeGap) {
+    await db.deleteWeeksStartingAfter(houseId, beforeGap.start);
+    current = current.filter(w => w.start <= beforeGap.start);
+  }
 
   // Nessun turno: crea un turno fittizio precedente così computeNextWeek
   // può generare il turno corrente come primo reale. L'anchor dipende dalla
@@ -287,7 +323,9 @@ export async function purgeOldWeeks(db, houseId) {
 // corso resta com'è, con spunte e scambi, e la modifica vale dal turno dopo.
 // Con `recalculateNow` si cancella anche il turno in corso: ensureFutureWeeks
 // lo rigenera da capo (si perdono spunte e scambi).
-export async function invalidateUpcomingWeeks(db, houseId, { recalculateNow = false } = {}) {
-  if (recalculateNow) await db.deleteWeeksFrom(houseId, today());
-  else await db.deleteWeeksStartingAfter(houseId, today());
+export function invalidateUpcomingWeeks(db, houseId, { recalculateNow = false } = {}) {
+  return withHouseLock(houseId, async () => {
+    if (recalculateNow) await db.deleteWeeksFrom(houseId, today());
+    else await db.deleteWeeksStartingAfter(houseId, today());
+  });
 }

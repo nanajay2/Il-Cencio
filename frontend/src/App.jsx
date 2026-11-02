@@ -99,6 +99,7 @@ export default function App() {
   const recalcResolver = useRef(null);
   const suppressRevealRef = useRef(false);
   const [weekAnchorDay, setWeekAnchorDay] = useState(todayStr());
+  const [anchorHasNoTurn, setAnchorHasNoTurn] = useState(false);
 
   const { toast, show: showToast } = useToast();
   const weeksHook    = useWeeks();
@@ -488,6 +489,7 @@ export default function App() {
 
   function syncCardToWeekAnchor(dateStr) {
     const turno = findTurnoForDate(weeksHook.weeks, dateStr);
+    setAnchorHasNoTurn(!turno);
     if (turno) weeksHook.goToId(turno.id);
   }
 
@@ -571,6 +573,7 @@ export default function App() {
             weeks={weeks}
             loading={loading}
             loadError={weeksHook.error}
+            weekWithoutTurn={anchorHasNoTurn && !weeksHook.navLoading}
             onRetry={() => weeksHook.load(houseId)}
             userId={userId}
             isAbsent={absencesHook.isAbsent}
