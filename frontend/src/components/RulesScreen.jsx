@@ -1,19 +1,18 @@
 import { useState } from 'react';
-import { X, Pencil, Settings, Bell, ClipboardList, ShowerHead, Workflow, Ban, Coffee, Sparkles, ArrowRight } from 'lucide-react';
-import { useBodyScrollLock } from '../hooks/useBodyScrollLock.js';
-import { usePush } from '../hooks/usePush.js';
+import { X, Pencil, ClipboardList, ShowerHead, Workflow, Ban, ArrowRight } from 'lucide-react';
+import { SubPage } from './SubPage.jsx';
 
 const inputCls =
-  'border-[1.5px] border-border rounded-[10px] px-3 py-2 text-[.84rem] font-sans ' +
-  'bg-cream text-ink outline-none h-[38px] transition-colors focus:border-brown flex-1 min-w-0';
+  'border-[1.5px] border-border rounded-[12px] px-3 py-2 text-[.84rem] font-sans ' +
+  'bg-page text-ink outline-none h-11 transition-colors focus:border-primary flex-1 min-w-0';
 
 const btnCls =
-  'h-[38px] px-4 bg-brown text-ink border-0 rounded-[10px] font-sans text-[.8rem] font-bold cursor-pointer hover:bg-brown-mid transition-colors whitespace-nowrap flex-shrink-0';
+  'h-11 px-4 bg-primary text-white border-0 rounded-[12px] font-sans text-[.8rem] font-bold cursor-pointer hover:bg-primary-dark transition-colors whitespace-nowrap flex-shrink-0';
 
 const dangerCls =
-  'border-0 bg-transparent cursor-pointer text-ink-2 text-[.9rem] px-[7px] py-[3px] rounded-md transition-all hover:text-red hover:bg-red-pale';
+  'border-0 bg-transparent cursor-pointer text-ink-2 w-11 h-11 flex items-center justify-center rounded-[12px] transition-all hover:text-red hover:bg-red-pale';
 
-const sectionCls = 'bg-card rounded-2xl border border-border p-5 flex flex-col gap-3';
+const sectionCls = 'bg-card rounded-[20px] p-4 flex flex-col gap-3';
 const titleCls   = 'font-bold text-[.92rem] text-ink mb-1';
 
 const selectCls = inputCls + ' appearance-none';
@@ -49,13 +48,11 @@ function describeRule(rule, rooms, users) {
   return JSON.stringify(config);
 }
 
-export function SettingsPanel({
-  house, isAdmin, houseId, userId,
-  onClose, onLogout, onLeaveHouse,
+export function RulesScreen({
+  house, isAdmin,
+  onClose,
   onAddRule, onEditRule, onRemoveRule,
 }) {
-  useBodyScrollLock();
-  const push = usePush();
 
   // Rules state
   const [ruleType,   setRuleType]   = useState(RULE_TYPES[0].value);
@@ -123,72 +120,11 @@ export function SettingsPanel({
     }
   }
 
-  const showRulesSection = isAdmin || house.rules.length > 0;
-
   return (
-    <div className="fixed inset-0 bg-brown z-[300] overflow-y-auto p-4">
-      <div className="max-w-[480px] mx-auto flex flex-col gap-4 pb-8" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)' }}>
+    <SubPage title="Regole" onBack={onClose}>
 
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="font-serif text-[1.6rem] text-ink truncate flex items-center gap-2">
-            <Settings size={22} className="flex-shrink-0" /> Impostazioni
-          </h2>
-          <button
-            onClick={onClose}
-            aria-label="Chiudi"
-            className="w-8 h-8 rounded-full border-0 cursor-pointer flex items-center justify-center transition-colors flex-shrink-0"
-            style={{ background: 'rgba(78,34,15,.1)', color: '#7A5038' }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(78,34,15,.18)'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(78,34,15,.1)'; }}
-          >
-            <X size={14} strokeWidth={1.8} />
-          </button>
-        </div>
-
-        {/* Notifiche push */}
-        <section className={sectionCls}>
-          <div className={titleCls + ' flex items-center gap-1.5'}><Bell size={16} /> Notifiche push</div>
-          {push.status === 'unsupported' && (
-            <p className="text-[.77rem] text-ink-2 -mt-1">
-              Non supportate su questo browser. Su iOS servono Safari 16.4+ e l'app installata da schermata Home.
-            </p>
-          )}
-          {push.status === 'denied' && (
-            <>
-              <p className="text-[.77rem] text-ink-2 -mt-1">
-                Permesso negato. Riabilita le notifiche per questo sito dalle impostazioni del browser
-                (di solito dall'icona accanto alla barra degli indirizzi → Autorizzazioni sito → Notifiche),
-                poi tocca "Riprova" qui sotto.
-              </p>
-              <button
-                onClick={() => push.subscribe(houseId)}
-                disabled={push.loading}
-                className={btnCls}
-              >
-                Riprova
-              </button>
-            </>
-          )}
-          {(push.status === 'inactive' || push.status === 'active') && (
-            <>
-              <p className="text-[.77rem] text-ink-2 -mt-1">
-                Ricevi un promemoria quando e' il tuo turno.
-              </p>
-              <button
-                onClick={() => push.status === 'active' ? push.unsubscribe(houseId) : push.subscribe(houseId)}
-                disabled={push.loading}
-                className={btnCls}
-              >
-                {push.status === 'active' ? 'Disattiva notifiche' : 'Attiva notifiche'}
-              </button>
-            </>
-          )}
-        </section>
-
-        {/* Regole — admin: sempre visibile (per poterle aggiungere); utente normale: solo se ce ne sono, in lettura */}
-        {showRulesSection && (
+        {/* Admin: può modificarle; utente normale: solo in lettura */}
           <section className={sectionCls}>
-            <div className={titleCls + ' flex items-center gap-1.5'}><ClipboardList size={16} /> Regole</div>
 
             {isAdmin ? (
               <>
@@ -200,14 +136,14 @@ export function SettingsPanel({
                   {house.rules.length === 0 ? (
                     <p className="text-[.82rem] text-ink-2">Nessuna regola configurata.</p>
                   ) : house.rules.map(r => (
-                    <div key={r.id} className="flex items-center justify-between px-3 py-[9px] bg-cream rounded-[10px] border border-border text-[.83rem]">
+                    <div key={r.id} className="flex items-center justify-between px-3 py-[9px] bg-page rounded-[12px] border border-border text-[.83rem]">
                       <span className="flex items-center">
                         <RuleTypeIcon type={r.type} size={15} className="flex-shrink-0" />
                         <span className="ml-1.5">{describeRule(r, house.rooms, house.users)}</span>
                       </span>
                       <span className="flex items-center gap-1 flex-shrink-0">
-                        <button onClick={() => startEditRule(r)} aria-label="Modifica" className={dangerCls + ' hover:text-brown hover:bg-cream-2'}><Pencil size={14} strokeWidth={1.8} /></button>
-                        <button onClick={() => onRemoveRule(r.id)} aria-label="Elimina" className={dangerCls}><X size={14} strokeWidth={1.8} /></button>
+                        <button onClick={() => startEditRule(r)} aria-label="Modifica regola" className={dangerCls + ' hover:text-primary hover:bg-soft'}><Pencil size={18} strokeWidth={1.8} /></button>
+                        <button onClick={() => onRemoveRule(r.id)} aria-label="Elimina regola" className={dangerCls}><X size={18} strokeWidth={1.8} /></button>
                       </span>
                     </div>
                   ))}
@@ -226,7 +162,7 @@ export function SettingsPanel({
                       <>
                           <select value={poolRoom} onChange={e => setPoolRoom(e.target.value)} className={selectCls}>
                             <option value="">Scegli stanza…</option>
-                            {house.rooms.map(r => <option key={r.id} value={r.id}>{r.icon} {r.name}</option>)}
+                            {house.rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                           </select>
                           <div className="flex flex-wrap gap-1.5">
                             {house.users.map(u => (
@@ -237,8 +173,8 @@ export function SettingsPanel({
                                 className={
                                   'px-3 py-1.5 rounded-full text-[.78rem] font-semibold border-[1.5px] transition-colors cursor-pointer ' +
                                   (poolUsers.includes(u.id)
-                                    ? 'bg-brown text-ink border-brown'
-                                    : 'bg-cream text-ink-2 border-border')
+                                    ? 'bg-primary text-white border-primary'
+                                    : 'bg-page text-ink-2 border-border')
                                 }
                               >
                                 {u.name}
@@ -253,12 +189,12 @@ export function SettingsPanel({
                       <div className="flex items-center gap-2">
                         <select value={seqFrom} onChange={e => setSeqFrom(e.target.value)} className={selectCls}>
                           <option value="">Stanza di partenza…</option>
-                          {house.rooms.map(r => <option key={r.id} value={r.id}>{r.icon} {r.name}</option>)}
+                          {house.rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                         </select>
                         <ArrowRight size={16} className="text-ink-2 flex-shrink-0" />
                         <select value={seqTo} onChange={e => setSeqTo(e.target.value)} className={selectCls}>
                           <option value="">Stanza successiva…</option>
-                          {house.rooms.map(r => <option key={r.id} value={r.id}>{r.icon} {r.name}</option>)}
+                          {house.rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                         </select>
                       </div>
                       <p className="text-[.75rem] text-ink-2">Non si applica a (opzionale):</p>
@@ -271,8 +207,8 @@ export function SettingsPanel({
                             className={
                               'px-3 py-1.5 rounded-full text-[.78rem] font-semibold border-[1.5px] transition-colors cursor-pointer ' +
                               (seqExempt.includes(u.id)
-                                ? 'bg-brown text-ink border-brown'
-                                : 'bg-cream text-ink-2 border-border')
+                                ? 'bg-primary text-white border-primary'
+                                : 'bg-page text-ink-2 border-border')
                             }
                           >
                             {u.name}
@@ -291,7 +227,7 @@ export function SettingsPanel({
                         <span className="text-ink-2">∌</span>
                         <select value={exclRoom} onChange={e => setExclRoom(e.target.value)} className={selectCls}>
                           <option value="">Scegli stanza…</option>
-                          {house.rooms.map(r => <option key={r.id} value={r.id}>{r.icon} {r.name}</option>)}
+                          {house.rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                         </select>
                       </div>
                     )}
@@ -301,7 +237,7 @@ export function SettingsPanel({
                         {editingRuleId ? 'Salva modifiche' : '+ Aggiungi regola'}
                       </button>
                       {editingRuleId && (
-                        <button onClick={resetRuleForm} type="button" className={btnCls + ' self-start bg-transparent border-[1.5px] border-border text-ink-2 hover:bg-cream'}>
+                        <button onClick={resetRuleForm} type="button" className={btnCls + ' self-start bg-transparent border-[1.5px] border-border text-ink-2 hover:bg-page'}>
                           Annulla
                         </button>
                       )}
@@ -312,7 +248,7 @@ export function SettingsPanel({
             ) : (
               <div className="flex flex-col gap-1.5 mt-1">
                 {house.rules.map(r => (
-                  <div key={r.id} className="px-3 py-[9px] bg-cream rounded-[10px] border border-border text-[.83rem] flex items-center">
+                  <div key={r.id} className="px-3 py-[9px] bg-page rounded-[12px] border border-border text-[.83rem] flex items-center">
                     <RuleTypeIcon type={r.type} size={15} className="flex-shrink-0" />
                     <span className="ml-1.5">{describeRule(r, house.rooms, house.users)}</span>
                   </div>
@@ -320,46 +256,6 @@ export function SettingsPanel({
               </div>
             )}
           </section>
-        )}
-
-        {/* Supporto */}
-        <a
-          href="https://buymeacoffee.com/dadaism0x"
-          target="_blank"
-          rel="noopener noreferrer"
-          className={sectionCls + ' text-center no-underline hover:opacity-90 transition-opacity'}
-        >
-          <div className={titleCls + ' mb-0 flex items-center justify-center gap-1.5'}><Coffee size={16} /> Ti piace Il Cencio?</div>
-          <p className="text-[.8rem] text-ink-2 flex items-center justify-center gap-1">
-            Clicca qui per offrirmi un caffè e aiutarmi a tenerla sempre viva <Sparkles size={13} className="flex-shrink-0" />
-          </p>
-        </a>
-
-        {/* Logout / abbandona */}
-        <div className="flex flex-col gap-2">
-          {onLogout && (
-            <button
-              onClick={onLogout}
-              className="w-full py-3 rounded-2xl border-0 cursor-pointer font-bold text-[.88rem] transition-all"
-              style={{ background: 'rgba(78,34,15,.08)', color: 'rgba(78,34,15,.6)' }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(78,34,15,.16)'; e.currentTarget.style.color = 'rgba(78,34,15,.9)'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(78,34,15,.08)'; e.currentTarget.style.color = 'rgba(78,34,15,.6)'; }}
-            >
-              Esci
-            </button>
-          )}
-
-          {onLeaveHouse && (
-            <button
-              onClick={onLeaveHouse}
-              className="w-full py-3 rounded-2xl border-[1.5px] border-red cursor-pointer font-bold text-[.88rem] text-red bg-transparent hover:bg-red-pale transition-colors"
-            >
-              Abbandona la casa
-            </button>
-          )}
-        </div>
-
-      </div>
-    </div>
+    </SubPage>
   );
 }

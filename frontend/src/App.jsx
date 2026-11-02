@@ -1,25 +1,23 @@
 import { useState, useEffect, useRef } from 'react';
-import { Loader2, ClipboardList } from 'lucide-react';
-import { Header }             from './components/Header.jsx';
+import { Loader2 } from 'lucide-react';
 import { HouseSwitcherModal } from './components/HouseSwitcherModal.jsx';
-import { ChoreCard }          from './components/ChoreCard.jsx';
 import { RevealModal }        from './components/RevealModal.jsx';
 import { RecalculateModal }   from './components/RecalculateModal.jsx';
 import { CatMascot }          from './components/CatMascot.jsx';
 import { Toast, useToast }    from './components/Toast.jsx';
-import { WelcomeScreen }      from './components/WelcomeScreen.jsx';
+import { LoadingScreen }      from './components/LoadingScreen.jsx';
 import { UpgradeNoticeScreen } from './components/UpgradeNoticeScreen.jsx';
 import { LoginScreen }        from './components/LoginScreen.jsx';
 import { ChooseHouseScreen }  from './components/ChooseHouseScreen.jsx';
 import { JoinHouseScreen }    from './components/JoinHouseScreen.jsx';
 import { CreateHouseScreen }  from './components/CreateHouseScreen.jsx';
-import { SettingsPanel }      from './components/SettingsPanel.jsx';
-import { ViewModeSwitcher }   from './components/ViewModeSwitcher.jsx';
-import { WeekAggregateView }  from './components/WeekAggregateView.jsx';
-import { MonthAggregateView } from './components/MonthAggregateView.jsx';
+import { BottomBar }          from './components/BottomBar.jsx';
+import { TodayScreen }        from './components/TodayScreen.jsx';
+import { CalendarScreen }     from './components/CalendarScreen.jsx';
+import { HouseScreen }        from './components/HouseScreen.jsx';
+import { RulesScreen }        from './components/RulesScreen.jsx';
 import { AbsencesScreen }     from './components/AbsencesScreen.jsx';
 import { SwapsScreen }        from './components/SwapsScreen.jsx';
-import { MenuFab }            from './components/MenuFab.jsx';
 import { RoomsScreen }        from './components/RoomsScreen.jsx';
 import { CoinquiliniScreen }  from './components/CoinquiliniScreen.jsx';
 import { RotationScreen }     from './components/RotationScreen.jsx';
@@ -82,26 +80,24 @@ function capturePendingInviteToken() {
 }
 
 export default function App() {
-  // view: 'welcome' | 'auth' | 'choose-house' | 'join-house' | 'create-house' | 'app'
-  const [view, setView] = useState('welcome');
+  // view: 'loading' | 'auth' | 'choose-house' | 'join-house' | 'create-house' | 'app'
+  const [view, setView] = useState('loading');
   const [authSession, setAuthSession] = useState(undefined); // undefined = non ancora controllata
+  const [loadError, setLoadError] = useState(null);
+  const [legacyNotice, setLegacyNotice] = useState(hasLegacySession);
   const [houses,        setHouses]        = useState([]); // da GET /houses/mine
   const [activeHouseId, setActiveHouseId] = useState(loadActiveHouseId());
   const [addingHouse,   setAddingHouse]   = useState(false); // true quando si aggiunge una casa dallo switcher (non primo accesso)
   const [pendingInviteToken, setPendingInviteToken] = useState(() => capturePendingInviteToken());
 
   const [showSwitcher, setShowSwitcher] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [showAbsences, setShowAbsences] = useState(false);
-  const [showSwaps, setShowSwaps] = useState(false);
-  const [showRooms, setShowRooms] = useState(false);
-  const [showCoinquilini, setShowCoinquilini] = useState(false);
-  const [showRotation, setShowRotation] = useState(false);
+  const [tab, setTab] = useState('oggi'); // 'oggi' | 'calendario' | 'scambi' | 'assenze' | 'casa'
+  const [subPage, setSubPage] = useState(null); // 'stanze' | 'coinquilini' | 'regole' | 'rotazione' | null
+  const tabRef = useRef('oggi');
   const [showReveal, setShowReveal] = useState(false);
   const [recalcVariant, setRecalcVariant] = useState(null); // 'next' | 'absence' | 'confirm' | null
   const recalcResolver = useRef(null);
   const suppressRevealRef = useRef(false);
-  const [viewMode, setViewMode] = useState('settimana'); // 'settimana' | 'mese'
   const [weekAnchorDay, setWeekAnchorDay] = useState(todayStr());
 
   const { toast, show: showToast } = useToast();
@@ -115,6 +111,48 @@ export default function App() {
   const houseId = session?.houseId ?? null;
   const userId  = session?.userId ?? null;
 
+  // Navigazione tra i tab legata alla cronologia, così il tasto indietro di
+  // Android torna a Oggi invece di chiudere l'app. `depth` è quanti passi
+  // indietro servono per tornare a Oggi: 0 Oggi, 1 un tab, 2 una sotto-pagina.
+  function applyNav(nextTab, nextSub = null) {
+    tabRef.current = nextTab;
+    setTab(nextTab);
+    setSubPage(nextSub);
+    window.scrollTo(0, 0);
+  }
+
+  function resetNav() {
+    window.history.replaceState({ tab: 'oggi', sub: null, depth: 0 }, '');
+    applyNav('oggi');
+  }
+
+  useEffect(() => {
+    window.history.replaceState({ tab: 'oggi', sub: null, depth: 0 }, '');
+    function onPop(e) { applyNav(e.state?.tab ?? 'oggi', e.state?.sub ?? null); }
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  function goToTab(next) {
+    const current = tabRef.current;
+    if (next === current) { window.scrollTo(0, 0); return; }
+    const depth = window.history.state?.depth ?? 0;
+    if (next === 'oggi') { window.history.go(-depth); return; }
+    if (depth === 0) window.history.pushState({ tab: next, sub: null, depth: 1 }, '');
+    else window.history.replaceState({ tab: next, sub: null, depth }, '');
+    applyNav(next);
+  }
+
+  function openSubPage(sub) {
+    const depth = window.history.state?.depth ?? 0;
+    window.history.pushState({ tab: tabRef.current, sub, depth: depth + 1 }, '');
+    setSubPage(sub);
+  }
+
+  function closeSubPage() {
+    window.history.back();
+  }
+
   // Ascolta lo stato di autenticazione Supabase: parte con la sessione
   // corrente (se c'e' gia', da localStorage gestito dall'SDK) e reagisce
   // a login/logout/refresh token per tutta la vita dell'app.
@@ -125,17 +163,20 @@ export default function App() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  // Quando cambia la sessione (login/logout), ricarica l'elenco case di
-  // questa identità e decide dove atterrare.
-  useEffect(() => {
-    if (authSession === undefined) return; // ancora in controllo
-    if (!authSession) {
-      setHouses([]);
-      setView('welcome');
-      return;
-    }
+  // Identità corrente: cambia solo con login/logout, non a ogni refresh del
+  // token, così il rinnovo della sessione non riporta al caricamento.
+  const authUserId = authSession === undefined ? undefined : (authSession?.user?.id ?? null);
+  const authUserIdRef = useRef(authUserId);
+  authUserIdRef.current = authUserId;
+
+  // Carica l'elenco case dell'identità e decide dove atterrare.
+  function loadHouses() {
+    const requestedFor = authUserIdRef.current;
+    setLoadError(null);
+    setView('loading');
     api.myHouses()
       .then(list => {
+        if (authUserIdRef.current !== requestedFor) return;
         setHouses(list);
         if (pendingInviteToken) {
           setAddingHouse(list.length > 0);
@@ -151,9 +192,22 @@ export default function App() {
         if (next !== activeHouseId) { setActiveHouseId(next); saveActiveHouseId(next); }
         setView('app');
       })
-      .catch(e => showToast(e.message, 'error'));
+      .catch(e => {
+        if (authUserIdRef.current === requestedFor) setLoadError(e.message);
+      });
+  }
+
+  useEffect(() => {
+    if (authUserId === undefined) return; // ancora in controllo
+    if (!authUserId) {
+      setHouses([]);
+      setLoadError(null);
+      setView('auth');
+      return;
+    }
+    loadHouses();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authSession]);
+  }, [authUserId]);
 
   // When houseId is known, load house data
   useEffect(() => {
@@ -212,16 +266,17 @@ export default function App() {
     if (!houseId) return;
     const swapParam = new URLSearchParams(window.location.search).get('swap');
     if (swapParam) {
-      setShowSwaps(true);
+      window.history.replaceState(window.history.state, '', window.location.pathname);
+      goToTab('scambi');
       swapsHook.load(houseId).catch(() => {});
-      window.history.replaceState({}, '', window.location.pathname);
     }
   }, [houseId]);
 
   useEffect(() => {
     if (!houseId) return;
     function onOpenSwap() {
-      setShowSwaps(true);
+      setSubPage(null);
+      goToTab('scambi');
       swapsHook.load(houseId).catch(() => {});
     }
     function onSwapsUpdated() {
@@ -258,6 +313,17 @@ export default function App() {
     });
   }
 
+  // Link d'invito aperto da chi è già nella casa: si va direttamente lì.
+  function handleAlreadyMember(houseIdFromInvite) {
+    localStorage.removeItem('pendingInviteToken');
+    setPendingInviteToken(null);
+    setActiveHouseId(houseIdFromInvite);
+    saveActiveHouseId(houseIdFromInvite);
+    setAddingHouse(false);
+    setView('app');
+    showToast('Fai già parte di questa casa');
+  }
+
   function handleCreateSuccess(created) {
     refreshHouses(created.houseId).then(() => {
       setAddingHouse(false);
@@ -288,13 +354,17 @@ export default function App() {
   // altre, perché non c'è più nulla da cachare per-casa lato client.
   function logout() {
     saveActiveHouseId(null);
-    setShowSettings(false);
+    resetNav();
     supabase.auth.signOut();
   }
 
   // Chiede all'utente se la modifica vale dal turno successivo o se ricalcolare
   // anche il turno in corso. Risolve 'next', 'now' oppure null (annullato).
   function askRecalculate(variant) {
+    // Senza stanze non esistono turni: non c'è niente da ricalcolare o perdere.
+    if (houseHook.house?.rooms?.length === 0) {
+      return Promise.resolve(variant === 'confirm' ? 'now' : 'next');
+    }
     return new Promise(resolve => {
       recalcResolver.current = resolve;
       setRecalcVariant(variant);
@@ -317,7 +387,7 @@ export default function App() {
     if (!window.confirm('Sei sicuro di voler abbandonare questa casa? Non potrai più accedere senza un nuovo invito. Il turno in corso verrà ricalcolato.')) return;
     try {
       await api.leaveHouse(houseId);
-      setShowSettings(false);
+      resetNav();
       const list = await api.myHouses();
       setHouses(list);
       const next = list[0]?.houseId ?? null;
@@ -413,7 +483,7 @@ export default function App() {
     if (!turno) { showToast('Nessun turno disponibile per questo giorno'); return; }
     weeksHook.goToId(turno.id);
     setWeekAnchorDay(dateStr);
-    setViewMode('settimana');
+    goToTab('oggi');
   }
 
   function syncCardToWeekAnchor(dateStr) {
@@ -421,19 +491,29 @@ export default function App() {
     if (turno) weeksHook.goToId(turno.id);
   }
 
+  // Mostra l'errore delle azioni dei sotto-schermi e lo rilancia, così il modulo
+  // non si svuota come se il salvataggio fosse andato a buon fine.
+  function guarded(action) {
+    return async (...args) => {
+      try {
+        return await action(...args);
+      } catch (e) {
+        showToast(e.message, 'error');
+        throw e;
+      }
+    };
+  }
+
   // ---- Routing ----
   if (!BYPASS_INSTALL_GATE && !isStandalone()) return <InstallGate />;
 
-  if (authSession === undefined) return (
-    <div className="min-h-screen bg-cream flex items-center justify-center">
-      <Loader2 size={32} className="animate-spin text-brown" />
-    </div>
+  if (authSession === undefined || view === 'loading') return (
+    <LoadingScreen error={loadError} onRetry={loadHouses} onLogout={() => supabase.auth.signOut()} />
   );
 
-  if (view === 'welcome')      return hasLegacySession()
-    ? <UpgradeNoticeScreen onContinue={() => { clearLegacySession(); setView('auth'); }} />
-    : <WelcomeScreen onStart={() => setView('auth')} />;
-  if (view === 'auth')         return <LoginScreen onBack={() => setView('welcome')} />;
+  if (view === 'auth') return legacyNotice
+    ? <UpgradeNoticeScreen onContinue={() => { clearLegacySession(); setLegacyNotice(false); }} />
+    : <LoginScreen />;
   if (view === 'choose-house') return (
     <ChooseHouseScreen
       onJoin={() => setView('join-house')}
@@ -446,6 +526,8 @@ export default function App() {
     <JoinHouseScreen
       onSuccess={handleJoinSuccess}
       initialToken={pendingInviteToken}
+      houses={houses}
+      onAlreadyMember={handleAlreadyMember}
       onBack={() => {
         localStorage.removeItem('pendingInviteToken');
         setPendingInviteToken(null);
@@ -470,19 +552,115 @@ export default function App() {
   const { currentWeek, weeks, loading } = weeksHook;
   const house = houseHook.house;
 
-  const assignments = currentWeek?.assignments ?? [];
-  const myAssignments     = assignments.filter(a => a.userId === userId);
-  const othersAssignments = assignments.filter(a => a.userId !== userId);
-  const unassignedRooms = currentWeek
-    ? (house?.rooms ?? []).filter(r => !assignments.some(a => a.roomId === r.id))
-    : [];
+  const pendingSwaps = swapsHook.swaps.filter(s => s.toUserId === userId && s.status === 'pending').length;
 
   return (
     <>
-      <Header
-        houseName={session.houseName}
-        currentUser={session.userName}
-        onOpenSwitcher={() => setShowSwitcher(true)}
+      <main
+        className="px-5 flex flex-col gap-4"
+        style={{
+          paddingTop: 'calc(env(safe-area-inset-top) + 1rem)',
+          paddingBottom: 'calc(env(safe-area-inset-bottom) + 6.5rem)',
+        }}
+      >
+        {tab === 'oggi' && (
+          <TodayScreen
+            session={session}
+            house={house}
+            week={currentWeek}
+            weeks={weeks}
+            loading={loading}
+            loadError={weeksHook.error}
+            onRetry={() => weeksHook.load(houseId)}
+            userId={userId}
+            isAbsent={absencesHook.isAbsent}
+            notificationsOff={pushHook.status === 'inactive'}
+            onOpenSwitcher={() => setShowSwitcher(true)}
+            onOpenSettings={() => goToTab('casa')}
+            onAddRooms={() => openSubPage('stanze')}
+            onToggle={handleToggle}
+            weekViewProps={{
+              weeks,
+              users: house?.users ?? [],
+              userId,
+              houseId,
+              ensureThrough: weeksHook.ensureThrough,
+              navLoading: weeksHook.navLoading,
+              navError: weeksHook.error,
+              onJumpToDay: jumpToDay,
+              onToday: () => { weeksHook.goToCurrent(); setWeekAnchorDay(todayStr()); },
+              anchorDay: weekAnchorDay,
+              onAnchorChange: syncCardToWeekAnchor,
+              onScrollNavigate: () => { suppressRevealRef.current = true; },
+            }}
+          />
+        )}
+
+        {tab === 'calendario' && (
+          <CalendarScreen
+            weeks={weeks}
+            users={house?.users ?? []}
+            rooms={house?.rooms ?? []}
+            userId={userId}
+            houseId={houseId}
+            ensureThrough={weeksHook.ensureThrough}
+            navLoading={weeksHook.navLoading}
+            navError={weeksHook.error}
+            isAbsent={absencesHook.isAbsent}
+            onOpenTurn={jumpToDay}
+          />
+        )}
+
+        {tab === 'scambi' && house && (
+          <SwapsScreen
+            house={house}
+            userId={userId}
+            weeks={weeks}
+            currentWeek={currentWeek}
+            swaps={swapsHook.swaps}
+            onPropose={handleProposeSwap}
+            onAccept={handleAcceptSwap}
+            onDecline={handleDeclineSwap}
+          />
+        )}
+
+        {tab === 'assenze' && house && (
+          <AbsencesScreen
+            house={house}
+            currentUserId={userId}
+            absences={absencesHook.absences}
+            onAdd={handleAddAbsence}
+            onUpdate={handleUpdateAbsence}
+            onRemove={handleRemoveAbsence}
+          />
+        )}
+
+        {tab === 'casa' && (
+          <HouseScreen
+            session={session}
+            house={house}
+            houseId={houseId}
+            onOpenSwitcher={() => setShowSwitcher(true)}
+            onOpenSub={openSubPage}
+            onLogout={logout}
+            onLeaveHouse={handleLeaveHouse}
+          />
+        )}
+
+        {tab !== 'oggi' && tab !== 'calendario' && tab !== 'casa' && !house && (
+          <div className="flex justify-center py-16 text-ink-2">
+            <Loader2 size={32} className="animate-spin" aria-label="Caricamento" />
+          </div>
+        )}
+      </main>
+
+      <BottomBar
+        active={tab}
+        pendingSwaps={pendingSwaps}
+        onChange={next => {
+          if (next === 'scambi') swapsHook.load(houseId).catch(() => {});
+          goToTab(next);
+        }}
       />
 
       {showSwitcher && (
@@ -496,111 +674,6 @@ export default function App() {
         />
       )}
 
-      <ViewModeSwitcher mode={viewMode} onChange={setViewMode} />
-
-      {viewMode === 'mese' ? (
-        <MonthAggregateView
-          weeks={weeks}
-          users={house?.users ?? []}
-          userId={userId}
-          houseId={houseId}
-          ensureThrough={weeksHook.ensureThrough}
-          navLoading={weeksHook.navLoading}
-          navError={weeksHook.error}
-          onJumpToDay={jumpToDay}
-        />
-      ) : currentWeek ? (
-        <>
-          <WeekAggregateView
-            weeks={weeks}
-            users={house?.users ?? []}
-            userId={userId}
-            houseId={houseId}
-            ensureThrough={weeksHook.ensureThrough}
-            navLoading={weeksHook.navLoading}
-            navError={weeksHook.error}
-            onJumpToDay={jumpToDay}
-            onToday={() => { weeksHook.goToCurrent(); setWeekAnchorDay(todayStr()); }}
-            anchorDay={weekAnchorDay}
-            onAnchorChange={syncCardToWeekAnchor}
-            onScrollNavigate={() => { suppressRevealRef.current = true; }}
-          />
-
-          <div className="px-4 pt-3 flex flex-col gap-3">
-            {/* Hero: il mio turno (può essere più di una stanza) */}
-            {myAssignments.length > 0 ? myAssignments.map((a, i) => (
-              <ChoreCard
-                key={a.roomId}
-                assignment={a}
-                absent={absencesHook.isAbsent(a.userId, currentWeek.start, currentWeek.end)}
-                isMe
-                week={currentWeek}
-                onToggle={handleToggle}
-                roomIndex={i + 1}
-                roomTotal={myAssignments.length}
-              />
-            )) : (
-              <div className="bg-card rounded-2xl border-2 border-border p-6 text-center">
-                <p className="font-serif text-[1.15rem] text-ink">Nessun turno</p>
-                <p className="text-[.78rem] text-ink-2 mt-1">Non hai stanze assegnate in questo periodo.</p>
-              </div>
-            )}
-
-            {/* Sezione compatta: gli altri */}
-            {othersAssignments.length > 0 && (
-              <div className="bg-card rounded-2xl border border-border overflow-hidden">
-                <div className="px-4 pt-3 pb-1">
-                  <span className="text-[.62rem] font-bold uppercase tracking-[.08em] text-ink-2">Coinquilini</span>
-                </div>
-                <div className="divide-y divide-border">
-                  {othersAssignments.map(asgn => (
-                    <ChoreCard
-                      key={`${asgn.userId}-${asgn.roomId}`}
-                      assignment={asgn}
-                      absent={absencesHook.isAbsent(asgn.userId, currentWeek.start, currentWeek.end)}
-                      compact
-                      week={currentWeek}
-                      onToggle={handleToggle}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Stanze scoperte: tutti gli idonei sono assenti per l'intero turno */}
-            {unassignedRooms.length > 0 && (
-              <div className="bg-card rounded-2xl border border-dashed border-sage overflow-hidden">
-                <div className="px-4 pt-3 pb-1">
-                  <span className="text-[.62rem] font-bold uppercase tracking-[.08em] text-ink-2">Stanze scoperte</span>
-                </div>
-                <div className="divide-y divide-border">
-                  {unassignedRooms.map(r => (
-                    <div key={r.id} className="flex items-center gap-3 px-4 py-[11px] text-ink-2">
-                      <span className="text-[1.05rem]">{r.icon}</span>
-                      <span className="flex-1 text-[.85rem]">
-                        <strong className="text-ink">{r.name}</strong> — nessuno assegnato: tutti assenti questo turno
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </>
-      ) : loading ? (
-        <div className="mx-4 mt-6 bg-card rounded-2xl border border-border p-10 text-center text-ink-2">
-          <div className="flex justify-center mb-3"><Loader2 size={40} className="animate-spin" /></div>
-          <p className="text-[.88rem]">Caricamento…</p>
-        </div>
-      ) : (
-        <div className="mx-4 mt-6 bg-card rounded-2xl border border-border p-10 text-center text-ink-2">
-          <div className="flex justify-center mb-3"><ClipboardList size={40} /></div>
-          <p className="text-[.88rem]">Nessuna settimana disponibile.</p>
-        </div>
-      )}
-
-      <div style={{ height: 'calc(env(safe-area-inset-bottom) + 6rem)' }} />
-
       {showReveal && (
         <RevealModal
           week={currentWeek}
@@ -609,123 +682,79 @@ export default function App() {
         />
       )}
 
-      {showSettings && house && (
-        <SettingsPanel
+      {subPage === 'regole' && house && (
+        <RulesScreen
           house={house}
           isAdmin={session.isAdmin}
-          houseId={houseId}
-          userId={userId}
-          onClose={() => setShowSettings(false)}
-          onLogout={logout}
-          onLeaveHouse={handleLeaveHouse}
-          onAddRule={async (type, config) => {
+          onClose={closeSubPage}
+          onAddRule={guarded(async (type, config) => {
             const scope = await askRecalculate('next');
             await houseHook.addRule(houseId, type, config, scope);
             await weeksHook.load(houseId);
-          }}
-          onEditRule={async (ruleId, type, config) => {
+          })}
+          onEditRule={guarded(async (ruleId, type, config) => {
             const scope = await askRecalculate('next');
             await houseHook.editRule(houseId, ruleId, type, config, scope);
             await weeksHook.load(houseId);
-          }}
-          onRemoveRule={async (ruleId) => {
+          })}
+          onRemoveRule={guarded(async (ruleId) => {
             const scope = await askRecalculate('next');
             await houseHook.removeRule(houseId, ruleId, scope);
             await weeksHook.load(houseId);
-          }}
+          })}
         />
       )}
 
-      <MenuFab
-        isAdmin={session.isAdmin}
-        pendingSwaps={swapsHook.swaps.filter(s => s.toUserId === userId && s.status === 'pending').length}
-        onOpenAbsences={() => setShowAbsences(true)}
-        onOpenSwaps={() => {
-          setShowSwaps(true);
-          swapsHook.load(houseId).catch(() => {});
-        }}
-        onOpenRooms={() => setShowRooms(true)}
-        onOpenCoinquilini={() => setShowCoinquilini(true)}
-        onOpenRotation={() => setShowRotation(true)}
-        onOpenSettings={() => setShowSettings(true)}
-      />
-
-      {showAbsences && house && (
-        <AbsencesScreen
-          house={house}
-          currentUserId={userId}
-          absences={absencesHook.absences}
-          onAdd={handleAddAbsence}
-          onUpdate={handleUpdateAbsence}
-          onRemove={handleRemoveAbsence}
-          onClose={() => setShowAbsences(false)}
-        />
-      )}
-
-      {showSwaps && house && (
-        <SwapsScreen
-          house={house}
-          userId={userId}
-          weeks={weeks}
-          currentWeek={currentWeek}
-          swaps={swapsHook.swaps}
-          onPropose={handleProposeSwap}
-          onAccept={handleAcceptSwap}
-          onDecline={handleDeclineSwap}
-          onClose={() => setShowSwaps(false)}
-        />
-      )}
-
-      {showRooms && house && (
+      {subPage === 'stanze' && house && (
         <RoomsScreen
           house={house}
-          onAddRoom={async (data) => {
+          onAddRoom={guarded(async (data) => {
             const scope = await askRecalculate('next');
             await houseHook.addRoom(houseId, data, scope);
             await weeksHook.load(houseId);
             showToast('Stanza aggiunta', 'success');
-          }}
-          onEditRoom={async (roomId, data) => {
+          })}
+          onEditRoom={guarded(async (roomId, data) => {
             await houseHook.editRoom(houseId, roomId, data);
             await weeksHook.load(houseId);
             showToast('Stanza aggiornata', 'success');
-          }}
-          onRemoveRoom={async (roomId) => {
+          })}
+          onRemoveRoom={guarded(async (roomId) => {
             if (!(await askRecalculate('confirm'))) return;
             await houseHook.removeRoom(houseId, roomId);
             await weeksHook.load(houseId);
-          }}
-          onClose={() => setShowRooms(false)}
+          })}
+          onClose={closeSubPage}
         />
       )}
 
-      {showCoinquilini && house && session.isAdmin && (
+      {subPage === 'coinquilini' && house && session.isAdmin && (
         <CoinquiliniScreen
           house={house}
-          onAddUser={async (name) => {
+          onAddUser={guarded(async (name) => {
             const scope = await askRecalculate('next');
             await houseHook.addUser(houseId, name, '', scope);
             await weeksHook.load(houseId);
             showToast(`${name} aggiunto`, 'success');
-          }}
-          onRemoveUser={async (uid) => {
+          })}
+          onRemoveUser={guarded(async (uid) => {
             if (!(await askRecalculate('confirm'))) return;
             await houseHook.removeUser(houseId, uid);
             await weeksHook.load(houseId);
-          }}
-          onClose={() => setShowCoinquilini(false)}
+          })}
+          onClose={closeSubPage}
         />
       )}
 
-      {showRotation && house && session.isAdmin && (
+      {subPage === 'rotazione' && house && session.isAdmin && (
         <RotationScreen
           house={house}
-          onUpdateRotation={async (rotationType, rotationDays) => {
+          onUpdateRotation={guarded(async (rotationType, rotationDays) => {
             const scope = await askRecalculate('next');
             await houseHook.updateRotation(houseId, rotationType, rotationDays, scope);
             await weeksHook.load(houseId);
-          }}
-          onClose={() => setShowRotation(false)}
+          })}
+          onClose={closeSubPage}
         />
       )}
 
