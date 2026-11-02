@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../lib/db.js';
-import { computeNextWeek, ensureFutureWeeks, purgeOldWeeks } from '../lib/scheduler.js';
+import { computeNextWeek, ensureFutureWeeks, purgeOldWeeks, withHouseLock } from '../lib/scheduler.js';
 import { requireAuth, requireMembership } from '../lib/auth.js';
 
 const router = Router({ mergeParams: true });
@@ -20,15 +20,18 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   const { houseId } = req.params;
   try {
-    const [weeks, users, rooms, rules, rotation, absences] = await Promise.all([
-      db.getWeeks(houseId), db.getUsers(houseId),
-      db.getRooms(houseId), db.getRules(houseId),
-      db.getRotationConfig(houseId), db.getAbsences(houseId),
-    ]);
-    const nw = computeNextWeek(weeks, users, rooms, rules, rotation, absences);
+    const { nw, allWeeks } = await withHouseLock(houseId, async () => {
+      const [weeks, users, rooms, rules, rotation, absences] = await Promise.all([
+        db.getWeeks(houseId), db.getUsers(houseId),
+        db.getRooms(houseId), db.getRules(houseId),
+        db.getRotationConfig(houseId), db.getAbsences(houseId),
+      ]);
+      const nw = computeNextWeek(weeks, users, rooms, rules, rotation, absences);
+      if (!nw) return { nw: null };
+      await db.insertWeek(nw, houseId);
+      return { nw, allWeeks: await db.getWeeks(houseId) };
+    });
     if (!nw) return res.status(409).json({ error: 'Il turno successivo esiste già' });
-    await db.insertWeek(nw, houseId);
-    const allWeeks = await db.getWeeks(houseId);
     // Nessuna notifica qui: i turni si generano anche in anticipo. L'avviso di
     // nuovo turno parte dal cron (reminders.js), il primo giorno del turno.
     res.status(201).json(allWeeks.find(w => w.id === nw.id) ?? nw);

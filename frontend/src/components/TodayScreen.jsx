@@ -12,7 +12,7 @@ function todayLabel() {
 }
 
 export function TodayScreen({
-  session, house, week, weeks, loading, loadError, onRetry, userId, isAbsent, notificationsOff,
+  session, house, week, weeks, loading, loadError, weekWithoutTurn, onRetry, userId, isAbsent, notificationsOff,
   onOpenSwitcher, onOpenSettings, onAddRooms, onToggle, weekViewProps,
 }) {
   const assignments = week?.assignments ?? [];
@@ -40,7 +40,12 @@ export function TodayScreen({
 
       {week ? (
         <>
-          {mine.length > 0 ? mine.map((a, i) => (
+          {weekWithoutTurn ? (
+            <section className="bg-card rounded-3xl p-6 text-center">
+              <p className="font-display font-bold text-[1.25rem]">Nessun turno in questa settimana</p>
+              <p className="text-[.875rem] text-ink-2 mt-1">Non risultano turni per questo periodo.</p>
+            </section>
+          ) : mine.length > 0 ? mine.map((a, i) => (
             <ChoreCard
               key={a.roomId}
               assignment={a}
@@ -59,7 +64,7 @@ export function TodayScreen({
 
           <WeekAggregateView {...weekViewProps} />
 
-          {assignments.length > 0 && (
+          {!weekWithoutTurn && assignments.length > 0 && (
             <section aria-label="La casa in questo turno" className="bg-card rounded-[20px] px-4 pt-3.5 pb-1.5">
               <div className="flex items-center justify-between mb-1">
                 <h2 className="text-[.9375rem] font-bold">La casa in questo turno</h2>
@@ -86,7 +91,7 @@ export function TodayScreen({
           )}
 
           {/* Stanze scoperte: tutti gli idonei assenti, o stanza aggiunta a turno già iniziato */}
-          {uncovered.length > 0 && (
+          {!weekWithoutTurn && uncovered.length > 0 && (
             <section aria-label="Stanze scoperte" className="bg-card rounded-[20px] border border-dashed border-strong px-4 pt-3.5 pb-1.5">
               <h2 className="text-[.9375rem] font-bold mb-1">Stanze scoperte</h2>
               <div className="divide-y divide-soft">
